@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Sex {
+  MALE
+  FEMALE
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+
+enum GoalType {
+  LOSE
+  MAINTAIN
+  GAIN
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}
+
+enum MealSource {
+  MANUAL
+  PHOTO
+  TEXT
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  name         String
+  passwordHash String?
+  googleId     String?  @unique
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  profile      Profile?
+  meals        Meal[]
+
+  @@map("users")
+}
+
+model Profile {
+  userId        String        @id @db.Uuid
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sex           Sex
+  birthDate     DateTime      @db.Date
+  heightCm      Int
+  weightKg      Float
+  activityLevel ActivityLevel
+  goal          GoalType
+  kcalTarget    Int
+  proteinTarget Int
+  carbsTarget   Int
+  fatTarget     Int
+  customTargets Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@map("profiles")
+}
+
+model Meal {
+  id        String     @id @default(uuid()) @db.Uuid
+  userId    String     @db.Uuid
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime   @db.Date
+  type      MealType
+  source    MealSource @default(MANUAL)
+  note      String?
+  createdAt DateTime   @default(now())
+  items     MealItem[]
+
+  @@index([userId, date])
+  @@map("meals")
+}
+
+model MealItem {
+  id      String @id @default(uuid()) @db.Uuid
+  mealId  String @db.Uuid
+  meal    Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  name    String
+  grams   Float
+  kcal    Float
+  protein Float
+  carbs   Float
+  fat     Float
+
+  @@index([mealId])
+  @@map("meal_items")
+}

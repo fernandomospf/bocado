@@ -1,0 +1,13 @@
+# Uso local: docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+# Abre em http://localhost:3000 (sem HTTPS, por isso COOKIE_SECURE=false)
+services:
+  backend:
+    environment:
+      COOKIE_SECURE: "false"
+      APP_URL: http://localhost:3000
+  frontend:
+    ports:
+      - "3000:3000"
+  postgres:
+    ports:
+      - "5432:5432"
