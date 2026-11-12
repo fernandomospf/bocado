@@ -144,3 +144,4 @@ frontend/
   src/components/      anéis, sheet, editores, vidro
   src/app/globals.css  sistema visual liquid glass (claro/escuro)
 ```
+# bocado
