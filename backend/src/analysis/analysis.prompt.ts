@@ -13,6 +13,7 @@ Como estimar:
 - Nomes curtos em português do Brasil, como o usuário escreveria ("Arroz branco", "Feijão carioca", "Peito de frango grelhado").
 - Se o usuário der uma dica, ela tem prioridade sobre o que você supõe da imagem.
 - Se não houver comida ou bebida, retorne isFood=false e items vazio.
+- O campo items deve ser um array JSON de objetos (nunca uma string). Use exatamente os nomes de campo do schema.
 
 Responda SEMPRE e SOMENTE chamando a ferramenta ${ANALYSIS_TOOL_NAME}, sem texto antes ou depois.
 Se por algum motivo não puder usar a ferramenta, responda apenas com o mesmo objeto em JSON puro.`;
@@ -33,15 +34,17 @@ export const ANALYSIS_TOOL: Anthropic.Tool = {
       },
       items: {
         type: 'array',
+        minItems: 1,
+        description: 'Array JSON de objetos, um por alimento (nunca uma string).',
         items: {
           type: 'object',
           properties: {
-            name: { type: 'string' },
-            grams: { type: 'number', description: 'Porção estimada em gramas (ou ml para bebidas).' },
-            kcal: { type: 'number' },
-            protein: { type: 'number', description: 'Gramas de proteína na porção.' },
-            carbs: { type: 'number', description: 'Gramas de carboidratos na porção.' },
-            fat: { type: 'number', description: 'Gramas de gordura na porção.' },
+            name: { type: 'string', description: 'Nome curto do alimento em português.' },
+            grams: { type: 'number', description: 'Porção estimada em gramas (ou ml para bebidas): número (sem unidade).' },
+            kcal: { type: 'number', description: 'Calorias da porção: número (sem unidade).' },
+            protein: { type: 'number', description: 'Gramas de proteína na porção: número (sem unidade).' },
+            carbs: { type: 'number', description: 'Gramas de carboidratos na porção: número (sem unidade).' },
+            fat: { type: 'number', description: 'Gramas de gordura na porção: número (sem unidade).' },
             confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
           },
           required: ['name', 'grams', 'kcal', 'protein', 'carbs', 'fat', 'confidence'],

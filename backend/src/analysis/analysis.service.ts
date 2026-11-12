@@ -96,19 +96,33 @@ export class AnalysisService {
     const block = message.content.find(
       (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === ANALYSIS_TOOL_NAME,
     );
-    if (block) return this.normalize(block.input as Record<string, unknown>);
-
     const text = message.content
       .filter((b): b is Anthropic.TextBlock => b.type === 'text')
       .map((b) => b.text)
       .join('\n');
-    const parsed = extractJson(text);
-    if (!parsed) {
-      this.logger.warn(`Análise sem tool_use nem JSON válido (stop_reason: ${message.stop_reason})`);
+
+    const summary = summarizeResponse(message, block, text);
+    this.logger.debug(`Resposta da IA: ${summary}`);
+
+    if (message.stop_reason === 'max_tokens') {
+      this.logger.warn(`Análise truncada por max_tokens: ${summary}`);
+      throw new ServiceUnavailableException('A análise ficou incompleta. Tente uma descrição mais curta.');
+    }
+
+    const raw: unknown = block ? block.input : extractJson(text);
+    if (!raw) {
+      this.logger.warn(`Análise sem tool_use nem JSON válido: ${summary}`);
       throw new ServiceUnavailableException('A análise não retornou um resultado válido. Tente de novo.');
     }
 
-    return this.normalize(parsed);
+    try {
+      return this.normalize(coerceAnalysis(raw));
+    } catch (err) {
+      if (err instanceof UnprocessableEntityException) {
+        this.logger.warn(`Análise rejeitada (422): ${summary}`);
+      }
+      throw err;
+    }
   }
 
   private toHttpError(err: unknown): HttpException {
@@ -185,6 +199,76 @@ export class AnalysisService {
       },
     };
   }
+}
+
+/** Resumo seguro da resposta para logs: nunca inclui a API key nem imagens (só existem no request). */
+function summarizeResponse(message: Anthropic.Message, block: Anthropic.ToolUseBlock | undefined, text: string) {
+  const types = message.content.map((b) => b.type).join(',') || '(vazio)';
+  const body = block ? JSON.stringify(block.input) : text;
+  return `stop_reason=${message.stop_reason} blocos=[${types}] ${block ? 'input' : 'texto'}=${body.slice(0, 500)}`;
+}
+
+const ITEMS_KEYS = ['items', 'itens', 'alimentos', 'foods'];
+
+const FIELD_ALIASES: Record<keyof AnalyzedItem, string[]> = {
+  name: ['name', 'nome'],
+  grams: ['grams', 'gramas', 'quantity', 'quantidade', 'peso'],
+  kcal: ['kcal', 'calorias', 'calories'],
+  protein: ['protein', 'proteina', 'proteína', 'proteinas', 'proteínas', 'proteins'],
+  carbs: ['carbs', 'carboidratos', 'carbohydrates'],
+  fat: ['fat', 'gordura', 'gorduras', 'fats'],
+  confidence: ['confidence', 'confianca', 'confiança'],
+};
+
+const NUMERIC_FIELDS = ['grams', 'kcal', 'protein', 'carbs', 'fat'] as const;
+
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+
+function parseMaybeJson(v: unknown): unknown {
+  if (typeof v !== 'string') return v;
+  try {
+    return JSON.parse(v);
+  } catch {
+    return v;
+  }
+}
+
+function pick(obj: Record<string, unknown>, keys: string[]): unknown {
+  for (const k of keys) if (obj[k] !== undefined) return obj[k];
+  return undefined;
+}
+
+/** "12,5" → 12.5, "120 g" → 120, "180 kcal" → 180. Valores não numéricos ficam como estão (clamp zera). */
+function toNumber(v: unknown): unknown {
+  if (typeof v !== 'string') return v;
+  const match = v.replace(',', '.').match(/-?\d+(?:\.\d+)?/);
+  return match ? parseFloat(match[0]) : v;
+}
+
+/** Aceita as variações reais do modelo (strings JSON, nomes em português, números com unidade) e devolve o formato do schema. */
+export function coerceAnalysis(raw: unknown): Record<string, unknown> {
+  const obj = parseMaybeJson(raw);
+  if (!isRecord(obj)) return { isFood: true, items: [] };
+
+  const itemsRaw = parseMaybeJson(pick(obj, ITEMS_KEYS));
+  const items = (Array.isArray(itemsRaw) ? itemsRaw : [])
+    .map(parseMaybeJson)
+    .filter(isRecord)
+    .map((item) => {
+      const out: Record<string, unknown> = {};
+      for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
+        out[field] = pick(item, aliases);
+      }
+      for (const field of NUMERIC_FIELDS) out[field] = toNumber(out[field]);
+      if (typeof out.confidence === 'string') out.confidence = out.confidence.trim().toLowerCase();
+      return out;
+    });
+
+  return {
+    ...obj,
+    isFood: obj.isFood === false || obj.isFood === 'false' ? false : true,
+    items,
+  };
 }
 
 function extractJson(text: string): Record<string, unknown> | null {
