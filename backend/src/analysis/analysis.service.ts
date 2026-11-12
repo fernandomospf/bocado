@@ -9,6 +9,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { extractItemObjects, parseLooseJson, toNumber } from './analysis.parse';
 import { ANALYSIS_TOOL, ANALYSIS_TOOL_NAME, SYSTEM_PROMPT } from './analysis.prompt';
 
 export type Confidence = 'low' | 'medium' | 'high';
@@ -115,8 +116,14 @@ export class AnalysisService {
       throw new ServiceUnavailableException('A análise não retornou um resultado válido. Tente de novo.');
     }
 
+    const stats: CoerceStats = { discarded: 0 };
+    const coerced = coerceAnalysis(raw, stats);
+    if (stats.discarded > 0) {
+      this.logger.warn(`Análise: ${stats.discarded} item(ns) irreparável(is) descartado(s): ${summary}`);
+    }
+
     try {
-      return this.normalize(coerceAnalysis(raw));
+      return this.normalize(coerced);
     } catch (err) {
       if (err instanceof UnprocessableEntityException) {
         this.logger.warn(`Análise rejeitada (422): ${summary}`);
@@ -222,47 +229,61 @@ const FIELD_ALIASES: Record<keyof AnalyzedItem, string[]> = {
 
 const NUMERIC_FIELDS = ['grams', 'kcal', 'protein', 'carbs', 'fat'] as const;
 
+const CONFIDENCES: readonly Confidence[] = ['low', 'medium', 'high'];
+
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-function parseMaybeJson(v: unknown): unknown {
+const parseMaybeJson = (v: unknown): unknown => {
   if (typeof v !== 'string') return v;
-  try {
-    return JSON.parse(v);
-  } catch {
-    return v;
-  }
-}
+  const parsed = parseLooseJson(v);
+  return parsed === null ? v : parsed;
+};
 
 function pick(obj: Record<string, unknown>, keys: string[]): unknown {
   for (const k of keys) if (obj[k] !== undefined) return obj[k];
   return undefined;
 }
 
-/** "12,5" → 12.5, "120 g" → 120, "180 kcal" → 180. Valores não numéricos ficam como estão (clamp zera). */
-function toNumber(v: unknown): unknown {
-  if (typeof v !== 'string') return v;
-  const match = v.replace(',', '.').match(/-?\d+(?:\.\d+)?/);
-  return match ? parseFloat(match[0]) : v;
+/** items pode vir como array ou como string com JSON (às vezes malformado). Conta os itens que não deu para aproveitar. */
+function resolveItems(value: unknown): { list: unknown[]; discarded: number } {
+  if (Array.isArray(value)) return { list: value, discarded: 0 };
+  if (typeof value !== 'string' || !value.trim()) return { list: [], discarded: 0 };
+
+  const parsed = parseLooseJson(value);
+  if (Array.isArray(parsed)) return { list: parsed, discarded: 0 };
+
+  const list = extractItemObjects(value);
+  const candidates = value.match(/\{[^{}]*\}/g)?.length ?? 0;
+  return { list, discarded: Math.max(candidates - list.length, list.length ? 0 : 1) };
 }
 
-/** Aceita as variações reais do modelo (strings JSON, nomes em português, números com unidade) e devolve o formato do schema. */
-export function coerceAnalysis(raw: unknown): Record<string, unknown> {
+export interface CoerceStats {
+  discarded: number;
+}
+
+/**
+ * Aceita as variações reais do modelo (items como string JSON malformada, nomes em português, números com unidade
+ * ou lixo grudado) e devolve o formato do schema. `stats.discarded` recebe quantos itens eram irreparáveis.
+ */
+export function coerceAnalysis(raw: unknown, stats?: CoerceStats): Record<string, unknown> {
   const obj = parseMaybeJson(raw);
   if (!isRecord(obj)) return { isFood: true, items: [] };
 
-  const itemsRaw = parseMaybeJson(pick(obj, ITEMS_KEYS));
-  const items = (Array.isArray(itemsRaw) ? itemsRaw : [])
-    .map(parseMaybeJson)
-    .filter(isRecord)
-    .map((item) => {
-      const out: Record<string, unknown> = {};
-      for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
-        out[field] = pick(item, aliases);
-      }
-      for (const field of NUMERIC_FIELDS) out[field] = toNumber(out[field]);
-      if (typeof out.confidence === 'string') out.confidence = out.confidence.trim().toLowerCase();
-      return out;
-    });
+  const { list, discarded } = resolveItems(pick(obj, ITEMS_KEYS));
+  const records = list.map(parseMaybeJson).filter(isRecord);
+
+  const items = records.map((item) => {
+    const out: Record<string, unknown> = {};
+    for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
+      out[field] = pick(item, aliases);
+    }
+    for (const field of NUMERIC_FIELDS) out[field] = toNumber(out[field]);
+    const confidence = typeof out.confidence === 'string' ? out.confidence.trim().toLowerCase() : '';
+    out.confidence = CONFIDENCES.includes(confidence as Confidence) ? confidence : 'low';
+    return out;
+  });
+
+  if (stats) stats.discarded = discarded + (list.length - records.length);
 
   return {
     ...obj,
