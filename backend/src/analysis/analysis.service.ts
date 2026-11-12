@@ -1,7 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import {
-  BadGatewayException,
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   ServiceUnavailableException,
@@ -33,7 +34,8 @@ const SUPPORTED_MEDIA = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] a
 type SupportedMedia = (typeof SUPPORTED_MEDIA)[number];
 
 const clamp = (n: unknown, max: number) => {
-  const v = typeof n === 'number' && Number.isFinite(n) ? n : 0;
+  const num = typeof n === 'number' ? n : typeof n === 'string' ? Number(n) : NaN;
+  const v = Number.isFinite(num) ? num : 0;
   return Math.round(Math.min(Math.max(v, 0), max) * 10) / 10;
 };
 
@@ -44,9 +46,9 @@ export class AnalysisService {
   private readonly model: string;
 
   constructor(config: ConfigService) {
-    const apiKey = config.get<string>('ANTHROPIC_API_KEY');
+    const apiKey = config.get<string>('ANTHROPIC_API_KEY')?.trim();
     this.client = apiKey ? new Anthropic({ apiKey, maxRetries: 2, timeout: 60_000 }) : null;
-    this.model = config.get<string>('ANTHROPIC_MODEL') || 'claude-sonnet-5-5';
+    this.model = config.get<string>('ANTHROPIC_MODEL')?.trim() || 'claude-sonnet-5-5';
   }
 
   async analyzePhoto(image: Buffer, mimeType: string, hint?: string): Promise<AnalysisResult> {
@@ -81,23 +83,60 @@ export class AnalysisService {
     try {
       message = await this.client.messages.create({
         model: this.model,
-        max_tokens: 1500,
+        max_tokens: 2000,
         system: SYSTEM_PROMPT,
         tools: [ANALYSIS_TOOL],
-        tool_choice: { type: 'tool', name: ANALYSIS_TOOL_NAME },
+        tool_choice: { type: 'auto' },
         messages: [{ role: 'user', content }],
       });
     } catch (err) {
-      this.logger.error(`Falha na chamada ao Claude: ${(err as Error).message}`);
-      throw new BadGatewayException('Não foi possível analisar agora. Tente de novo em instantes.');
+      throw this.toHttpError(err);
     }
 
     const block = message.content.find(
       (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === ANALYSIS_TOOL_NAME,
     );
-    if (!block) throw new BadGatewayException('A análise não retornou um resultado válido.');
+    if (block) return this.normalize(block.input as Record<string, unknown>);
 
-    return this.normalize(block.input as Record<string, unknown>);
+    const text = message.content
+      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+      .map((b) => b.text)
+      .join('\n');
+    const parsed = extractJson(text);
+    if (!parsed) {
+      this.logger.warn(`Análise sem tool_use nem JSON válido (stop_reason: ${message.stop_reason})`);
+      throw new ServiceUnavailableException('A análise não retornou um resultado válido. Tente de novo.');
+    }
+
+    return this.normalize(parsed);
+  }
+
+  private toHttpError(err: unknown): HttpException {
+    const generic = new ServiceUnavailableException('Não foi possível analisar agora. Tente de novo em instantes.');
+
+    if (err instanceof Anthropic.APIError) {
+      const status = err.status;
+      const msg = err.message ?? '';
+      const lower = msg.toLowerCase();
+      this.logger.error(`Falha na chamada ao Claude (modelo ${this.model}): ${status} ${msg}`);
+
+      if (status === 401 || status === 403) {
+        return new ServiceUnavailableException('Chave da IA inválida no servidor.');
+      }
+      if (status === 404 || lower.includes('model')) {
+        return new ServiceUnavailableException('Modelo de IA não encontrado. Verifique ANTHROPIC_MODEL.');
+      }
+      if (lower.includes('credit balance')) {
+        return new ServiceUnavailableException('Créditos da IA esgotados no servidor.');
+      }
+      if (status === 429) {
+        return new HttpException('Muitas análises seguidas. Aguarde um minuto.', HttpStatus.TOO_MANY_REQUESTS);
+      }
+      return generic;
+    }
+
+    this.logger.error(`Falha inesperada na análise: ${err instanceof Error ? err.message : String(err)}`);
+    return generic;
   }
 
   /** Nunca confia cegamente na saída do modelo: valida, limita e arredonda. */
@@ -145,5 +184,18 @@ export class AnalysisService {
         fat: Math.round(totals.fat * 10) / 10,
       },
     };
+  }
+}
+
+function extractJson(text: string): Record<string, unknown> | null {
+  const cleaned = text.replace(/```(?:json)?/gi, '');
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start === -1 || end <= start) return null;
+  try {
+    const value = JSON.parse(cleaned.slice(start, end + 1));
+    return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
+  } catch {
+    return null;
   }
 }

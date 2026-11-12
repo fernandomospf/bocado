@@ -14,7 +14,8 @@ Como estimar:
 - Se o usuário der uma dica, ela tem prioridade sobre o que você supõe da imagem.
 - Se não houver comida ou bebida, retorne isFood=false e items vazio.
 
-Responda sempre chamando a ferramenta ${ANALYSIS_TOOL_NAME}.`;
+Responda SEMPRE e SOMENTE chamando a ferramenta ${ANALYSIS_TOOL_NAME}, sem texto antes ou depois.
+Se por algum motivo não puder usar a ferramenta, responda apenas com o mesmo objeto em JSON puro.`;
 
 export const ANALYSIS_TOOL: Anthropic.Tool = {
   name: ANALYSIS_TOOL_NAME,

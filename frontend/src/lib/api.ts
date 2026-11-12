@@ -29,6 +29,9 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
 
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => null);
+  if (!res.ok && data === null) {
+    console.error(`[api] ${init.method ?? 'GET'} ${path} → ${res.status} (resposta não-JSON)`);
+  }
   if (!res.ok) {
     const raw = data?.message;
     const message = Array.isArray(raw) ? raw[0] : typeof raw === 'string' ? raw : null;
@@ -40,7 +43,7 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
 function fallbackMessage(status: number) {
   if (status === 401) return 'Sua sessão expirou. Entre novamente.';
   if (status === 429) return 'Muitas tentativas seguidas. Aguarde um minuto.';
-  if (status >= 500) return 'O servidor não respondeu como esperado. Tente de novo.';
+  if (status >= 500) return `O servidor não respondeu como esperado (${status}). Tente de novo.`;
   return 'Não foi possível concluir. Tente de novo.';
 }
 
