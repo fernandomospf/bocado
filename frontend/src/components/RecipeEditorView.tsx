@@ -109,7 +109,7 @@ export function RecipeEditorView({ id }: { id: string }) {
   const title = isNew ? 'Nova receita' : readOnly ? 'Receita da casa' : 'Editar receita';
 
   return (
-    <main className="screen">
+    <main className="screen screen-narrow">
       <header className="header" style={{ alignItems: 'center' }}>
         <button className="btn btn-glass btn-icon" onClick={() => router.back()} aria-label="Voltar">
           <ChevronLeft width={20} height={20} />

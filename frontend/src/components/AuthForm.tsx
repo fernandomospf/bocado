@@ -6,8 +6,10 @@ import { type FormEvent, useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
 import type { Me } from '@/lib/types';
-import { GoogleIcon } from './Icons';
+import { CheckIcon, GoogleIcon } from './Icons';
 import { Logo } from './Logo';
+import { Rings } from './Rings';
+import { ringSpecs } from './ringSpecs';
 
 type Mode = 'login' | 'register';
 
@@ -47,100 +49,137 @@ export function AuthForm({ mode }: { mode: Mode }) {
   }
 
   return (
-    <main className="screen screen-plain screen-center">
-      <div className="brand">
-        <Logo size={72} />
-        <div className="stack" style={{ gap: 6 }}>
-          <h1 className="large-title">{isRegister ? 'Crie sua conta' : 'Bocado'}</h1>
-          <p className="body-2">
-            {isRegister ? 'Leva menos de um minuto.' : 'Cada bocado conta. Fotografe e pronto.'}
-          </p>
+    <div className="auth-layout">
+      <AuthHero />
+      <main className="screen screen-plain screen-center auth-screen">
+        <div className="brand">
+          <Logo size={72} />
+          <div className="stack" style={{ gap: 6 }}>
+            <h1 className="large-title">{isRegister ? 'Crie sua conta' : 'Bocado'}</h1>
+            <p className="body-2">
+              {isRegister ? 'Leva menos de um minuto.' : 'Cada bocado conta. Fotografe e pronto.'}
+            </p>
+          </div>
         </div>
-      </div>
 
-      <form className="card glass stack" onSubmit={onSubmit} noValidate>
-        {error && (
-          <p className="alert" role="alert">
-            {error}
-          </p>
-        )}
+        <form className="card glass stack" onSubmit={onSubmit} noValidate>
+          {error && (
+            <p className="alert" role="alert">
+              {error}
+            </p>
+          )}
 
-        {isRegister && (
+          {isRegister && (
+            <label className="field">
+              <span className="field-label">Nome</span>
+              <input
+                className="input"
+                autoComplete="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                minLength={2}
+              />
+            </label>
+          )}
+
           <label className="field">
-            <span className="field-label">Nome</span>
+            <span className="field-label">E-mail</span>
             <input
               className="input"
-              autoComplete="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              autoCapitalize="none"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
-              minLength={2}
             />
           </label>
-        )}
 
-        <label className="field">
-          <span className="field-label">E-mail</span>
-          <input
-            className="input"
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            autoCapitalize="none"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </label>
+          <label className="field">
+            <span className="field-label">Senha</span>
+            <input
+              className="input"
+              type="password"
+              autoComplete={isRegister ? 'new-password' : 'current-password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={isRegister ? 8 : 1}
+              placeholder={isRegister ? 'Mínimo de 8 caracteres' : undefined}
+            />
+          </label>
 
-        <label className="field">
-          <span className="field-label">Senha</span>
-          <input
-            className="input"
-            type="password"
-            autoComplete={isRegister ? 'new-password' : 'current-password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={isRegister ? 8 : 1}
-            placeholder={isRegister ? 'Mínimo de 8 caracteres' : undefined}
-          />
-        </label>
+          <button className="btn btn-primary btn-block" disabled={busy} type="submit">
+            {busy ? <span className="spinner" aria-label="Carregando" /> : isRegister ? 'Criar conta' : 'Entrar'}
+          </button>
 
-        <button className="btn btn-primary btn-block" disabled={busy} type="submit">
-          {busy ? <span className="spinner" aria-label="Carregando" /> : isRegister ? 'Criar conta' : 'Entrar'}
-        </button>
+          {providers?.google && (
+            <>
+              <div className="divider">ou</div>
+              {/* Navegação completa: o fluxo OAuth precisa sair do app e voltar */}
+              <a className="btn btn-glass btn-block" href="/api/auth/google">
+                <GoogleIcon />
+                Continuar com Google
+              </a>
+            </>
+          )}
+        </form>
 
-        {providers?.google && (
-          <>
-            <div className="divider">ou</div>
-            {/* Navegação completa: o fluxo OAuth precisa sair do app e voltar */}
-            <a className="btn btn-glass btn-block" href="/api/auth/google">
-              <GoogleIcon />
-              Continuar com Google
-            </a>
-          </>
-        )}
-      </form>
+        <p className="caption" style={{ textAlign: 'center' }}>
+          Ao continuar, você concorda com os{' '}
+          <Link href="/termos" className="text-link">
+            Termos de Uso
+          </Link>{' '}
+          e a{' '}
+          <Link href="/privacidade" className="text-link">
+            Política de Privacidade
+          </Link>
+          .
+        </p>
 
-      <p className="caption" style={{ textAlign: 'center' }}>
-        Ao continuar, você concorda com os{' '}
-        <Link href="/termos" className="text-link">
-          Termos de Uso
-        </Link>{' '}
-        e a{' '}
-        <Link href="/privacidade" className="text-link">
-          Política de Privacidade
-        </Link>
-        .
-      </p>
+        <p className="body-2" style={{ textAlign: 'center' }}>
+          {isRegister ? 'Já tem conta? ' : 'Ainda não tem conta? '}
+          <Link href={isRegister ? '/login' : '/register'} className="btn-plain" style={{ padding: 0 }}>
+            {isRegister ? 'Entrar' : 'Criar conta'}
+          </Link>
+        </p>
+      </main>
+    </div>
+  );
+}
 
-      <p className="body-2" style={{ textAlign: 'center' }}>
-        {isRegister ? 'Já tem conta? ' : 'Ainda não tem conta? '}
-        <Link href={isRegister ? '/login' : '/register'} className="btn-plain" style={{ padding: 0 }}>
-          {isRegister ? 'Entrar' : 'Criar conta'}
-        </Link>
-      </p>
-    </main>
+const HERO_TARGETS = { kcal: 2100, protein: 150, carbs: 220, fat: 70 };
+const HERO_TOTALS = { kcal: 1480, protein: 118, carbs: 141, fat: 46 };
+
+const BENEFITS = [
+  'Registre por foto, descrição ou busca, em segundos',
+  'Metas de calorias e macros calculadas para você',
+  'Base TACO com os alimentos do dia a dia brasileiro',
+];
+
+/** Apresentação ao lado do formulário, só no desktop (o CSS esconde abaixo de 1100px). */
+function AuthHero() {
+  return (
+    <aside className="auth-hero desktop-only" aria-label="Sobre o Bocado">
+      <div aria-hidden>
+        <Rings rings={ringSpecs(HERO_TOTALS, HERO_TARGETS)} size={212} stroke={20} gap={5} />
+      </div>
+      <div className="stack" style={{ gap: 10 }}>
+        <h2 className="large-title">Cada bocado conta.</h2>
+        <p className="body-2">Acompanhe calorias e macronutrientes sem planilha e sem complicação.</p>
+      </div>
+      <ul className="auth-benefits">
+        {BENEFITS.map((b) => (
+          <li key={b}>
+            <span className="auth-benefit-mark" aria-hidden>
+              <CheckIcon width={16} height={16} />
+            </span>
+            {b}
+          </li>
+        ))}
+      </ul>
+    </aside>
   );
 }

@@ -20,6 +20,7 @@ interface RingsProps {
 
 /**
  * Anéis concêntricos no estilo "Atividade" da Apple.
+ * O SVG escala pelo viewBox: no CSS, `--rings-size` muda o tamanho sem recalcular a geometria.
  * Acima de 100% o anel dá uma segunda volta, com sombra na ponta para mostrar o excesso.
  */
 export function Rings({ rings, size = 176, stroke = 17, gap = 4 }: RingsProps) {
@@ -38,7 +39,11 @@ export function Rings({ rings, size = 176, stroke = 17, gap = 4 }: RingsProps) {
 
   return (
     <div className="rings" role="img" aria-label={description}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {/* `size` define só o sistema de coordenadas; o tamanho na tela vem do CSS (--rings-size por breakpoint) */}
+      <svg
+        viewBox={`0 0 ${size} ${size}`}
+        style={{ width: `var(--rings-size, ${size}px)`, height: `var(--rings-size, ${size}px)` }}
+      >
         <defs>
           {rings.map((r) => (
             <linearGradient key={r.key} id={`${id}-${r.key}`} x1="0" y1="0" x2="1" y2="1">

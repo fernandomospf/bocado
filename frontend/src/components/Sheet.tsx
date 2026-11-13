@@ -10,7 +10,33 @@ interface SheetProps {
   children: ReactNode;
 }
 
-/** Folha inferior modal, com foco preso e fechamento por Esc ou toque fora. */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** Mantém o Tab dentro do painel: do último elemento volta ao primeiro (e vice-versa com Shift). */
+function trapTab(e: KeyboardEvent, root: HTMLElement) {
+  const items = [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.offsetParent !== null);
+  if (items.length === 0) {
+    e.preventDefault();
+    root.focus();
+    return;
+  }
+  const first = items[0];
+  const last = items[items.length - 1];
+  const active = document.activeElement;
+  if (e.shiftKey && (active === first || active === root)) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && (active === last || !root.contains(active))) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
+/**
+ * Folha modal, com foco preso e fechamento por Esc ou toque fora.
+ * No celular sobe de baixo; a partir de 768px o CSS a transforma num diálogo centralizado.
+ */
 export function Sheet({ open, title, onClose, children }: SheetProps) {
   const panel = useRef<HTMLDivElement>(null);
 
@@ -23,6 +49,7 @@ export function Sheet({ open, title, onClose, children }: SheetProps) {
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
+      if (e.key === 'Tab' && panel.current) trapTab(e, panel.current);
     };
     window.addEventListener('keydown', onKey);
     return () => {

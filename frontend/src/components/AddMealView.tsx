@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, type DragEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
 import { isValidISO, todayISO } from '@/lib/date';
@@ -56,6 +56,7 @@ export function AddMealView() {
   const [description, setDescription] = useState('');
 
   const [busy, setBusy] = useState<'analyze' | 'save' | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -83,10 +84,11 @@ export function AddMealView() {
     if (next === 'manual' && items.length === 0) setItems([newDraft()]);
   }
 
-  async function onPickPhoto(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+  async function loadPhoto(file: File) {
+    if (!file.type.startsWith('image/')) {
+      setError('Solte uma imagem (JPG, PNG ou WebP).');
+      return;
+    }
     setError(null);
     try {
       const blob = await compressImage(file);
@@ -94,6 +96,20 @@ export function AddMealView() {
     } catch (err) {
       setError(errorMessage(err));
     }
+  }
+
+  async function onPickPhoto(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) await loadPhoto(file);
+  }
+
+  /** Desktop: arrastar e soltar a imagem na área da foto (além do clique). */
+  function onDrop(e: DragEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && busy !== 'analyze') void loadPhoto(file);
   }
 
   /** Item da busca. A refeição só vira SEARCH se nenhuma análise por IA tiver sido usada. */
@@ -163,7 +179,7 @@ export function AddMealView() {
   }
 
   return (
-    <main className="screen">
+    <main className="screen add-meal">
       <header className="header" style={{ alignItems: 'center' }}>
         <button className="btn btn-glass btn-icon" onClick={() => router.back()} aria-label="Voltar">
           <ChevronLeft width={20} height={20} />
@@ -172,162 +188,185 @@ export function AddMealView() {
         <span style={{ width: 44 }} aria-hidden />
       </header>
 
-      <section className="card glass stack">
-        <div className="segmented" role="group" aria-label="Refeição">
-          {MEAL_ORDER.map((t) => (
-            <button key={t} type="button" aria-pressed={type === t} onClick={() => setType(t)}>
-              {SHORT_MEAL[t]}
+      {/* Desktop: entrada à esquerda e painel de alimentos à direita; no celular, display: contents */}
+      <div className="add-input">
+        <section className="card glass stack">
+          <div className="segmented" role="group" aria-label="Refeição">
+            {MEAL_ORDER.map((t) => (
+              <button key={t} type="button" aria-pressed={type === t} onClick={() => setType(t)}>
+                {SHORT_MEAL[t]}
+              </button>
+            ))}
+          </div>
+          <label className="field">
+            <span className="field-label">Dia</span>
+            <input
+              className="input"
+              type="date"
+              value={date}
+              max={today}
+              onChange={(e) => isValidISO(e.target.value) && setDate(e.target.value)}
+            />
+          </label>
+        </section>
+
+        <div className="segmented" role="group" aria-label="Como registrar">
+          {MODES.map((m) => (
+            <button key={m.value} type="button" aria-pressed={mode === m.value} onClick={() => chooseMode(m.value)}>
+              {m.label}
             </button>
           ))}
         </div>
-        <label className="field">
-          <span className="field-label">Dia</span>
-          <input
-            className="input"
-            type="date"
-            value={date}
-            max={today}
-            onChange={(e) => isValidISO(e.target.value) && setDate(e.target.value)}
-          />
-        </label>
-      </section>
 
-      <div className="segmented" role="group" aria-label="Como registrar">
-        {MODES.map((m) => (
-          <button key={m.value} type="button" aria-pressed={mode === m.value} onClick={() => chooseMode(m.value)}>
-            {m.label}
-          </button>
-        ))}
-      </div>
+        {mode === 'search' && (
+          <section className="stack">
+            <div className="row" style={{ justifyContent: 'flex-end' }}>
+              <Link href="/recipes" className="btn btn-glass btn-sm">
+                Receitas
+              </Link>
+            </div>
+            <FoodSearch onAdd={addFromSearch} />
+          </section>
+        )}
 
-      {mode === 'search' && (
-        <section className="stack">
-          <div className="row" style={{ justifyContent: 'flex-end' }}>
-            <Link href="/recipes" className="btn btn-glass btn-sm">
-              Receitas
-            </Link>
-          </div>
-          <FoodSearch onAdd={addFromSearch} />
-        </section>
-      )}
-
-      {mode === 'photo' && (
-        <section className="stack">
-          <input
-            ref={fileInput}
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            onChange={onPickPhoto}
-            aria-label="Escolher foto da refeição"
-          />
-          <button
-            type="button"
-            className="photo-drop glass"
-            onClick={() => fileInput.current?.click()}
-            disabled={busy === 'analyze'}
-          >
-            {photo ? (
+        {mode === 'photo' && (
+          <section className="stack">
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={onPickPhoto}
+              aria-label="Escolher foto da refeição"
+            />
+            <button
+              type="button"
+              className="photo-drop glass"
+              onClick={() => fileInput.current?.click()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+                if (!dragging) setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={onDrop}
+              data-dragging={dragging || undefined}
+              disabled={busy === 'analyze'}
+            >
+              {photo ? (
+                <>
+                  <img src={photo.url} alt="Foto da refeição" />
+                  {busy === 'analyze' && <span className="scan" aria-hidden />}
+                </>
+              ) : (
+                <>
+                  <CameraIcon />
+                  Tirar ou escolher foto
+                  <span className="caption">Enquadre o prato inteiro, de cima</span>
+                  <span className="caption desktop-only">ou arraste a imagem para cá</span>
+                </>
+              )}
+            </button>
+            {photo && (
               <>
-                <img src={photo.url} alt="Foto da refeição" />
-                {busy === 'analyze' && <span className="scan" aria-hidden />}
-              </>
-            ) : (
-              <>
-                <CameraIcon />
-                Tirar ou escolher foto
-                <span className="caption">Enquadre o prato inteiro, de cima</span>
+                <label className="field">
+                  <span className="field-label">Algo que a foto não mostra? (opcional)</span>
+                  <input
+                    className="input"
+                    placeholder="Ex.: arroz integral, frango sem óleo"
+                    value={hint}
+                    maxLength={300}
+                    onChange={(e) => setHint(e.target.value)}
+                  />
+                </label>
+                <div className="grid-2">
+                  <button className="btn btn-glass" onClick={() => fileInput.current?.click()} disabled={!!busy}>
+                    Trocar foto
+                  </button>
+                  <button className="btn btn-primary" onClick={analyzePhoto} disabled={!!busy}>
+                    {busy === 'analyze' ? <span className="spinner" aria-hidden /> : <SparkIcon width={20} height={20} />}
+                    {busy === 'analyze' ? 'Analisando' : 'Analisar'}
+                  </button>
+                </div>
               </>
             )}
-          </button>
-          {photo && (
-            <>
-              <label className="field">
-                <span className="field-label">Algo que a foto não mostra? (opcional)</span>
-                <input
-                  className="input"
-                  placeholder="Ex.: arroz integral, frango sem óleo"
-                  value={hint}
-                  maxLength={300}
-                  onChange={(e) => setHint(e.target.value)}
-                />
-              </label>
-              <div className="grid-2">
-                <button className="btn btn-glass" onClick={() => fileInput.current?.click()} disabled={!!busy}>
-                  Trocar foto
-                </button>
-                <button className="btn btn-primary" onClick={analyzePhoto} disabled={!!busy}>
-                  {busy === 'analyze' ? <span className="spinner" aria-hidden /> : <SparkIcon width={20} height={20} />}
-                  {busy === 'analyze' ? 'Analisando' : 'Analisar'}
-                </button>
-              </div>
-            </>
-          )}
-        </section>
-      )}
+          </section>
+        )}
 
-      {mode === 'text' && (
-        <section className="card glass stack">
-          <label className="field">
-            <span className="field-label">O que você comeu?</span>
-            <textarea
-              className="textarea"
-              placeholder="Ex.: 2 ovos mexidos, 1 pão francês com manteiga e café com leite"
-              value={description}
-              maxLength={600}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </label>
-          <button
-            className="btn btn-primary btn-block"
-            onClick={analyzeText}
-            disabled={!!busy || description.trim().length < 3}
-          >
-            {busy === 'analyze' ? <span className="spinner" aria-hidden /> : <SparkIcon width={20} height={20} />}
-            {busy === 'analyze' ? 'Estimando' : 'Estimar nutrientes'}
-          </button>
-        </section>
-      )}
+        {mode === 'text' && (
+          <section className="card glass stack">
+            <label className="field">
+              <span className="field-label">O que você comeu?</span>
+              <textarea
+                className="textarea"
+                placeholder="Ex.: 2 ovos mexidos, 1 pão francês com manteiga e café com leite"
+                value={description}
+                maxLength={600}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </label>
+            <button
+              className="btn btn-primary btn-block"
+              onClick={analyzeText}
+              disabled={!!busy || description.trim().length < 3}
+            >
+              {busy === 'analyze' ? <span className="spinner" aria-hidden /> : <SparkIcon width={20} height={20} />}
+              {busy === 'analyze' ? 'Estimando' : 'Estimar nutrientes'}
+            </button>
+          </section>
+        )}
 
-      {error && (
-        <p className="alert" role="alert">
-          {error}
-        </p>
-      )}
+        {error && (
+          <p className="alert" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
 
-      {items.length > 0 && (
-        <section className="stack" aria-label="Alimentos">
-          <div className="spread" style={{ padding: '0 4px' }}>
-            <h2 className="section-title" style={{ padding: 0 }}>
-              Alimentos
-            </h2>
-            <span className="caption">Toque para ajustar</span>
-          </div>
-          {notes && <p className="note">{notes}</p>}
-          <ItemsEditor items={items} onChange={setItems} />
-        </section>
-      )}
-
-      {(items.length > 0 || mode === 'manual') && (
-        <button type="button" className="btn btn-glass btn-block" onClick={() => setItems((p) => [...p, newDraft()])}>
-          <PlusIcon width={20} height={20} />
-          Adicionar alimento
-        </button>
-      )}
-
-      {items.length > 0 && (
-        <div className="totals-bar glass">
-          <div>
-            <span className="headline num">{fmtInt(totals.kcal)} kcal</span>
-            <p className="caption">
-              <MacroDots m={totals} />
+      <div className="add-panel">
+        {items.length === 0 && mode !== 'manual' && (
+          <div className="add-panel-empty card glass desktop-only">
+            <p className="headline">Alimentos</p>
+            <p className="body-2">
+              Busque, fotografe ou descreva a refeição: os alimentos aparecem aqui para você ajustar antes de salvar.
             </p>
           </div>
-          <button className="btn btn-primary" onClick={save} disabled={!!busy}>
-            {busy === 'save' ? <span className="spinner" aria-label="Salvando" /> : 'Salvar refeição'}
+        )}
+
+        {items.length > 0 && (
+          <section className="stack" aria-label="Alimentos">
+            <div className="spread" style={{ padding: '0 4px' }}>
+              <h2 className="section-title" style={{ padding: 0 }}>
+                Alimentos
+              </h2>
+              <span className="caption">Toque para ajustar</span>
+            </div>
+            {notes && <p className="note">{notes}</p>}
+            <ItemsEditor items={items} onChange={setItems} />
+          </section>
+        )}
+
+        {(items.length > 0 || mode === 'manual') && (
+          <button type="button" className="btn btn-glass btn-block" onClick={() => setItems((p) => [...p, newDraft()])}>
+            <PlusIcon width={20} height={20} />
+            Adicionar alimento
           </button>
-        </div>
-      )}
+        )}
+
+        {items.length > 0 && (
+          <div className="totals-bar glass">
+            <div>
+              <span className="headline num">{fmtInt(totals.kcal)} kcal</span>
+              <p className="caption">
+                <MacroDots m={totals} />
+              </p>
+            </div>
+            <button className="btn btn-primary" onClick={save} disabled={!!busy}>
+              {busy === 'save' ? <span className="spinner" aria-label="Salvando" /> : 'Salvar refeição'}
+            </button>
+          </div>
+        )}
+      </div>
     </main>
   );
 }

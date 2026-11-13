@@ -10,6 +10,7 @@ import { useMe } from '@/lib/hooks';
 import { ACTIVITY_OPTIONS, GOAL_OPTIONS } from '@/lib/labels';
 import type { ActivityLevel, BodyData, GoalType, Sex, Suggestion } from '@/lib/types';
 import { CheckIcon, ChevronLeft } from './Icons';
+import { Logo } from './Logo';
 import { fromDraft, TargetsEditor, type TargetsDraft, toDraft } from './TargetsEditor';
 
 const STEPS = 5;
@@ -102,110 +103,117 @@ export function OnboardingView() {
   }
 
   return (
-    <main className="screen screen-plain">
-      <header className="header" style={{ alignItems: 'center' }}>
-        <button
-          className="btn btn-glass btn-icon"
-          onClick={() => setStep((s) => Math.max(0, s - 1))}
-          disabled={step === 0 || busy}
-          aria-label="Etapa anterior"
-          style={{ visibility: step === 0 ? 'hidden' : 'visible' }}
-        >
-          <ChevronLeft width={20} height={20} />
-        </button>
-        <div className="progress-dots" aria-label={`Etapa ${step + 1} de ${STEPS}`}>
-          {Array.from({ length: STEPS }, (_, i) => (
-            <i key={i} data-active={i === step} data-done={i < step} />
-          ))}
-        </div>
-        <span style={{ width: 44 }} aria-hidden />
-      </header>
-
-      <div key={step} className="stack-lg fade-in">
-        {step === 0 && (
-          <Step title={`Oi, ${me.name.split(' ')[0]}. Qual é o seu objetivo?`} lead="Usamos isso para calcular sua meta de calorias.">
-            {GOAL_OPTIONS.map((o) => (
-              <Choice key={o.value} selected={goal === o.value} onSelect={() => setGoal(o.value)} label={o.label} hint={o.hint} />
-            ))}
-          </Step>
-        )}
-
-        {step === 1 && (
-          <Step title="Sobre você" lead="Sexo biológico e idade mudam o quanto o corpo gasta em repouso.">
-            <div className="segmented" role="group" aria-label="Sexo biológico">
-              <button type="button" aria-pressed={sex === 'FEMALE'} onClick={() => setSex('FEMALE')}>
-                Feminino
-              </button>
-              <button type="button" aria-pressed={sex === 'MALE'} onClick={() => setSex('MALE')}>
-                Masculino
-              </button>
-            </div>
-            <label className="field">
-              <span className="field-label">Data de nascimento</span>
-              <input
-                className="input"
-                type="date"
-                value={birthDate}
-                max={maxBirthDate()}
-                min="1915-01-01"
-                onChange={(e) => setBirthDate(e.target.value)}
-              />
-            </label>
-          </Step>
-        )}
-
-        {step === 2 && (
-          <Step title="Suas medidas" lead="Você pode atualizar o peso quando quiser, no Perfil.">
-            <div className="grid-2">
-              <label className="field">
-                <span className="field-label">Altura</span>
-                <div className="input-suffix">
-                  <input className="input num" inputMode="numeric" placeholder="170" value={height} onChange={(e) => setHeight(e.target.value)} />
-                  <span>cm</span>
-                </div>
-              </label>
-              <label className="field">
-                <span className="field-label">Peso</span>
-                <div className="input-suffix">
-                  <input className="input num" inputMode="decimal" placeholder="70,5" value={weight} onChange={(e) => setWeight(e.target.value)} />
-                  <span>kg</span>
-                </div>
-              </label>
-            </div>
-          </Step>
-        )}
-
-        {step === 3 && (
-          <Step title="Quanto você se movimenta?" lead="Considere uma semana típica, incluindo treinos e trabalho.">
-            {ACTIVITY_OPTIONS.map((o) => (
-              <Choice key={o.value} selected={activity === o.value} onSelect={() => setActivity(o.value)} label={o.label} hint={o.hint} />
-            ))}
-          </Step>
-        )}
-
-        {step === 4 && suggestion && targets && (
-          <Step
-            title="Sua meta diária"
-            lead={`Seu corpo gasta cerca de ${fmtInt(suggestion.tdee)} kcal por dia. Esta é a nossa sugestão; ajuste se quiser.`}
+    <main className="screen screen-plain onboarding-screen">
+      <div className="brand desktop-only">
+        <Logo size={56} />
+        <span className="title">Bocado</span>
+      </div>
+      {/* Desktop: painel de vidro centralizado; no celular, display: contents */}
+      <div className="onboarding-panel">
+        <header className="header" style={{ alignItems: 'center' }}>
+          <button
+            className="btn btn-glass btn-icon"
+            onClick={() => setStep((s) => Math.max(0, s - 1))}
+            disabled={step === 0 || busy}
+            aria-label="Etapa anterior"
+            style={{ visibility: step === 0 ? 'hidden' : 'visible' }}
           >
-            <div className="card glass">
-              <TargetsEditor value={targets} onChange={setTargets} />
-            </div>
-            <p className="caption">
-              Cálculo pela fórmula de Mifflin-St Jeor. É uma estimativa: acompanhe seu peso por algumas semanas e ajuste.
+            <ChevronLeft width={20} height={20} />
+          </button>
+          <div className="progress-dots" aria-label={`Etapa ${step + 1} de ${STEPS}`}>
+            {Array.from({ length: STEPS }, (_, i) => (
+              <i key={i} data-active={i === step} data-done={i < step} />
+            ))}
+          </div>
+          <span style={{ width: 44 }} aria-hidden />
+        </header>
+
+        <div key={step} className="stack-lg fade-in">
+          {step === 0 && (
+            <Step title={`Oi, ${me.name.split(' ')[0]}. Qual é o seu objetivo?`} lead="Usamos isso para calcular sua meta de calorias.">
+              {GOAL_OPTIONS.map((o) => (
+                <Choice key={o.value} selected={goal === o.value} onSelect={() => setGoal(o.value)} label={o.label} hint={o.hint} />
+              ))}
+            </Step>
+          )}
+
+          {step === 1 && (
+            <Step title="Sobre você" lead="Sexo biológico e idade mudam o quanto o corpo gasta em repouso.">
+              <div className="segmented" role="group" aria-label="Sexo biológico">
+                <button type="button" aria-pressed={sex === 'FEMALE'} onClick={() => setSex('FEMALE')}>
+                  Feminino
+                </button>
+                <button type="button" aria-pressed={sex === 'MALE'} onClick={() => setSex('MALE')}>
+                  Masculino
+                </button>
+              </div>
+              <label className="field">
+                <span className="field-label">Data de nascimento</span>
+                <input
+                  className="input"
+                  type="date"
+                  value={birthDate}
+                  max={maxBirthDate()}
+                  min="1915-01-01"
+                  onChange={(e) => setBirthDate(e.target.value)}
+                />
+              </label>
+            </Step>
+          )}
+
+          {step === 2 && (
+            <Step title="Suas medidas" lead="Você pode atualizar o peso quando quiser, no Perfil.">
+              <div className="grid-2">
+                <label className="field">
+                  <span className="field-label">Altura</span>
+                  <div className="input-suffix">
+                    <input className="input num" inputMode="numeric" placeholder="170" value={height} onChange={(e) => setHeight(e.target.value)} />
+                    <span>cm</span>
+                  </div>
+                </label>
+                <label className="field">
+                  <span className="field-label">Peso</span>
+                  <div className="input-suffix">
+                    <input className="input num" inputMode="decimal" placeholder="70,5" value={weight} onChange={(e) => setWeight(e.target.value)} />
+                    <span>kg</span>
+                  </div>
+                </label>
+              </div>
+            </Step>
+          )}
+
+          {step === 3 && (
+            <Step title="Quanto você se movimenta?" lead="Considere uma semana típica, incluindo treinos e trabalho.">
+              {ACTIVITY_OPTIONS.map((o) => (
+                <Choice key={o.value} selected={activity === o.value} onSelect={() => setActivity(o.value)} label={o.label} hint={o.hint} />
+              ))}
+            </Step>
+          )}
+
+          {step === 4 && suggestion && targets && (
+            <Step
+              title="Sua meta diária"
+              lead={`Seu corpo gasta cerca de ${fmtInt(suggestion.tdee)} kcal por dia. Esta é a nossa sugestão; ajuste se quiser.`}
+            >
+              <div className="card glass">
+                <TargetsEditor value={targets} onChange={setTargets} />
+              </div>
+              <p className="caption">
+                Cálculo pela fórmula de Mifflin-St Jeor. É uma estimativa: acompanhe seu peso por algumas semanas e ajuste.
+              </p>
+            </Step>
+          )}
+
+          {error && (
+            <p className="alert" role="alert">
+              {error}
             </p>
-          </Step>
-        )}
+          )}
 
-        {error && (
-          <p className="alert" role="alert">
-            {error}
-          </p>
-        )}
-
-        <button className="btn btn-primary btn-block" onClick={next} disabled={!canContinue || busy}>
-          {busy ? <span className="spinner" aria-label="Carregando" /> : step === 4 ? 'Começar' : 'Continuar'}
-        </button>
+          <button className="btn btn-primary btn-block" onClick={next} disabled={!canContinue || busy}>
+            {busy ? <span className="spinner" aria-label="Carregando" /> : step === 4 ? 'Começar' : 'Continuar'}
+          </button>
+        </div>
       </div>
     </main>
   );

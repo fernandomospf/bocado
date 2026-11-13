@@ -2,29 +2,22 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChartIcon, PlusIcon, RingsIcon, UserIcon } from './Icons';
+import { PlusIcon } from './Icons';
+import { isActive, NAV_ITEMS } from './Sidebar';
 
-const TABS = [
-  { href: '/', label: 'Hoje', Icon: RingsIcon },
-  { href: '/history', label: 'Histórico', Icon: ChartIcon },
-  { href: '/profile', label: 'Perfil', Icon: UserIcon },
-];
-
+/** Barra de abas flutuante do celular e do tablet. O CSS a esconde a partir de 1100px (lá aparece a Sidebar). */
 export function TabBar() {
   const pathname = usePathname();
 
   return (
     <nav className="tabbar" aria-label="Navegação principal">
       <div className="tabbar-pill glass">
-        {TABS.map(({ href, label, Icon }) => {
-          const active = href === '/' ? pathname === '/' : pathname.startsWith(href);
-          return (
-            <Link key={href} href={href} className="tab" aria-current={active ? 'page' : undefined}>
-              <Icon />
-              {label}
-            </Link>
-          );
-        })}
+        {NAV_ITEMS.map(({ href, label, Icon }) => (
+          <Link key={href} href={href} className="tab" aria-current={isActive(pathname, href) ? 'page' : undefined}>
+            <Icon />
+            {label}
+          </Link>
+        ))}
       </div>
       <Link
         href="/add"

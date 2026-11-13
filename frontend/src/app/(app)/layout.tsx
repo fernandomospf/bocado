@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect } from 'react';
-import { TabBar } from '@/components/TabBar';
+import { AppShell } from '@/components/AppShell';
 import { ApiError } from '@/lib/api';
 import { useMe } from '@/lib/hooks';
 
@@ -38,10 +38,5 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  return (
-    <>
-      {children}
-      <TabBar />
-    </>
-  );
+  return <AppShell>{children}</AppShell>;
 }

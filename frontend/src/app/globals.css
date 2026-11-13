@@ -1316,6 +1316,505 @@ img {
   text-underline-offset: 2px;
 }
 
+/* ==========================================================================
+   Layout responsivo
+   Celular (até 767px) | tablet (768–1099px) | desktop (1100px+).
+   Regra de ouro: nada abaixo muda o celular. Os wrappers de colunas usam display: contents
+   fora do desktop (não geram caixa) e as regras visuais só existem a partir de 768px/1100px.
+   Os breakpoints ficam escritos nas media queries porque var() não funciona dentro delas.
+   ========================================================================== */
+
+:root {
+  --sidebar-w: 260px;
+  --sidebar-gap: 16px;
+  --content-max: 1180px;
+  --content-pad: 32px;
+  --narrow-max: 820px;
+}
+
+/* Wrappers de layout: invisíveis até o desktop */
+.today-aside,
+.today-main,
+.meal-grid,
+.add-input,
+.add-panel,
+.history-columns,
+.history-days,
+.profile-col,
+.onboarding-panel {
+  display: contents;
+}
+
+/* Grupo de itens com o mesmo espaçamento da tela (18px), para mover blocos inteiros */
+.screen-group {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.screen-group:empty {
+  display: none;
+}
+
+/* Navegação lateral: só no desktop */
+.sidebar {
+  display: none;
+}
+
+@media (max-width: 1099.98px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  /* Perfil: o DOM segue as colunas do desktop; aqui o order devolve a ordem de sempre */
+  .profile-o1 {
+    order: 1;
+  }
+  .profile-o2 {
+    order: 2;
+  }
+  .profile-o3 {
+    order: 3;
+  }
+  .profile-o4 {
+    order: 4;
+  }
+  .profile-o5 {
+    order: 5;
+  }
+}
+
+/* ---------- Tablet e acima (768px+) ---------- */
+@media (min-width: 768px) {
+  .app-content .screen {
+    max-width: 760px;
+  }
+
+  /* Hoje: refeições em duas colunas */
+  .meal-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    align-items: start;
+  }
+
+  /* Sheet vira diálogo centralizado */
+  .sheet-root {
+    align-items: center;
+    padding: 24px;
+  }
+
+  .sheet {
+    max-width: 520px;
+    max-height: min(88dvh, 760px);
+    margin: 0;
+    padding: 24px;
+    border-radius: 28px;
+    animation: pop 260ms var(--ease);
+  }
+
+  .sheet-grabber {
+    display: none;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* ---------- Desktop (1100px+) ---------- */
+@media (min-width: 1100px) {
+  .not-desktop {
+    display: none !important;
+  }
+
+  .large-title {
+    font-size: clamp(30px, 2.4vw, 40px);
+  }
+
+  /* Fundo: manchas em vmin e mais suaves, para não virar borrões gigantes em telas largas */
+  .backdrop span {
+    opacity: 0.6;
+  }
+
+  .backdrop span:nth-child(1) {
+    width: 80vmin;
+    height: 80vmin;
+    top: -24vmin;
+    left: -16vmin;
+  }
+
+  .backdrop span:nth-child(2) {
+    width: 70vmin;
+    height: 70vmin;
+    top: 22vh;
+    right: -22vmin;
+  }
+
+  .backdrop span:nth-child(3) {
+    width: 70vmin;
+    height: 70vmin;
+    bottom: -28vmin;
+    left: 22vw;
+  }
+
+  /* Shell: Sidebar no lugar da TabBar */
+  .tabbar {
+    display: none;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: var(--sidebar-gap);
+    bottom: var(--sidebar-gap);
+    left: var(--sidebar-gap);
+    z-index: 30;
+    width: var(--sidebar-w);
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    padding: 22px 16px 16px;
+    border-radius: var(--radius-xl);
+    overflow-y: auto;
+  }
+
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 2px 6px;
+  }
+
+  .sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 46px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-2);
+    transition: background 220ms var(--ease), color 220ms var(--ease);
+  }
+
+  /* Mesmo estilo do item ativo da TabBar */
+  .sidebar-link[aria-current='page'] {
+    color: var(--accent);
+    background: var(--fill);
+  }
+
+  .sidebar-user {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 10px;
+    border-radius: var(--radius-lg);
+    transition: background 220ms var(--ease);
+  }
+
+  .sidebar-user-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .sidebar-user-name,
+  .sidebar-user-email {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sidebar-user-name {
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .app-content {
+    padding-left: calc(var(--sidebar-w) + var(--sidebar-gap));
+  }
+
+  /* Sem TabBar: sem a reserva de espaço no rodapé */
+  .app-content .screen {
+    max-width: var(--content-max);
+    padding: 32px var(--content-pad) 48px;
+  }
+
+  .app-content .screen-narrow {
+    max-width: var(--narrow-max);
+  }
+
+  /* Hoje: resumo fixo à esquerda, refeições à direita */
+  .today-screen {
+    --rings-size: 260px;
+    display: grid;
+    grid-template-columns: 380px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .today-aside {
+    position: sticky;
+    top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .today-main {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+  }
+
+  .meal-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Nova refeição: entrada à esquerda, painel de alimentos e totais à direita */
+  .add-meal {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 420px;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .add-meal > .header {
+    grid-column: 1 / -1;
+  }
+
+  .add-input {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+  }
+
+  /*
+    Sem overflow próprio de propósito: um contêiner de rolagem faria o backdrop-filter dos cards
+    borrar só o que está dentro dele (aparece um retângulo "fantasma" atrás do painel).
+  */
+  .add-panel {
+    position: sticky;
+    top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  /* A barra de totais é o rodapé do painel: último item, preso ao fim da janela se a lista for longa */
+  .add-panel .totals-bar {
+    bottom: 24px;
+  }
+
+  .photo-drop {
+    max-height: 420px;
+  }
+
+  /* Histórico: gráfico em largura total; resumo | dias */
+  .history-screen .bars {
+    height: 240px;
+  }
+
+  .history-columns {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .history-summary {
+    position: sticky;
+    top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .history-days {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+  }
+
+  .stats-stacked {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .stats-stacked .stat + .stat {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--glass-line);
+  }
+
+  /* Perfil: duas colunas */
+  .profile-screen {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    align-items: start;
+  }
+
+  .profile-screen > .header {
+    grid-column: 1 / -1;
+  }
+
+  .profile-col {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+  }
+
+  /* Login e cadastro: apresentação | card de 440px com a marca acima */
+  .auth-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 440px;
+    align-items: center;
+    gap: 80px;
+    max-width: 1100px;
+    min-height: 100dvh;
+    margin: 0 auto;
+    padding: 40px;
+  }
+
+  .auth-screen {
+    max-width: 440px;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .auth-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    --rings-size: 240px;
+  }
+
+  .auth-benefits {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .auth-benefits li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .auth-benefit-mark {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    color: var(--accent);
+  }
+
+  /* Questionário: painel de vidro centralizado, com a marca acima */
+  .onboarding-screen {
+    min-height: 100dvh;
+    justify-content: center;
+    padding-top: 40px;
+    padding-bottom: 40px;
+  }
+
+  .onboarding-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 28px;
+    border-radius: var(--radius-xl);
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(28px) saturate(180%);
+    box-shadow: var(--glass-shadow), inset 0 0 0 1px var(--glass-line);
+  }
+}
+
+@media (min-width: 1400px) {
+  .meal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---------- Mouse e trackpad: estados de hover (não afeta toque) ---------- */
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:not(:disabled):hover {
+    filter: brightness(1.07);
+  }
+
+  .btn-glass:not(:disabled):hover {
+    background: var(--glass-strong);
+  }
+
+  .btn-plain:not(:disabled):hover,
+  .empty-add:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* Linhas clicáveis: realce com "sangria" via box-shadow, sem mudar o layout */
+  a.list-row:hover,
+  button.list-row:hover {
+    background: var(--fill);
+    box-shadow: 0 0 0 8px var(--fill);
+    border-radius: 2px;
+  }
+
+  .segmented button:not([aria-pressed='true']):hover,
+  .tab:not([aria-current='page']):hover,
+  .sidebar-link:not([aria-current='page']):hover {
+    color: var(--text);
+  }
+
+  .tab:not([aria-current='page']):hover,
+  .sidebar-link:not([aria-current='page']):hover,
+  .sidebar-user:hover {
+    background: var(--fill);
+  }
+
+  .choice:not([aria-pressed='true']):hover,
+  .photo-drop:not(:disabled):hover {
+    box-shadow: var(--glass-shadow), inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+
+  .tabbar-action:not([aria-current='page']):hover {
+    background: var(--glass);
+  }
+
+  /* Arrastar e soltar a foto */
+  .photo-drop[data-dragging] {
+    box-shadow: var(--glass-shadow), inset 0 0 0 2px var(--accent);
+  }
+
+  .photo-drop[data-dragging] > * {
+    pointer-events: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

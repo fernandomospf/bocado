@@ -59,113 +59,134 @@ export function ProfileView() {
   const activity = ACTIVITY_OPTIONS.find((o) => o.value === profile?.activityLevel)?.label;
 
   return (
-    <main className="screen">
+    <main className="screen profile-screen">
       <header className="header">
         <h1 className="large-title">Perfil</h1>
       </header>
 
-      {me && (
-        <section className="card glass row" style={{ gap: 14 }}>
-          <Avatar name={me.name} url={me.avatarUrl} large />
-          <div style={{ minWidth: 0 }}>
-            <p className="title">{me.name}</p>
-            <p className="body-2" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {me.email}
-            </p>
+      {/*
+        Desktop: duas colunas (perfil e metas | dados e demais seções). O DOM segue as colunas;
+        no celular e no tablet os wrappers usam display: contents e as classes profile-o* (order)
+        devolvem a ordem de sempre: usuário, peso, metas, dados, receitas, sair.
+      */}
+      <div className="profile-col">
+        {me && (
+          <section className="card glass row profile-o1" style={{ gap: 14 }}>
+            <Avatar name={me.name} url={me.avatarUrl} large />
+            <div style={{ minWidth: 0 }}>
+              <p className="title">{me.name}</p>
+              <p className="body-2" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {me.email}
+              </p>
+            </div>
+          </section>
+        )}
+
+        {profile && draft && (
+          <div className="screen-group profile-o3">
+            <h2 className="section-title">Metas diárias</h2>
+            <section className="card glass stack-lg">
+              <TargetsEditor value={draft} onChange={setDraft} />
+              <p className="caption">
+                Sugestão para você: {fmtInt(profile.suggestion.kcal)} kcal · gasto estimado de{' '}
+                {fmtInt(profile.suggestion.tdee)} kcal por dia.
+              </p>
+              {message && (
+                <p className={message.kind === 'error' ? 'alert' : 'note'} role="status">
+                  {message.text}
+                </p>
+              )}
+              <div className="grid-2">
+                <button
+                  className="btn btn-glass"
+                  disabled={busy || (!profile.customTargets && !dirty)}
+                  onClick={() =>
+                    apply(() => api<Profile>('/profile/targets/reset', { method: 'POST' }), 'Metas recalculadas.')
+                  }
+                >
+                  Usar sugestão
+                </button>
+                <button
+                  className="btn btn-primary"
+                  disabled={busy || !dirty}
+                  onClick={() =>
+                    apply(
+                      () => api<Profile>('/profile/targets', { method: 'PUT', json: fromDraft(draft) }),
+                      'Metas salvas.',
+                    )
+                  }
+                >
+                  Salvar metas
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+      </div>
+
+      <div className="profile-col">
+        {profile && (
+          <div className="screen-group profile-o4">
+            <h2 className="section-title">Seus dados</h2>
+            <section className="card glass">
+              <div className="list">
+                {[
+                  ['Objetivo', goal],
+                  ['Peso', `${fmtDec(profile.weightKg)} kg`],
+                  ['Altura', `${profile.heightCm} cm`],
+                  ['Idade', `${profile.age} anos`],
+                  ['Atividade', activity],
+                ].map(([label, value]) => (
+                  <div key={label} className="list-row">
+                    <span className="list-row-main body-2">{label}</span>
+                    <span className="list-row-end" style={{ color: 'var(--text)' }}>
+                      {value}
+                    </span>
+                  </div>
+                ))}
+                <button className="list-row" onClick={() => setEditing(true)} style={{ color: 'var(--accent)' }}>
+                  <span className="list-row-main headline">Editar dados</span>
+                  <ChevronRight width={18} height={18} />
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {profile && (
+          <div className="screen-group profile-o2">
+            <WeightSection />
+          </div>
+        )}
+
+        {error && (
+          <p className="alert profile-o2" role="alert">
+            {error.message}
+          </p>
+        )}
+
+        <section className="card glass profile-o5" style={{ paddingTop: 6, paddingBottom: 6 }}>
+          <div className="list">
+            <Link href="/recipes" className="list-row" style={{ color: 'var(--accent)' }}>
+              <span className="list-row-main headline">Minhas receitas</span>
+              <ChevronRight width={18} height={18} />
+            </Link>
           </div>
         </section>
-      )}
 
-      {profile && <WeightSection />}
+        <nav
+          className="caption profile-o5"
+          style={{ display: 'flex', justifyContent: 'center', gap: 16 }}
+          aria-label="Documentos legais"
+        >
+          <Link href="/termos">Termos de Uso</Link>
+          <Link href="/privacidade">Política de Privacidade</Link>
+        </nav>
 
-      {error && (
-        <p className="alert" role="alert">
-          {error.message}
-        </p>
-      )}
-
-      {profile && draft && (
-        <>
-          <h2 className="section-title">Metas diárias</h2>
-          <section className="card glass stack-lg">
-            <TargetsEditor value={draft} onChange={setDraft} />
-            <p className="caption">
-              Sugestão para você: {fmtInt(profile.suggestion.kcal)} kcal · gasto estimado de{' '}
-              {fmtInt(profile.suggestion.tdee)} kcal por dia.
-            </p>
-            {message && (
-              <p className={message.kind === 'error' ? 'alert' : 'note'} role="status">
-                {message.text}
-              </p>
-            )}
-            <div className="grid-2">
-              <button
-                className="btn btn-glass"
-                disabled={busy || (!profile.customTargets && !dirty)}
-                onClick={() =>
-                  apply(() => api<Profile>('/profile/targets/reset', { method: 'POST' }), 'Metas recalculadas.')
-                }
-              >
-                Usar sugestão
-              </button>
-              <button
-                className="btn btn-primary"
-                disabled={busy || !dirty}
-                onClick={() =>
-                  apply(
-                    () => api<Profile>('/profile/targets', { method: 'PUT', json: fromDraft(draft) }),
-                    'Metas salvas.',
-                  )
-                }
-              >
-                Salvar metas
-              </button>
-            </div>
-          </section>
-
-          <h2 className="section-title">Seus dados</h2>
-          <section className="card glass">
-            <div className="list">
-              {[
-                ['Objetivo', goal],
-                ['Peso', `${fmtDec(profile.weightKg)} kg`],
-                ['Altura', `${profile.heightCm} cm`],
-                ['Idade', `${profile.age} anos`],
-                ['Atividade', activity],
-              ].map(([label, value]) => (
-                <div key={label} className="list-row">
-                  <span className="list-row-main body-2">{label}</span>
-                  <span className="list-row-end" style={{ color: 'var(--text)' }}>
-                    {value}
-                  </span>
-                </div>
-              ))}
-              <button className="list-row" onClick={() => setEditing(true)} style={{ color: 'var(--accent)' }}>
-                <span className="list-row-main headline">Editar dados</span>
-                <ChevronRight width={18} height={18} />
-              </button>
-            </div>
-          </section>
-        </>
-      )}
-
-      <section className="card glass" style={{ paddingTop: 6, paddingBottom: 6 }}>
-        <div className="list">
-          <Link href="/recipes" className="list-row" style={{ color: 'var(--accent)' }}>
-            <span className="list-row-main headline">Minhas receitas</span>
-            <ChevronRight width={18} height={18} />
-          </Link>
-        </div>
-      </section>
-
-      <nav className="caption" style={{ display: 'flex', justifyContent: 'center', gap: 16 }} aria-label="Documentos legais">
-        <Link href="/termos">Termos de Uso</Link>
-        <Link href="/privacidade">Política de Privacidade</Link>
-      </nav>
-
-      <button className="btn btn-glass btn-block btn-danger" onClick={logout}>
-        Sair da conta
-      </button>
+        <button className="btn btn-glass btn-block btn-danger profile-o5" onClick={logout}>
+          Sair da conta
+        </button>
+      </div>
 
       {profile && (
         <Sheet open={editing} title="Editar dados" onClose={() => setEditing(false)}>

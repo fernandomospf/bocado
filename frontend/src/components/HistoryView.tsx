@@ -34,10 +34,20 @@ export function HistoryView() {
   const onTarget = target
     ? logged.filter((d) => Math.abs(d.totals.kcal - target) <= target * 0.1).length
     : 0;
-  const labelEvery = period === 7 ? 1 : 5;
+  const text = (d: string) => (period === 7 ? shortDay(d) : dayMonth(d).split(' ')[0]);
+  /** 7 dias: todos. 30 dias: a cada 5 (celular e tablet) ou a cada 3 (desktop), sempre com o dia de hoje. */
+  const barLabel = (d: string, i: number) => {
+    if (period === 7 || d === today) return text(d);
+    const mobile = i % 5 === 0;
+    const desktop = i % 3 === 0;
+    if (mobile && desktop) return text(d);
+    if (mobile) return <span className="not-desktop">{text(d)}</span>;
+    if (desktop) return <span className="desktop-only">{text(d)}</span>;
+    return '';
+  };
 
   return (
-    <main className="screen">
+    <main className="screen history-screen">
       <header className="header">
         <h1 className="large-title">Histórico</h1>
       </header>
@@ -69,7 +79,7 @@ export function HistoryView() {
           aria-label={series.map((s) => `${dayMonth(s.date)}: ${fmtInt(s.kcal)} kcal`).join(', ')}
         >
           {target > 0 && (
-            <span className="bars-target" style={{ bottom: `${24 + (target / max) * 126}px` }} />
+            <span className="bars-target" style={{ bottom: `calc(24px + (100% - 24px) * ${target / max})` }} />
           )}
           {series.map((s, i) => {
             const h = (s.kcal / max) * 100;
@@ -80,61 +90,90 @@ export function HistoryView() {
                   <span className={cls} style={{ height: isLoading ? '4px' : `${Math.max(h, 2.5)}%` }} />
                 </span>
                 <span className={s.date === today ? 'bar-label today' : 'bar-label'} style={{ height: 18 }}>
-                  {i % labelEvery === 0 || s.date === today ? (period === 7 ? shortDay(s.date) : dayMonth(s.date).split(' ')[0]) : ''}
+                  {barLabel(s.date, i)}
                 </span>
               </div>
             );
           })}
         </div>
 
-        <div className="grid-2" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-          <div className="stat">
-            <span className="caption">Média</span>
-            <strong>{fmtInt(avg('kcal'))}</strong>
-            <span className="caption">kcal por dia</span>
-          </div>
-          <div className="stat">
-            <span className="caption" style={{ color: 'var(--ring-protein)' }}>
-              Proteína
-            </span>
-            <strong>{fmtInt(avg('protein'))} g</strong>
-            <span className="caption">média diária</span>
-          </div>
-          <div className="stat">
-            <span className="caption">Na meta</span>
-            <strong>
-              {onTarget}/{period}
-            </strong>
-            <span className="caption">dias (±10%)</span>
-          </div>
+        <div className="not-desktop">
+          <HistoryStats avgKcal={avg('kcal')} avgProtein={avg('protein')} onTarget={onTarget} period={period} />
         </div>
       </section>
 
-      <h2 className="section-title">Dias registrados</h2>
-      <section className="card glass">
-        {logged.length === 0 ? (
-          <p className="body-2">
-            {isLoading ? 'Carregando…' : 'Nenhuma refeição neste período. Registre a próxima pelo botão +.'}
-          </p>
-        ) : (
-          <div className="list">
-            {[...logged].reverse().map((d) => (
-              <Link key={d.date} href={d.date === today ? '/' : `/?date=${d.date}`} className="list-row">
-                <span className="list-row-main">
-                  <span className="list-row-title" style={{ display: 'block' }}>
-                    {dayTitle(d.date)}
-                  </span>
-                  <span className="list-row-sub">
-                    <MacroDots m={d.totals} />
-                  </span>
-                </span>
-                <span className="list-row-end">{fmtInt(d.totals.kcal)} kcal</span>
-                <ChevronRight width={16} height={16} style={{ color: 'var(--text-3)' }} />
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
+      {/* Desktop: estatísticas empilhadas | lista de dias. No celular, display: contents */}
+      <div className="history-columns">
+        <div className="history-summary desktop-only">
+          <h2 className="section-title">Resumo</h2>
+          <section className="card glass">
+            <HistoryStats avgKcal={avg('kcal')} avgProtein={avg('protein')} onTarget={onTarget} period={period} stacked />
+          </section>
+        </div>
+
+        <div className="history-days">
+          <h2 className="section-title">Dias registrados</h2>
+          <section className="card glass">
+            {logged.length === 0 ? (
+              <p className="body-2">
+                {isLoading ? 'Carregando…' : 'Nenhuma refeição neste período. Registre a próxima pelo botão +.'}
+              </p>
+            ) : (
+              <div className="list">
+                {[...logged].reverse().map((d) => (
+                  <Link key={d.date} href={d.date === today ? '/' : `/?date=${d.date}`} className="list-row">
+                    <span className="list-row-main">
+                      <span className="list-row-title" style={{ display: 'block' }}>
+                        {dayTitle(d.date)}
+                      </span>
+                      <span className="list-row-sub">
+                        <MacroDots m={d.totals} />
+                      </span>
+                    </span>
+                    <span className="list-row-end">{fmtInt(d.totals.kcal)} kcal</span>
+                    <ChevronRight width={16} height={16} style={{ color: 'var(--text-3)' }} />
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
     </main>
+  );
+}
+
+interface HistoryStatsProps {
+  avgKcal: number;
+  avgProtein: number;
+  onTarget: number;
+  period: number;
+  /** Desktop: uma estatística por linha, num card próprio. */
+  stacked?: boolean;
+}
+
+function HistoryStats({ avgKcal, avgProtein, onTarget, period, stacked }: HistoryStatsProps) {
+  return (
+    <div className={stacked ? 'stats-stacked' : 'grid-2'} style={stacked ? undefined : { gridTemplateColumns: '1fr 1fr 1fr' }}>
+      <div className="stat">
+        <span className="caption">Média</span>
+        <strong>{fmtInt(avgKcal)}</strong>
+        <span className="caption">kcal por dia</span>
+      </div>
+      <div className="stat">
+        <span className="caption" style={{ color: 'var(--ring-protein)' }}>
+          Proteína
+        </span>
+        <strong>{fmtInt(avgProtein)} g</strong>
+        <span className="caption">média diária</span>
+      </div>
+      <div className="stat">
+        <span className="caption">Na meta</span>
+        <strong>
+          {onTarget}/{period}
+        </strong>
+        <span className="caption">dias (±10%)</span>
+      </div>
+    </div>
   );
 }
