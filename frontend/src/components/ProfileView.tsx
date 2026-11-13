@@ -14,6 +14,7 @@ import { BodyForm } from './BodyForm';
 import { ChevronRight } from './Icons';
 import { Sheet } from './Sheet';
 import { fromDraft, TargetsEditor, type TargetsDraft, toDraft } from './TargetsEditor';
+import { WeightSection } from './WeightSection';
 
 export function ProfileView() {
   const router = useRouter();
@@ -74,6 +75,8 @@ export function ProfileView() {
           </div>
         </section>
       )}
+
+      {profile && <WeightSection />}
 
       {error && (
         <p className="alert" role="alert">

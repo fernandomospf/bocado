@@ -1,13 +1,17 @@
 'use client';
 
 import { type FormEvent, useState } from 'react';
+import { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
+import { todayISO } from '@/lib/date';
 import { parseNum } from '@/lib/format';
 import { ACTIVITY_OPTIONS, GOAL_OPTIONS } from '@/lib/labels';
 import type { BodyData, Profile } from '@/lib/types';
+import { isWeightKey } from './WeightSection';
 
 /** Edição dos dados corporais no Perfil. Metas personalizadas são preservadas pelo servidor. */
 export function BodyForm({ profile, onSaved }: { profile: Profile; onSaved: (p: Profile) => void }) {
+  const { mutate } = useSWRConfig();
   const [form, setForm] = useState({
     goal: profile.goal,
     sex: profile.sex,
@@ -31,12 +35,29 @@ export function BodyForm({ profile, onSaved }: { profile: Profile; onSaved: (p: 
       weightKg: Math.round(parseNum(form.weight) * 10) / 10,
       activityLevel: form.activityLevel,
     };
+    let updated: Profile;
     try {
-      onSaved(await api<Profile>('/profile', { method: 'PUT', json: body }));
+      updated = await api<Profile>('/profile', { method: 'PUT', json: body });
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);
+      return;
     }
+
+    // Peso alterado aqui também vira o registro de hoje no controle de peso.
+    // Só quando muda: editar a altura não deve criar uma pesagem.
+    if (body.weightKg !== profile.weightKg) {
+      try {
+        await api(`/weight/${todayISO()}`, { method: 'PUT', json: { weightKg: body.weightKg } });
+        void mutate(isWeightKey);
+      } catch (err) {
+        void mutate('/profile', updated, { revalidate: false });
+        setError(`Dados salvos, mas o peso de hoje não foi registrado: ${errorMessage(err)}`);
+        setBusy(false);
+        return;
+      }
+    }
+    onSaved(updated);
   }
 
   return (

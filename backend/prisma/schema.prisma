@@ -46,37 +46,40 @@ enum FoodSource {
 }
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique
+  id           String        @id @default(uuid()) @db.Uuid
+  email        String        @unique
   name         String
   passwordHash String?
-  googleId     String?  @unique
+  googleId     String?       @unique
   avatarUrl    String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   profile      Profile?
   meals        Meal[]
   foods        Food[]
+  weights      WeightEntry[]
 
   @@map("users")
 }
 
 model Profile {
-  userId        String        @id @db.Uuid
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sex           Sex
-  birthDate     DateTime      @db.Date
-  heightCm      Int
-  weightKg      Float
-  activityLevel ActivityLevel
-  goal          GoalType
-  kcalTarget    Int
-  proteinTarget Int
-  carbsTarget   Int
-  fatTarget     Int
-  customTargets Boolean       @default(false)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  userId          String        @id @db.Uuid
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sex             Sex
+  birthDate       DateTime      @db.Date
+  heightCm        Int
+  weightKg        Float
+  activityLevel   ActivityLevel
+  goal            GoalType
+  kcalTarget      Int
+  proteinTarget   Int
+  carbsTarget     Int
+  fatTarget       Int
+  customTargets   Boolean       @default(false)
+  /// Peso usado no último cálculo/salvamento das metas (para avisar quando ficarem desatualizadas)
+  targetsWeightKg Float?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   @@map("profiles")
 }
@@ -133,4 +136,19 @@ model Food {
   @@index([userId])
   @@index([source, name])
   @@map("foods")
+}
+
+/// Pesagens do usuário: no máximo uma por dia (registrar de novo no mesmo dia atualiza o valor).
+/// A constraint única (userId, date) também serve de índice para as consultas por período.
+model WeightEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  weightKg  Float
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@map("weight_entries")
 }

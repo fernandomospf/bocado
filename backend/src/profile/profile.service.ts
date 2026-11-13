@@ -52,6 +52,7 @@ export class ProfileService {
       carbsTarget: targets.carbs,
       fatTarget: targets.fat,
       customTargets,
+      targetsWeightKg: data.weightKg,
     };
     const profile = await this.prisma.profile.upsert({
       where: { userId },
@@ -73,6 +74,7 @@ export class ProfileService {
         carbsTarget: dto.carbs,
         fatTarget: dto.fat,
         customTargets: !sameTargets(dto, suggestion),
+        targetsWeightKg: existing.weightKg,
       },
     });
     return this.serialize(profile);
@@ -90,6 +92,7 @@ export class ProfileService {
         carbsTarget: s.carbs,
         fatTarget: s.fat,
         customTargets: false,
+        targetsWeightKg: existing.weightKg,
       },
     });
     return this.serialize(profile);

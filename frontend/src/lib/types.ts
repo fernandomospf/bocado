@@ -80,6 +80,29 @@ export interface AnalyzedItem extends Macros {
   confidence: Confidence;
 }
 
+export interface WeightEntry {
+  date: string;
+  weightKg: number;
+  note: string | null;
+  /** Média dos registros dos 7 dias terminando nesta data. */
+  trendKg: number;
+}
+
+export interface WeightList {
+  from: string;
+  to: string;
+  entries: WeightEntry[];
+}
+
+export interface WeightSummary {
+  latest: { date: string; weightKg: number } | null;
+  trendKg: number | null;
+  change7Kg: number | null;
+  change30Kg: number | null;
+  targetsWeightKg: number | null;
+  targetsOutdated: boolean;
+}
+
 export type FoodOrigin = 'history' | 'custom' | 'taco';
 
 /** Resultado da busca de alimentos; valores sempre por 100 g. */
