@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { SWRConfig } from 'swr';
 import { ApiError, fetcher } from '@/lib/api';
+import { ToastProvider } from './Toast';
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -15,7 +16,8 @@ export function Providers({ children }: { children: ReactNode }) {
         shouldRetryOnError: (err) => !(err instanceof ApiError && err.status >= 400 && err.status < 500),
       }}
     >
-      {children}
+      {/* Acima das rotas: o toast sobrevive à navegação (ex.: salvar e voltar para Hoje) */}
+      <ToastProvider>{children}</ToastProvider>
     </SWRConfig>
   );
 }
