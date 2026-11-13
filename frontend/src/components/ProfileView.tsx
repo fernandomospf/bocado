@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useSWRConfig } from 'swr';
@@ -144,6 +145,11 @@ export function ProfileView() {
           </section>
         </>
       )}
+
+      <nav className="caption" style={{ display: 'flex', justifyContent: 'center', gap: 16 }} aria-label="Documentos legais">
+        <Link href="/termos">Termos de Uso</Link>
+        <Link href="/privacidade">Política de Privacidade</Link>
+      </nav>
 
       <button className="btn btn-glass btn-block btn-danger" onClick={logout}>
         Sair da conta

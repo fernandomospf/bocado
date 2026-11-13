@@ -123,6 +123,18 @@ export function AuthForm({ mode }: { mode: Mode }) {
         )}
       </form>
 
+      <p className="caption" style={{ textAlign: 'center' }}>
+        Ao continuar, você concorda com os{' '}
+        <Link href="/termos" className="text-link">
+          Termos de Uso
+        </Link>{' '}
+        e a{' '}
+        <Link href="/privacidade" className="text-link">
+          Política de Privacidade
+        </Link>
+        .
+      </p>
+
       <p className="body-2" style={{ textAlign: 'center' }}>
         {isRegister ? 'Já tem conta? ' : 'Ainda não tem conta? '}
         <Link href={isRegister ? '/login' : '/register'} className="btn-plain" style={{ padding: 0 }}>

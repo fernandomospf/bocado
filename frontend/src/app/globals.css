@@ -1168,6 +1168,65 @@ img {
   animation: fade 300ms var(--ease);
 }
 
+/* --------------------------------------------------------------------------
+   Páginas de leitura (privacidade, termos)
+   -------------------------------------------------------------------------- */
+
+.legal {
+  max-width: 68ch;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.legal > * + * {
+  margin-top: 12px;
+}
+
+.legal h2 {
+  margin-top: 28px;
+  font-size: 19px;
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+
+.legal h3 {
+  margin-top: 18px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.legal h2 + p,
+.legal h3 + p {
+  margin-top: 6px;
+}
+
+.legal strong {
+  color: var(--text);
+}
+
+.legal ul {
+  padding-left: 20px;
+}
+
+.legal li + li {
+  margin-top: 6px;
+}
+
+.legal code {
+  font-size: 0.92em;
+}
+
+.legal a,
+.text-link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
