@@ -911,6 +911,12 @@ img {
   color: var(--accent);
 }
 
+.badge-origin-recipe {
+  flex: none;
+  background: color-mix(in srgb, var(--ring-carbs) 20%, transparent);
+  color: color-mix(in srgb, var(--ring-carbs) 70%, var(--text));
+}
+
 .badge-origin-custom {
   flex: none;
   background: color-mix(in srgb, var(--ring-protein) 18%, transparent);

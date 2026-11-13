@@ -103,7 +103,7 @@ export interface WeightSummary {
   targetsOutdated: boolean;
 }
 
-export type FoodOrigin = 'history' | 'custom' | 'taco';
+export type FoodOrigin = 'history' | 'recipe' | 'custom' | 'taco';
 
 /** Resultado da busca de alimentos; valores sempre por 100 g. */
 export interface FoodResult {
@@ -113,6 +113,50 @@ export interface FoodResult {
   per100: Macros;
   portion?: { grams: number; label: string };
   timesUsed?: number;
+  /** Só receitas: peso da receita inteira. */
+  whole?: { grams: number };
+}
+
+export interface RecipeIngredient extends Macros {
+  id?: string;
+  foodId: string | null;
+  name: string;
+  grams: number;
+}
+
+export interface RecipeNutrition {
+  totals: Macros;
+  rawGrams: number;
+  baseGrams: number;
+  per100: Macros;
+  portionGrams: number | null;
+  weightWarning: boolean;
+}
+
+export interface RecipeSummary {
+  id: string;
+  name: string;
+  servings: number | null;
+  baseGrams: number;
+  per100: Macros;
+  portionGrams: number | null;
+  ingredientCount: number;
+  isOwner: boolean;
+  shared: boolean;
+  updatedAt: string;
+}
+
+export interface RecipeDetail {
+  id: string;
+  name: string;
+  notes: string | null;
+  totalCookedGrams: number | null;
+  servings: number | null;
+  isOwner: boolean;
+  shared: boolean;
+  nutrition: RecipeNutrition;
+  ingredients: RecipeIngredient[];
+  updatedAt: string;
 }
 
 export interface AnalysisResult {

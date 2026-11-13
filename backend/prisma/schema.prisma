@@ -58,6 +58,7 @@ model User {
   meals        Meal[]
   foods        Food[]
   weights      WeightEntry[]
+  recipes      Recipe[]
 
   @@map("users")
 }
@@ -116,7 +117,7 @@ model MealItem {
 
 /// Base de alimentos: TACO (pública, userId nulo) e alimentos CUSTOM de cada usuário. Valores por 100 g.
 model Food {
-  id           String     @id @default(uuid()) @db.Uuid
+  id           String             @id @default(uuid()) @db.Uuid
   name         String
   /// Nome em minúsculas, sem acento e sem pontuação, para a busca por trigramas
   searchName   String
@@ -128,9 +129,10 @@ model Food {
   fat100       Float
   portionGrams Float?
   portionLabel String?
-  userId       String?    @db.Uuid
-  user         User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt    DateTime   @default(now())
+  userId       String?            @db.Uuid
+  user         User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime           @default(now())
+  ingredients  RecipeIngredient[]
 
   @@index([searchName(ops: raw("gin_trgm_ops"))], type: Gin)
   @@index([userId])
@@ -151,4 +153,48 @@ model WeightEntry {
 
   @@unique([userId, date])
   @@map("weight_entries")
+}
+
+/// Receita caseira: ingredientes crus + peso final cozido. Valores por 100 g recalculados e gravados a cada save.
+model Recipe {
+  id               String             @id @default(uuid()) @db.Uuid
+  ownerId          String             @db.Uuid
+  owner            User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  /// Casa com quem a receita é compartilhada (a chave estrangeira entra com a tabela de casas)
+  householdId      String?            @db.Uuid
+  name             String
+  notes            String?
+  /// Peso final da panela; sem ele, a base é a soma dos gramas crus
+  totalCookedGrams Float?
+  servings         Int?
+  kcal100          Float
+  protein100       Float
+  carbs100         Float
+  fat100           Float
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  ingredients      RecipeIngredient[]
+
+  @@index([ownerId])
+  @@index([householdId])
+  @@map("recipes")
+}
+
+/// Ingrediente com os valores na quantidade informada (snapshot: não muda se o alimento de origem mudar)
+model RecipeIngredient {
+  id       String  @id @default(uuid()) @db.Uuid
+  recipeId String  @db.Uuid
+  recipe   Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  foodId   String? @db.Uuid
+  food     Food?   @relation(fields: [foodId], references: [id], onDelete: SetNull)
+  name     String
+  grams    Float
+  kcal     Float
+  protein  Float
+  carbs    Float
+  fat      Float
+  position Int
+
+  @@index([recipeId])
+  @@map("recipe_ingredients")
 }

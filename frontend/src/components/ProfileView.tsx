@@ -149,6 +149,15 @@ export function ProfileView() {
         </>
       )}
 
+      <section className="card glass" style={{ paddingTop: 6, paddingBottom: 6 }}>
+        <div className="list">
+          <Link href="/recipes" className="list-row" style={{ color: 'var(--accent)' }}>
+            <span className="list-row-main headline">Minhas receitas</span>
+            <ChevronRight width={18} height={18} />
+          </Link>
+        </div>
+      </section>
+
       <nav className="caption" style={{ display: 'flex', justifyContent: 'center', gap: 16 }} aria-label="Documentos legais">
         <Link href="/termos">Termos de Uso</Link>
         <Link href="/privacidade">Política de Privacidade</Link>

@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Food, FoodSource, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { RecipesService } from '../recipes/recipes.service';
 import { CreateFoodDto } from './dto/food.dto';
 import { Macros, NORMALIZED_NAME_SQL, normalizeName, searchTokens, toPer100 } from './food-normalize';
 
-export type FoodOrigin = 'history' | 'custom' | 'taco';
+export type FoodOrigin = 'history' | 'recipe' | 'custom' | 'taco';
 
 export interface FoodResult {
   id?: string;
@@ -13,6 +14,8 @@ export interface FoodResult {
   per100: Macros;
   portion?: { grams: number; label: string };
   timesUsed?: number;
+  /** Só receitas: peso da receita inteira (a panela toda). */
+  whole?: { grams: number };
 }
 
 const DEFAULT_LIMIT = 20;
@@ -45,31 +48,36 @@ interface TacoRow {
 
 @Injectable()
 export class FoodsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly recipes: RecipesService,
+  ) {}
 
   /**
-   * Ordem: 1) o que o usuário já registrou, 2) alimentos próprios, 3) TACO por similaridade.
-   * Sem busca, devolve os alimentos mais usados (estado vazio da tela).
+   * Ordem: 1) o que o usuário já registrou, 2) receitas, 3) alimentos próprios, 4) TACO por similaridade.
+   * Sem busca, devolve os mais usados e as receitas (estado vazio da tela).
    */
   async search(userId: string, q = '', limit = DEFAULT_LIMIT): Promise<FoodResult[]> {
     const query = normalizeName(q);
     const tokens = searchTokens(q);
 
     if (!query) {
-      const [history, custom] = await Promise.all([
+      const [history, recipes, custom] = await Promise.all([
         this.searchHistory(userId, tokens, limit),
+        this.recipes.searchAsFoods(userId, tokens, limit),
         this.searchCustom(userId, tokens, limit),
       ]);
-      return [...history, ...custom].slice(0, limit);
+      return [...history, ...recipes, ...custom].slice(0, limit);
     }
 
     const cap = Math.min(PERSONAL_CAP, limit);
-    const [history, custom, taco] = await Promise.all([
+    const [history, recipes, custom, taco] = await Promise.all([
       this.searchHistory(userId, tokens, cap),
+      this.recipes.searchAsFoods(userId, tokens, cap),
       this.searchCustom(userId, tokens, cap),
       query.length >= MIN_TACO_QUERY ? this.searchTaco(query, tokens, limit) : Promise.resolve([]),
     ]);
-    return [...history, ...custom, ...taco].slice(0, limit);
+    return [...history, ...recipes, ...custom, ...taco].slice(0, limit);
   }
 
   async create(userId: string, dto: CreateFoodDto): Promise<FoodResult> {

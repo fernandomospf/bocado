@@ -19,8 +19,15 @@ function portionSummary(food: FoodResult) {
   return `100 g · ${fmtInt(food.per100.kcal)} kcal`;
 }
 
-/** Busca de alimentos (histórico, próprios e TACO) com escolha de porção. */
-export function FoodSearch({ onAdd }: { onAdd: (item: DraftItem) => void }) {
+interface FoodSearchProps {
+  onAdd: (item: DraftItem) => void;
+  /** No editor de receitas: sem receita dentro de receita. */
+  excludeRecipes?: boolean;
+  placeholder?: string;
+}
+
+/** Busca de alimentos (histórico, receitas, próprios e TACO) com escolha de porção. */
+export function FoodSearch({ onAdd, excludeRecipes = false, placeholder }: FoodSearchProps) {
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [picked, setPicked] = useState<FoodResult | null>(null);
@@ -36,7 +43,7 @@ export function FoodSearch({ onAdd }: { onAdd: (item: DraftItem) => void }) {
   );
 
   const searching = debounced.length > 0;
-  const results = data ?? [];
+  const results = (data ?? []).filter((f) => !(excludeRecipes && f.origin === 'recipe'));
 
   return (
     <section className="stack">
@@ -47,7 +54,7 @@ export function FoodSearch({ onAdd }: { onAdd: (item: DraftItem) => void }) {
           type="search"
           enterKeyHint="search"
           autoComplete="off"
-          placeholder="Buscar alimento: arroz, ovo, banana…"
+          placeholder={placeholder ?? 'Buscar alimento: arroz, ovo, banana…'}
           value={query}
           maxLength={80}
           onChange={(e) => setQuery(e.target.value)}

@@ -1,6 +1,7 @@
 'use client';
 
 /* eslint-disable @next/next/no-img-element */
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useSWRConfig } from 'swr';
@@ -199,7 +200,16 @@ export function AddMealView() {
         ))}
       </div>
 
-      {mode === 'search' && <FoodSearch onAdd={addFromSearch} />}
+      {mode === 'search' && (
+        <section className="stack">
+          <div className="row" style={{ justifyContent: 'flex-end' }}>
+            <Link href="/recipes" className="btn btn-glass btn-sm">
+              Receitas
+            </Link>
+          </div>
+          <FoodSearch onAdd={addFromSearch} />
+        </section>
+      )}
 
       {mode === 'photo' && (
         <section className="stack">

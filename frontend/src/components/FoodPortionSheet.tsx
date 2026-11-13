@@ -8,6 +8,7 @@ import { Sheet } from './Sheet';
 
 export const ORIGIN_LABEL: Record<FoodResult['origin'], string> = {
   history: 'Você já comeu',
+  recipe: 'Receita',
   custom: 'Seu alimento',
   taco: 'TACO',
 };
@@ -98,10 +99,31 @@ export function FoodPortionSheet({ food, onClose, onAdd }: FoodPortionSheetProps
           </div>
         )}
 
+        {food.whole && (
+          <button
+            type="button"
+            className="btn btn-glass btn-block"
+            aria-pressed={Math.abs(value - food.whole.grams) < 0.05}
+            onClick={() => setGrams(fmtGrams(food.whole!.grams))}
+          >
+            Receita inteira · <span className="num">{fmtGrams(food.whole.grams)} g</span>
+          </button>
+        )}
+
         <button
           className="btn btn-primary btn-block"
           disabled={!(value > 0)}
-          onClick={() => onAdd(draftFromPer100(food.name, food.per100, value))}
+          onClick={() =>
+            // foodId só para alimentos da base (TACO ou próprios); receitas e histórico não são um Food
+            onAdd(
+              draftFromPer100(
+                food.name,
+                food.per100,
+                value,
+                food.origin === 'taco' || food.origin === 'custom' ? food.id : undefined,
+              ),
+            )
+          }
         >
           Adicionar
         </button>

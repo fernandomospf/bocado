@@ -13,6 +13,8 @@ export interface DraftItem {
   carbs: string;
   fat: string;
   confidence?: Confidence;
+  /** Alimento de origem (TACO ou próprio), quando o item veio da busca. Usado nos ingredientes de receitas. */
+  foodId?: string;
   /** Referência para escalar macros quando a porção muda. */
   base?: { grams: number; kcal: number; protein: number; carbs: number; fat: number };
 }
@@ -79,7 +81,7 @@ export function scalePer100(per100: Macros, grams: number): Macros {
 }
 
 /** Item vindo da busca: `base` = valores por 100 g, para os macros escalarem quando a porção mudar. */
-export function draftFromPer100(name: string, per100: Macros, grams: number): DraftItem {
+export function draftFromPer100(name: string, per100: Macros, grams: number, foodId?: string): DraftItem {
   const m = scalePer100(per100, grams);
   return newDraft({
     name,
@@ -89,6 +91,21 @@ export function draftFromPer100(name: string, per100: Macros, grams: number): Dr
     carbs: str(m.carbs),
     fat: str(m.fat),
     base: { grams: 100, ...per100 },
+    ...(foodId ? { foodId } : {}),
+  });
+}
+
+/** Item a partir de valores já gravados (ex.: ingrediente de receita), com base para escalar a porção. */
+export function draftFromValues(i: Macros & { name: string; grams: number; foodId?: string | null }): DraftItem {
+  return newDraft({
+    name: i.name,
+    grams: str(i.grams),
+    kcal: str(i.kcal),
+    protein: str(i.protein),
+    carbs: str(i.carbs),
+    fat: str(i.fat),
+    ...(i.grams > 0 ? { base: { grams: i.grams, kcal: i.kcal, protein: i.protein, carbs: i.carbs, fat: i.fat } } : {}),
+    ...(i.foodId ? { foodId: i.foodId } : {}),
   });
 }
 
