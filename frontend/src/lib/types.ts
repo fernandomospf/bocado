@@ -2,7 +2,7 @@ export type Sex = 'MALE' | 'FEMALE';
 export type ActivityLevel = 'SEDENTARY' | 'LIGHT' | 'MODERATE' | 'ACTIVE' | 'VERY_ACTIVE';
 export type GoalType = 'LOSE' | 'MAINTAIN' | 'GAIN';
 export type MealType = 'BREAKFAST' | 'LUNCH' | 'SNACK' | 'DINNER';
-export type MealSource = 'MANUAL' | 'PHOTO' | 'TEXT';
+export type MealSource = 'MANUAL' | 'PHOTO' | 'TEXT' | 'SEARCH';
 export type Confidence = 'low' | 'medium' | 'high';
 
 export interface Me {
@@ -78,6 +78,18 @@ export interface AnalyzedItem extends Macros {
   name: string;
   grams: number;
   confidence: Confidence;
+}
+
+export type FoodOrigin = 'history' | 'custom' | 'taco';
+
+/** Resultado da busca de alimentos; valores sempre por 100 g. */
+export interface FoodResult {
+  id?: string;
+  name: string;
+  origin: FoodOrigin;
+  per100: Macros;
+  portion?: { grams: number; label: string };
+  timesUsed?: number;
 }
 
 export interface AnalysisResult {

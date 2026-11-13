@@ -37,6 +37,12 @@ enum MealSource {
   MANUAL
   PHOTO
   TEXT
+  SEARCH
+}
+
+enum FoodSource {
+  TACO
+  CUSTOM
 }
 
 model User {
@@ -50,6 +56,7 @@ model User {
   updatedAt    DateTime @updatedAt
   profile      Profile?
   meals        Meal[]
+  foods        Food[]
 
   @@map("users")
 }
@@ -102,4 +109,28 @@ model MealItem {
 
   @@index([mealId])
   @@map("meal_items")
+}
+
+/// Base de alimentos: TACO (pública, userId nulo) e alimentos CUSTOM de cada usuário. Valores por 100 g.
+model Food {
+  id           String     @id @default(uuid()) @db.Uuid
+  name         String
+  /// Nome em minúsculas, sem acento e sem pontuação, para a busca por trigramas
+  searchName   String
+  category     String?
+  source       FoodSource
+  kcal100      Float
+  protein100   Float
+  carbs100     Float
+  fat100       Float
+  portionGrams Float?
+  portionLabel String?
+  userId       String?    @db.Uuid
+  user         User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@index([searchName(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([userId])
+  @@index([source, name])
+  @@map("foods")
 }

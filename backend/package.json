@@ -11,7 +11,9 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "build:seed": "tsc -p tsconfig.seed.json",
+    "seed": "prisma db seed"
   },
   "engines": {
     "node": ">=22"
@@ -65,5 +67,8 @@
     "transform": {
       "^.+\\.ts$": "ts-jest"
     }
+  },
+  "prisma": {
+    "seed": "ts-node --transpile-only prisma/seed.ts"
   }
 }

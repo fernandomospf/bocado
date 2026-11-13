@@ -1,0 +1,18 @@
+[
+  { "food": "Ovo, de galinha, inteiro, cozido/10minutos", "grams": 50, "label": "1 unidade" },
+  { "food": "Ovo, de galinha, inteiro, cru", "grams": 50, "label": "1 unidade" },
+  { "food": "Pão, trigo, francês", "grams": 50, "label": "1 unidade" },
+  { "food": "Pão, trigo, forma, integral", "grams": 25, "label": "1 fatia" },
+  { "food": "Arroz, tipo 1, cozido", "grams": 125, "label": "1 escumadeira" },
+  { "food": "Arroz, tipo 2, cozido", "grams": 125, "label": "1 escumadeira" },
+  { "food": "Arroz, integral, cozido", "grams": 125, "label": "1 escumadeira" },
+  { "food": "Feijão, carioca, cozido", "grams": 86, "label": "1 concha" },
+  { "food": "Feijão, preto, cozido", "grams": 86, "label": "1 concha" },
+  { "food": "Café, infusão 10%", "grams": 50, "label": "1 xícara (50 ml)" },
+  { "food": "Refrigerante, tipo cola", "grams": 350, "label": "1 lata (350 ml)" },
+  { "food": "Refrigerante, tipo guaraná", "grams": 350, "label": "1 lata (350 ml)" },
+  { "food": "Refrigerante, tipo laranja", "grams": 350, "label": "1 lata (350 ml)" },
+  { "food": "Refrigerante, tipo limão", "grams": 350, "label": "1 lata (350 ml)" },
+  { "food": "Refrigerante, tipo água tônica", "grams": 350, "label": "1 lata (350 ml)" },
+  { "food": "Cerveja, pilsen", "grams": 350, "label": "1 lata (350 ml)" }
+]

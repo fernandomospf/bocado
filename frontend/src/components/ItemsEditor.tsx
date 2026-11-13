@@ -1,7 +1,7 @@
 'use client';
 
 import { fmtInt, parseNum, round1 } from '@/lib/format';
-import type { Confidence } from '@/lib/types';
+import type { Confidence, Macros } from '@/lib/types';
 import { TrashIcon } from './Icons';
 
 export interface DraftItem {
@@ -64,6 +64,31 @@ export function draftFromAnalysis(i: {
     fat: str(i.fat),
     confidence: i.confidence,
     base: { grams: i.grams, kcal: i.kcal, protein: i.protein, carbs: i.carbs, fat: i.fat },
+  });
+}
+
+/** Macros de uma porção a partir dos valores por 100 g. */
+export function scalePer100(per100: Macros, grams: number): Macros {
+  const f = grams / 100;
+  return {
+    kcal: round1(per100.kcal * f),
+    protein: round1(per100.protein * f),
+    carbs: round1(per100.carbs * f),
+    fat: round1(per100.fat * f),
+  };
+}
+
+/** Item vindo da busca: `base` = valores por 100 g, para os macros escalarem quando a porção mudar. */
+export function draftFromPer100(name: string, per100: Macros, grams: number): DraftItem {
+  const m = scalePer100(per100, grams);
+  return newDraft({
+    name,
+    grams: str(grams),
+    kcal: str(m.kcal),
+    protein: str(m.protein),
+    carbs: str(m.carbs),
+    fat: str(m.fat),
+    base: { grams: 100, ...per100 },
   });
 }
 

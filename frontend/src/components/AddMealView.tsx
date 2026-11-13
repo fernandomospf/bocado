@@ -10,13 +10,15 @@ import { fmtInt, parseNum } from '@/lib/format';
 import { compressImage } from '@/lib/image';
 import { MEAL_ORDER, mealTypeForNow } from '@/lib/labels';
 import type { AnalysisResult, MealSource, MealType } from '@/lib/types';
+import { FoodSearch } from './FoodSearch';
 import { MacroDots } from './MacroLegend';
 import { CameraIcon, ChevronLeft, PlusIcon, SparkIcon } from './Icons';
 import { type DraftItem, draftFromAnalysis, ItemsEditor, newDraft, resolveKcal, toPayload } from './ItemsEditor';
 
-type Mode = 'photo' | 'text' | 'manual';
+type Mode = 'search' | 'photo' | 'text' | 'manual';
 
 const MODES: { value: Mode; label: string }[] = [
+  { value: 'search', label: 'Buscar' },
   { value: 'photo', label: 'Foto' },
   { value: 'text', label: 'Descrever' },
   { value: 'manual', label: 'Manual' },
@@ -38,7 +40,7 @@ export function AddMealView() {
   const paramType = params.get('type') as MealType | null;
   const paramDate = params.get('date');
 
-  const [mode, setMode] = useState<Mode>('photo');
+  const [mode, setMode] = useState<Mode>('search');
   const [type, setType] = useState<MealType>(
     paramType && MEAL_ORDER.includes(paramType) ? paramType : mealTypeForNow(),
   );
@@ -91,6 +93,13 @@ export function AddMealView() {
     } catch (err) {
       setError(errorMessage(err));
     }
+  }
+
+  /** Item da busca. A refeição só vira SEARCH se nenhuma análise por IA tiver sido usada. */
+  function addFromSearch(item: DraftItem) {
+    setItems((prev) => [...prev.filter((i) => i.name.trim() || resolveKcal(i) > 0), item]);
+    setSource((prev) => (prev === 'MANUAL' ? 'SEARCH' : prev));
+    setError(null);
   }
 
   function applyAnalysis(result: AnalysisResult, from: MealSource) {
@@ -189,6 +198,8 @@ export function AddMealView() {
           </button>
         ))}
       </div>
+
+      {mode === 'search' && <FoodSearch onAdd={addFromSearch} />}
 
       {mode === 'photo' && (
         <section className="stack">

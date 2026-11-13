@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { UserThrottlerGuard } from './common/user-throttler.guard';
 import { validateEnv } from './config/env.validation';
+import { FoodsModule } from './foods/foods.module';
 import { HealthModule } from './health/health.module';
 import { MealsModule } from './meals/meals.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -20,6 +21,7 @@ import { ProfileModule } from './profile/profile.module';
     AuthModule,
     ProfileModule,
     MealsModule,
+    FoodsModule,
     AnalysisModule,
     HealthModule,
   ],

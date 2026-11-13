@@ -838,6 +838,23 @@ img {
   color: var(--success);
 }
 
+/* Origem dos resultados da busca de alimentos */
+.badge-origin-history {
+  flex: none;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+}
+
+.badge-origin-custom {
+  flex: none;
+  background: color-mix(in srgb, var(--ring-protein) 18%, transparent);
+  color: color-mix(in srgb, var(--ring-protein) 75%, var(--text));
+}
+
+.badge-origin-taco {
+  flex: none;
+}
+
 .avatar {
   width: 40px;
   height: 40px;
