@@ -78,7 +78,10 @@ export function FoodSearch({ onAdd, excludeRecipes = false, placeholder }: FoodS
               >
                 <div className="list-row-main">
                   <div className="list-row-title">{food.name}</div>
-                  <div className="list-row-sub">{portionSummary(food)}</div>
+                  <div className="list-row-sub">
+                    {food.brand ? `${food.brand} · ` : ''}
+                    {portionSummary(food)}
+                  </div>
                 </div>
                 <span className={`badge badge-origin-${food.origin}`}>{ORIGIN_LABEL[food.origin]}</span>
               </button>

@@ -161,14 +161,18 @@ export class RecipesService {
     if (recipe.ownerId !== userId) throw new ForbiddenException('Só quem criou a receita pode alterá-la');
   }
 
-  /** Recalcula os valores por 100 g e valida os alimentos de origem (TACO ou próprios do usuário). */
+  /** Recalcula os valores por 100 g e valida os alimentos de origem (base pública ou próprios do usuário). */
   private async prepare(userId: string, dto: SaveRecipeDto) {
     const nutrition = computeRecipe(dto.ingredients, dto.totalCookedGrams, dto.servings);
 
     const foodIds = [...new Set(dto.ingredients.map((i) => i.foodId).filter((v): v is string => !!v))];
     const allowed = foodIds.length
       ? await this.prisma.food.findMany({
-          where: { id: { in: foodIds }, OR: [{ source: FoodSource.TACO }, { userId }] },
+          where: {
+            id: { in: foodIds },
+            // Base pública (TACO e produtos do acervo) ou alimento próprio do usuário
+            OR: [{ source: { in: [FoodSource.TACO, FoodSource.OFF, FoodSource.LABEL] } }, { userId }],
+          },
           select: { id: true },
         })
       : [];

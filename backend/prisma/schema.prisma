@@ -43,6 +43,17 @@ enum MealSource {
 enum FoodSource {
   TACO
   CUSTOM
+  /// Produto importado do Open Food Facts (compartilhado)
+  OFF
+  /// Produto lido do rótulo por um usuário (acervo compartilhado)
+  LABEL
+}
+
+enum FoodStatus {
+  ACTIVE
+  /// Denunciado por 3 usuários: sai da busca até revisão
+  REPORTED
+  HIDDEN
 }
 
 model User {
@@ -59,6 +70,7 @@ model User {
   foods        Food[]
   weights      WeightEntry[]
   recipes      Recipe[]
+  contributed  Food[]        @relation("FoodContributor")
 
   @@map("users")
 }
@@ -117,27 +129,46 @@ model MealItem {
 
 /// Base de alimentos: TACO (pública, userId nulo) e alimentos CUSTOM de cada usuário. Valores por 100 g.
 model Food {
-  id           String             @id @default(uuid()) @db.Uuid
-  name         String
+  id              String             @id @default(uuid()) @db.Uuid
+  name            String
   /// Nome em minúsculas, sem acento e sem pontuação, para a busca por trigramas
-  searchName   String
-  category     String?
-  source       FoodSource
-  kcal100      Float
-  protein100   Float
-  carbs100     Float
-  fat100       Float
-  portionGrams Float?
-  portionLabel String?
-  userId       String?            @db.Uuid
-  user         User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt    DateTime           @default(now())
-  ingredients  RecipeIngredient[]
+  searchName      String
+  category        String?
+  source          FoodSource
+  kcal100         Float
+  protein100      Float
+  carbs100        Float
+  fat100          Float
+  portionGrams    Float?
+  portionLabel    String?
+  userId          String?            @db.Uuid
+  user            User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Produtos industrializados (OFF e LABEL): compartilhados, com userId nulo
+  barcode         String?            @unique
+  brand           String?
+  /// Porção do rótulo, ex.: 30 g "30 g (1 xícara)"
+  servingGrams    Float?
+  servingLabel    String?
+  /// Quem cadastrou um produto LABEL; o produto continua no acervo se a conta for apagada
+  contributedById String?            @db.Uuid
+  contributedBy   User?              @relation("FoodContributor", fields: [contributedById], references: [id], onDelete: SetNull)
+  status          FoodStatus         @default(ACTIVE)
+  reportCount     Int                @default(0)
+  createdAt       DateTime           @default(now())
+  ingredients     RecipeIngredient[]
 
   @@index([searchName(ops: raw("gin_trgm_ops"))], type: Gin)
   @@index([userId])
   @@index([source, name])
   @@map("foods")
+}
+
+/// Cache negativo: códigos que o Open Food Facts não tem (ou tem incompletos), para não consultar de novo por 7 dias
+model BarcodeMiss {
+  code      String   @id
+  checkedAt DateTime @default(now())
+
+  @@map("barcode_misses")
 }
 
 /// Pesagens do usuário: no máximo uma por dia (registrar de novo no mesmo dia atualiza o valor).

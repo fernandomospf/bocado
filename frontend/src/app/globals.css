@@ -987,6 +987,18 @@ img {
   color: color-mix(in srgb, var(--ring-protein) 75%, var(--text));
 }
 
+.badge-origin-off {
+  flex: none;
+  background: color-mix(in srgb, var(--ring-fat) 18%, transparent);
+  color: color-mix(in srgb, var(--ring-fat) 70%, var(--text));
+}
+
+.badge-origin-label {
+  flex: none;
+  background: color-mix(in srgb, var(--ring-kcal) 16%, transparent);
+  color: color-mix(in srgb, var(--ring-kcal) 75%, var(--text));
+}
+
 .badge-origin-taco {
   flex: none;
 }

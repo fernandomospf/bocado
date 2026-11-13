@@ -58,7 +58,7 @@ describe('escala por 100 g', () => {
 
 describe('FoodsService.remove (posse)', () => {
   const deleteMany = jest.fn();
-  const service = new FoodsService({ food: { deleteMany } } as never, {} as never);
+  const service = new FoodsService({ food: { deleteMany } } as never, {} as never, {} as never);
 
   beforeEach(() => deleteMany.mockReset());
 

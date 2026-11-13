@@ -103,7 +103,8 @@ export interface WeightSummary {
   targetsOutdated: boolean;
 }
 
-export type FoodOrigin = 'history' | 'recipe' | 'custom' | 'taco';
+/** 'off' = Open Food Facts; 'label' = acervo Bocado (lido do rótulo por um usuário). */
+export type FoodOrigin = 'history' | 'recipe' | 'custom' | 'off' | 'label' | 'taco';
 
 /** Resultado da busca de alimentos; valores sempre por 100 g. */
 export interface FoodResult {
@@ -115,7 +116,14 @@ export interface FoodResult {
   timesUsed?: number;
   /** Só receitas: peso da receita inteira. */
   whole?: { grams: number };
+  /** Só produtos industrializados. */
+  brand?: string | null;
+  barcode?: string | null;
 }
+
+export type BarcodeLookup =
+  | { found: true; origin: 'local' | 'off'; food: FoodResult }
+  | { found: false; code: string };
 
 export interface RecipeIngredient extends Macros {
   id?: string;

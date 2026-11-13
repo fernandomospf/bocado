@@ -11,6 +11,8 @@ export const ORIGIN_LABEL: Record<FoodResult['origin'], string> = {
   history: 'Você já comeu',
   recipe: 'Receita',
   custom: 'Seu alimento',
+  off: 'Open Food Facts',
+  label: 'Acervo Bocado',
   taco: 'TACO',
 };
 
@@ -45,8 +47,8 @@ export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 
     setBusy(true);
     setError(null);
     try {
-      // foodId só para alimentos da base (TACO ou próprios); receitas e histórico não são um Food
-      const foodId = food.origin === 'taco' || food.origin === 'custom' ? food.id : undefined;
+      // foodId só para registros da base de alimentos; receitas e histórico não são um Food
+      const foodId = ['taco', 'custom', 'off', 'label'].includes(food.origin) ? food.id : undefined;
       await onAdd(draftFromPer100(food.name, food.per100, value, foodId));
     } catch (err) {
       setError(errorMessage(err));
@@ -62,6 +64,7 @@ export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 
             {ORIGIN_LABEL[food.origin]}
           </span>
           <h2 className="title">{food.name}</h2>
+          {food.brand && <p className="body-2">{food.brand}</p>}
           {context && <p className="caption">{context}</p>}
           <p className="body-2 num">{fmtInt(m.kcal)} kcal</p>
         </div>
@@ -129,6 +132,16 @@ export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 
           >
             Receita inteira · <span className="num">{fmtGrams(food.whole.grams)} g</span>
           </button>
+        )}
+
+        {food.origin === 'off' && (
+          <p className="caption">
+            Dados:{' '}
+            <a className="text-link" href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer">
+              Open Food Facts
+            </a>{' '}
+            (ODbL)
+          </p>
         )}
 
         {error && (

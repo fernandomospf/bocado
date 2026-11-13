@@ -1,11 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Food, FoodSource, Prisma } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Food, FoodSource, FoodStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RecipesService } from '../recipes/recipes.service';
+import { normalizeBarcode } from './barcode';
 import { CreateFoodDto } from './dto/food.dto';
 import { Macros, NORMALIZED_NAME_SQL, normalizeName, searchTokens, toPer100 } from './food-normalize';
+import { OffClient, OffProduct } from './off.client';
 
-export type FoodOrigin = 'history' | 'recipe' | 'custom' | 'taco';
+/** 'off' = produto do Open Food Facts; 'label' = produto do acervo lido do rótulo por um usuário. */
+export type FoodOrigin = 'history' | 'recipe' | 'custom' | 'off' | 'label' | 'taco';
 
 export interface FoodResult {
   id?: string;
@@ -16,7 +19,17 @@ export interface FoodResult {
   timesUsed?: number;
   /** Só receitas: peso da receita inteira (a panela toda). */
   whole?: { grams: number };
+  /** Só produtos industrializados. */
+  brand?: string | null;
+  barcode?: string | null;
 }
+
+export type BarcodeLookup =
+  | { found: true; origin: 'local' | 'off'; food: FoodResult }
+  | { found: false; code: string };
+
+/** Por quanto tempo um código que o OFF não tem deixa de ser consultado de novo. */
+export const BARCODE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const DEFAULT_LIMIT = 20;
 /** Com busca preenchida, histórico e alimentos próprios ocupam no máximo isto, para a TACO sempre aparecer. */
@@ -51,10 +64,12 @@ export class FoodsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly recipes: RecipesService,
+    private readonly off: OffClient,
   ) {}
 
   /**
-   * Ordem: 1) o que o usuário já registrou, 2) receitas, 3) alimentos próprios, 4) TACO por similaridade.
+   * Ordem: 1) o que o usuário já registrou, 2) receitas, 3) alimentos próprios, 4) produtos do acervo
+   * (Open Food Facts e rótulos), 5) TACO por similaridade.
    * Sem busca, devolve os mais usados e as receitas (estado vazio da tela).
    */
   async search(userId: string, q = '', limit = DEFAULT_LIMIT): Promise<FoodResult[]> {
@@ -71,13 +86,15 @@ export class FoodsService {
     }
 
     const cap = Math.min(PERSONAL_CAP, limit);
-    const [history, recipes, custom, taco] = await Promise.all([
+    const shared = query.length >= MIN_TACO_QUERY;
+    const [history, recipes, custom, products, taco] = await Promise.all([
       this.searchHistory(userId, tokens, cap),
       this.recipes.searchAsFoods(userId, tokens, cap),
       this.searchCustom(userId, tokens, cap),
-      query.length >= MIN_TACO_QUERY ? this.searchTaco(query, tokens, limit) : Promise.resolve([]),
+      shared ? this.searchProducts(tokens, cap) : Promise.resolve([]),
+      shared ? this.searchTaco(query, tokens, limit) : Promise.resolve([]),
     ]);
-    return [...history, ...recipes, ...custom, ...taco].slice(0, limit);
+    return [...history, ...recipes, ...custom, ...products, ...taco].slice(0, limit);
   }
 
   async create(userId: string, dto: CreateFoodDto): Promise<FoodResult> {
@@ -146,6 +163,82 @@ export class FoodsService {
     });
   }
 
+  /**
+   * Consulta por código de barras: 1) acervo local (só ativos), 2) Open Food Facts, que é salvo no acervo
+   * para os próximos (a consulta externa acontece no máximo uma vez por produto), 3) não encontrado.
+   */
+  async lookupBarcode(raw: string): Promise<BarcodeLookup> {
+    const code = normalizeBarcode(raw);
+    if (!code) throw new BadRequestException('Código de barras inválido. Confira os números.');
+
+    const local = await this.prisma.food.findUnique({ where: { barcode: code } });
+    if (local) {
+      // Denunciado ou oculto: tratado como não encontrado até a revisão
+      return local.status === FoodStatus.ACTIVE
+        ? { found: true, origin: 'local', food: serializeFood(local, originOf(local.source)) }
+        : { found: false, code };
+    }
+
+    const miss = await this.prisma.barcodeMiss.findUnique({ where: { code } });
+    if (miss && Date.now() - miss.checkedAt.getTime() < BARCODE_MISS_TTL_MS) return { found: false, code };
+
+    const result = await this.off.lookup(code);
+    if (result.status === 'error') return { found: false, code }; // passageiro: sem cache negativo
+    if (result.status === 'missing') {
+      await this.prisma.barcodeMiss.upsert({
+        where: { code },
+        create: { code, checkedAt: new Date() },
+        update: { checkedAt: new Date() },
+      });
+      return { found: false, code };
+    }
+
+    const food = await this.saveOffProduct(code, result.product);
+    return { found: true, origin: 'off', food: serializeFood(food, originOf(food.source)) };
+  }
+
+  private async saveOffProduct(code: string, p: OffProduct): Promise<Food> {
+    try {
+      const food = await this.prisma.food.create({
+        data: {
+          source: FoodSource.OFF,
+          barcode: code,
+          name: p.name,
+          brand: p.brand,
+          searchName: normalizeName([p.name, p.brand].filter(Boolean).join(' ')),
+          kcal100: p.per100.kcal,
+          protein100: p.per100.protein,
+          carbs100: p.per100.carbs,
+          fat100: p.per100.fat,
+          servingGrams: p.serving?.grams ?? null,
+          servingLabel: p.serving?.label ?? null,
+        },
+      });
+      await this.prisma.barcodeMiss.deleteMany({ where: { code } });
+      return food;
+    } catch (err) {
+      // Dois scans simultâneos do mesmo código: o outro já salvou; usa o registro existente
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        return this.prisma.food.findUniqueOrThrow({ where: { barcode: code } });
+      }
+      throw err;
+    }
+  }
+
+  /** Produtos industrializados do acervo compartilhado (Open Food Facts e rótulos), só os ativos. */
+  private async searchProducts(tokens: string[], limit: number): Promise<FoodResult[]> {
+    const foods = await this.prisma.food.findMany({
+      where: {
+        source: { in: [FoodSource.OFF, FoodSource.LABEL] },
+        status: FoodStatus.ACTIVE,
+        AND: tokens.map((t) => ({ searchName: { contains: t } })),
+      },
+      orderBy: { name: 'asc' },
+      take: limit,
+    });
+    return foods.map((f) => serializeFood(f, originOf(f.source)));
+  }
+
   private async searchCustom(userId: string, tokens: string[], limit: number): Promise<FoodResult[]> {
     const foods = await this.prisma.food.findMany({
       where: {
@@ -205,17 +298,33 @@ function similaritySql(column: Prisma.Sql, tokens: string[]): Prisma.Sql {
   return Prisma.sql`(${Prisma.join(each, ' + ')})`;
 }
 
-function serializeFood(
-  f: Pick<Food, 'id' | 'name' | 'kcal100' | 'protein100' | 'carbs100' | 'fat100' | 'portionGrams' | 'portionLabel'> & {
-    source: FoodSource;
-  },
-  origin: FoodOrigin,
-): FoodResult {
+function originOf(source: FoodSource): FoodOrigin {
+  if (source === FoodSource.OFF) return 'off';
+  if (source === FoodSource.LABEL) return 'label';
+  if (source === FoodSource.CUSTOM) return 'custom';
+  return 'taco';
+}
+
+type SerializableFood = Pick<
+  Food,
+  'id' | 'name' | 'kcal100' | 'protein100' | 'carbs100' | 'fat100' | 'portionGrams' | 'portionLabel'
+> &
+  Partial<Pick<Food, 'brand' | 'barcode' | 'servingGrams' | 'servingLabel'>> & { source: FoodSource };
+
+/** Porção sugerida: a medida caseira (TACO e próprios) ou a porção do rótulo (produtos). */
+function serializeFood(f: SerializableFood, origin: FoodOrigin): FoodResult {
+  const portion = f.portionGrams
+    ? { grams: f.portionGrams, label: f.portionLabel || `${f.portionGrams} g` }
+    : f.servingGrams
+      ? { grams: f.servingGrams, label: f.servingLabel || `${f.servingGrams} g` }
+      : undefined;
+  const isProduct = f.source === FoodSource.OFF || f.source === FoodSource.LABEL;
   return {
     id: f.id,
     name: f.name,
     origin,
     per100: { kcal: f.kcal100, protein: f.protein100, carbs: f.carbs100, fat: f.fat100 },
-    ...(f.portionGrams ? { portion: { grams: f.portionGrams, label: f.portionLabel || `${f.portionGrams} g` } } : {}),
+    ...(portion ? { portion } : {}),
+    ...(isProduct ? { brand: f.brand ?? null, barcode: f.barcode ?? null } : {}),
   };
 }
