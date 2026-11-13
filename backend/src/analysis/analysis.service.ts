@@ -75,46 +75,33 @@ export class AnalysisService {
     ]);
   }
 
+  /** Há chave da IA configurada no servidor? */
+  get isConfigured(): boolean {
+    return this.client !== null;
+  }
+
+  /**
+   * Chamada genérica com ferramenta (tool_choice auto + parse tolerante), usada por outros módulos
+   * (ex.: sugestões). Devolve o input da ferramenta, ou o JSON extraído do texto, para o chamador normalizar.
+   */
+  async callTool(params: {
+    system: string;
+    tool: Anthropic.Tool;
+    content: Anthropic.ContentBlockParam[];
+    maxTokens: number;
+    truncatedMessage: string;
+  }): Promise<unknown> {
+    return (await this.invoke(params)).raw;
+  }
+
   private async run(content: Anthropic.ContentBlockParam[]): Promise<AnalysisResult> {
-    if (!this.client) {
-      throw new ServiceUnavailableException('Análise por IA não configurada no servidor');
-    }
-
-    let message: Anthropic.Message;
-    try {
-      message = await this.client.messages.create({
-        model: this.model,
-        max_tokens: 2000,
-        system: SYSTEM_PROMPT,
-        tools: [ANALYSIS_TOOL],
-        tool_choice: { type: 'auto' },
-        messages: [{ role: 'user', content }],
-      });
-    } catch (err) {
-      throw this.toHttpError(err);
-    }
-
-    const block = message.content.find(
-      (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === ANALYSIS_TOOL_NAME,
-    );
-    const text = message.content
-      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('\n');
-
-    const summary = summarizeResponse(message, block, text);
-    this.logger.debug(`Resposta da IA: ${summary}`);
-
-    if (message.stop_reason === 'max_tokens') {
-      this.logger.warn(`Análise truncada por max_tokens: ${summary}`);
-      throw new ServiceUnavailableException('A análise ficou incompleta. Tente uma descrição mais curta.');
-    }
-
-    const raw: unknown = block ? block.input : extractJson(text);
-    if (!raw) {
-      this.logger.warn(`Análise sem tool_use nem JSON válido: ${summary}`);
-      throw new ServiceUnavailableException('A análise não retornou um resultado válido. Tente de novo.');
-    }
+    const { raw, summary } = await this.invoke({
+      system: SYSTEM_PROMPT,
+      tool: ANALYSIS_TOOL,
+      content,
+      maxTokens: 2000,
+      truncatedMessage: 'A análise ficou incompleta. Tente uma descrição mais curta.',
+    });
 
     const stats: CoerceStats = { discarded: 0 };
     const coerced = coerceAnalysis(raw, stats);
@@ -130,6 +117,55 @@ export class AnalysisService {
       }
       throw err;
     }
+  }
+
+  private async invoke(params: {
+    system: string;
+    tool: Anthropic.Tool;
+    content: Anthropic.ContentBlockParam[];
+    maxTokens: number;
+    truncatedMessage: string;
+  }): Promise<{ raw: unknown; summary: string }> {
+    if (!this.client) {
+      throw new ServiceUnavailableException('Análise por IA não configurada no servidor');
+    }
+
+    let message: Anthropic.Message;
+    try {
+      message = await this.client.messages.create({
+        model: this.model,
+        max_tokens: params.maxTokens,
+        system: params.system,
+        tools: [params.tool],
+        tool_choice: { type: 'auto' },
+        messages: [{ role: 'user', content: params.content }],
+      });
+    } catch (err) {
+      throw this.toHttpError(err);
+    }
+
+    const block = message.content.find(
+      (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === params.tool.name,
+    );
+    const text = message.content
+      .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+      .map((b) => b.text)
+      .join('\n');
+
+    const summary = summarizeResponse(message, block, text);
+    this.logger.debug(`Resposta da IA (${params.tool.name}): ${summary}`);
+
+    if (message.stop_reason === 'max_tokens') {
+      this.logger.warn(`Resposta truncada por max_tokens: ${summary}`);
+      throw new ServiceUnavailableException(params.truncatedMessage);
+    }
+
+    const raw: unknown = block ? block.input : extractJson(text);
+    if (!raw) {
+      this.logger.warn(`Resposta sem tool_use nem JSON válido: ${summary}`);
+      throw new ServiceUnavailableException('A análise não retornou um resultado válido. Tente de novo.');
+    }
+    return { raw, summary };
   }
 
   private toHttpError(err: unknown): HttpException {

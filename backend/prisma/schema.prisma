@@ -71,6 +71,7 @@ model User {
   weights      WeightEntry[]
   recipes      Recipe[]
   contributed  Food[]        @relation("FoodContributor")
+  aiUsage      AiUsage[]
 
   @@map("users")
 }
@@ -228,4 +229,27 @@ model RecipeIngredient {
 
   @@index([recipeId])
   @@map("recipe_ingredients")
+}
+
+/// Respostas da IA para "Para fechar o dia", compartilhadas entre usuários com o mesmo déficit (30 dias)
+model SuggestionCache {
+  key       String    @id
+  result    Json
+  hits      Int       @default(0)
+  createdAt DateTime  @default(now())
+  lastHitAt DateTime?
+
+  @@map("suggestion_cache")
+}
+
+/// Contador diário de chamadas à IA por usuário e recurso (limite de uso)
+model AiUsage {
+  userId  String   @db.Uuid
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day     DateTime @db.Date
+  feature String
+  count   Int      @default(0)
+
+  @@id([userId, day, feature])
+  @@map("ai_usage")
 }

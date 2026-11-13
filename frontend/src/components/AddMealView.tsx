@@ -15,7 +15,8 @@ import { FoodPortionSheet } from './FoodPortionSheet';
 import { FoodSearch } from './FoodSearch';
 import { MacroDots } from './MacroLegend';
 import { CameraIcon, ChevronLeft, PlusIcon, SparkIcon } from './Icons';
-import { type DraftItem, draftFromAnalysis, ItemsEditor, newDraft, resolveKcal, toPayload } from './ItemsEditor';
+import { PREFILL_KEY } from './CloseDayCard';
+import { type DraftItem, draftFromAnalysis, draftFromValues, ItemsEditor, newDraft, resolveKcal, toPayload } from './ItemsEditor';
 import { QuickChips } from './QuickChips';
 
 type Mode = 'search' | 'photo' | 'text' | 'manual';
@@ -66,6 +67,23 @@ export function AddMealView() {
   useEffect(() => () => {
     if (photo) URL.revokeObjectURL(photo.url);
   }, [photo]);
+
+  // Sugestão "Para fechar o dia": chega como rascunho editável (os itens entram no editor, nada é salvo sozinho)
+  useEffect(() => {
+    if (params.get('prefill') !== '1') return;
+    const raw = sessionStorage.getItem(PREFILL_KEY);
+    sessionStorage.removeItem(PREFILL_KEY);
+    if (!raw) return;
+    try {
+      const draft = JSON.parse(raw) as { items?: Parameters<typeof draftFromValues>[0][] };
+      if (Array.isArray(draft.items) && draft.items.length) {
+        setItems(draft.items.map(draftFromValues));
+        setSource('MANUAL');
+      }
+    } catch {
+      // Rascunho corrompido: segue com a tela vazia
+    }
+  }, [params]);
 
   const totals = useMemo(
     () =>

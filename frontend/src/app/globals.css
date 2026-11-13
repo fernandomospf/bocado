@@ -725,6 +725,53 @@ img {
   color: var(--accent);
 }
 
+/* "Para fechar o dia" */
+.close-day-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.close-day-items li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 15px;
+}
+
+.close-day-steps {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 15px;
+  color: var(--text-2);
+}
+
+.close-day-steps li + li {
+  margin-top: 4px;
+}
+
+.close-day-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.close-day-option + .close-day-option {
+  padding-top: 18px;
+  border-top: 1px solid var(--glass-line);
+}
+
+.close-day-disclaimer {
+  text-align: center;
+  font-size: 12px;
+}
+
 /* Card de refeição vazio: "Adicionar" e "Da receita" lado a lado */
 .empty-actions {
   display: flex;
@@ -997,6 +1044,12 @@ img {
   flex: none;
   background: color-mix(in srgb, var(--ring-kcal) 16%, transparent);
   color: color-mix(in srgb, var(--ring-kcal) 75%, var(--text));
+}
+
+.badge-origin-ai {
+  flex: none;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
 }
 
 .badge-origin-taco {
@@ -1742,6 +1795,11 @@ img {
     display: flex;
     flex-direction: column;
     gap: 18px;
+  }
+
+  /* Com o card "Para fechar o dia" a coluna fica mais alta que a janela: fixa, o fim do card ficaria inalcançável */
+  .today-aside:has(.close-day) {
+    position: static;
   }
 
   .today-main {

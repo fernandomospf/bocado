@@ -13,6 +13,7 @@ import { recipeToFood } from '@/lib/recipe';
 import type { FoodResult, Meal, MealItem, MealType } from '@/lib/types';
 import { useShortcuts } from '@/lib/useShortcuts';
 import { FoodPortionSheet } from './FoodPortionSheet';
+import { CloseDayCard } from './CloseDayCard';
 import { ChevronLeft, ChevronRight, PlusIcon, PotIcon } from './Icons';
 import { type DraftItem, toPayload } from './ItemsEditor';
 import { ItemSheet } from './ItemSheet';
@@ -113,6 +114,8 @@ export function TodayView() {
             </div>
           )}
         </section>
+
+        {targets && <CloseDayCard date={date} isToday={date === today} eatenKcal={totals.kcal} />}
       </div>
 
       <div className="today-main">

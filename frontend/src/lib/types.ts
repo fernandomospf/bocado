@@ -175,3 +175,37 @@ export interface AnalysisResult {
   items: AnalyzedItem[];
   totals: Macros;
 }
+
+export type SuggestionOrigin = 'history' | 'recipe' | 'taco' | 'ai';
+
+export interface SuggestionItem extends Macros {
+  name: string;
+  grams: number;
+  origin: SuggestionOrigin;
+}
+
+export interface MealSuggestion {
+  title: string;
+  items: SuggestionItem[];
+  totals: Macros;
+  fit: number;
+  good: boolean;
+  origin: 'local' | 'ai';
+  mainOrigin: SuggestionOrigin;
+  steps?: string[];
+  minutes?: number | null;
+}
+
+/** "Para fechar o dia". `remaining` é o que falta de verdade; `target`, o que UMA refeição deve cobrir. */
+export interface CloseDayResponse {
+  date: string;
+  remaining: Macros | null;
+  target: Macros | null;
+  priority: 'protein' | 'balanced' | null;
+  closed: boolean;
+  suggestions: MealSuggestion[];
+  source: 'local' | 'ai' | 'none';
+  canAskAi: boolean;
+  aiRemaining: number;
+  isPremiumFeature: boolean;
+}

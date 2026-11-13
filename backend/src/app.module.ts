@@ -13,6 +13,7 @@ import { MealsModule } from './meals/meals.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProfileModule } from './profile/profile.module';
 import { RecipesModule } from './recipes/recipes.module';
+import { SuggestionsModule } from './suggestions/suggestions.module';
 import { WeightModule } from './weight/weight.module';
 
 @Module({
@@ -25,6 +26,7 @@ import { WeightModule } from './weight/weight.module';
     MealsModule,
     FoodsModule,
     RecipesModule,
+    SuggestionsModule,
     WeightModule,
     AnalysisModule,
     HealthModule,

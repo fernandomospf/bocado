@@ -61,3 +61,68 @@ export const ANALYSIS_TOOL: Anthropic.Tool = {
     required: ['isFood', 'title', 'items'],
   },
 };
+
+// ---------------------------------------------------------------------------
+// "Para fechar o dia": sugestão de refeição quando a base local não resolve
+// ---------------------------------------------------------------------------
+
+/** Mudou o prompt ou a ferramenta? Suba a versão: ela entra na chave do cache e invalida as respostas antigas. */
+export const SUGGEST_PROMPT_VERSION = 1;
+
+export const SUGGEST_TOOL_NAME = 'sugerir_refeicao';
+
+export const SUGGEST_SYSTEM_PROMPT = `Você ajuda usuários de um app brasileiro de contagem de calorias a montar uma refeição simples para o fim do dia, com o que falta para chegar às metas.
+
+Como sugerir:
+- Crie 2 sugestões de refeição caseira brasileira simples, com ingredientes comuns de supermercado.
+- A soma das calorias deve ficar perto do que falta, sem passar mais de 10%. Priorize atingir a proteína que falta.
+- Quando fizer sentido, use como base os alimentos que a pessoa já costuma comer (lista abaixo).
+- Gramas de cada ingrediente como servido (arroz e feijão cozidos, carne pronta). Macros de cada ingrediente na quantidade indicada, com coerência: kcal ≈ 4×proteína + 4×carboidratos + 9×gordura.
+- Modo de preparo em até 3 passos curtos e tempo estimado em minutos.
+- Isto é uma sugestão, nunca uma dieta ou prescrição. Não faça recomendações médicas.
+
+Responda SEMPRE e SOMENTE chamando a ferramenta ${SUGGEST_TOOL_NAME}, sem texto antes ou depois.
+Se por algum motivo não puder usar a ferramenta, responda apenas com o mesmo objeto em JSON puro.`;
+
+export const SUGGEST_TOOL: Anthropic.Tool = {
+  name: SUGGEST_TOOL_NAME,
+  description: 'Registra 2 sugestões de refeição caseira para completar as metas do dia.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      suggestions: {
+        type: 'array',
+        description: 'Array JSON com 2 sugestões (nunca uma string).',
+        items: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', description: 'Nome curto da refeição, ex.: "Omelete com legumes e arroz".' },
+            items: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string', description: 'Ingrediente em português, ex.: "Peito de frango grelhado".' },
+                  grams: { type: 'number', description: 'Gramas como servido: número puro, ex.: 120.' },
+                  kcal: { type: 'number', description: 'Calorias nessa quantidade: número puro.' },
+                  protein: { type: 'number', description: 'Gramas de proteína nessa quantidade: número puro.' },
+                  carbs: { type: 'number', description: 'Gramas de carboidratos nessa quantidade: número puro.' },
+                  fat: { type: 'number', description: 'Gramas de gordura nessa quantidade: número puro.' },
+                },
+                required: ['name', 'grams', 'kcal', 'protein', 'carbs', 'fat'],
+              },
+            },
+            steps: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Modo de preparo: até 3 passos curtos.',
+            },
+            minutes: { type: 'number', description: 'Tempo estimado de preparo em minutos: número puro.' },
+          },
+          required: ['title', 'items', 'steps', 'minutes'],
+        },
+      },
+    },
+    required: ['suggestions'],
+  },
+};
