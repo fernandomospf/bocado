@@ -37,6 +37,7 @@ function setup() {
     recipeIngredient: { deleteMany: jest.fn() },
     food: { findMany: jest.fn().mockResolvedValue([{ id: 'food-taco' }]) },
     $transaction: jest.fn(),
+    $queryRaw: jest.fn().mockResolvedValue([]),
   };
   prisma.$transaction.mockImplementation((fn: (tx: typeof prisma) => unknown) => fn(prisma));
   return { prisma, service: new RecipesService(prisma as never) };
@@ -99,6 +100,40 @@ describe('RecipesService: permissões', () => {
     prisma.recipe.findMany.mockResolvedValue([]);
     await service.list(STRANGER);
     expect(prisma.recipe.findMany.mock.calls[0][0].where).toEqual({ ownerId: STRANGER });
+  });
+});
+
+describe('RecipesService.list (mais usadas primeiro)', () => {
+  it('ordena por uso nas refeições do usuário e, no empate, pela edição mais recente', async () => {
+    const { prisma, service } = setup();
+    const at = (d: string) => new Date(`${d}T12:00:00Z`);
+    prisma.recipe.findMany.mockResolvedValue([
+      { ...stored, id: 'nova', name: 'Bolo de cenoura', updatedAt: at('2026-11-10'), ingredients: [{ grams: 500 }] },
+      { ...stored, id: 'feijao', name: 'Feijão da Vó', updatedAt: at('2026-10-01'), ingredients: [{ grams: 900 }] },
+      { ...stored, id: 'arroz', name: 'Arroz da casa', updatedAt: at('2026-09-01'), ingredients: [{ grams: 520 }] },
+      { ...stored, id: 'velha', name: 'Sopa', updatedAt: at('2026-01-01'), ingredients: [{ grams: 800 }] },
+    ]);
+    // A contagem vem por nome normalizado (sem acento e minúsculo)
+    prisma.$queryRaw.mockResolvedValue([
+      { norm: 'feijao da vo', times: BigInt(7) },
+      { norm: 'arroz da casa', times: BigInt(2) },
+    ]);
+
+    const out = await service.list(OWNER);
+
+    expect(out.map((r) => [r.id, r.timesUsed])).toEqual([
+      ['feijao', 7],
+      ['arroz', 2],
+      ['nova', 0],
+      ['velha', 0],
+    ]);
+  });
+
+  it('sem receitas, nem consulta o uso', async () => {
+    const { prisma, service } = setup();
+    prisma.recipe.findMany.mockResolvedValue([]);
+    await service.list(OWNER);
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
   });
 });
 

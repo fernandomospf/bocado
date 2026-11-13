@@ -143,6 +143,8 @@ export interface RecipeSummary {
   ingredientCount: number;
   isOwner: boolean;
   shared: boolean;
+  /** Quantas vezes o usuário registrou a receita (a lista vem ordenada por isso). */
+  timesUsed: number;
   updatedAt: string;
 }
 

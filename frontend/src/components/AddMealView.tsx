@@ -1,7 +1,6 @@
 'use client';
 
 /* eslint-disable @next/next/no-img-element */
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { type ChangeEvent, type DragEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useSWRConfig } from 'swr';
@@ -10,11 +9,14 @@ import { isValidISO, todayISO } from '@/lib/date';
 import { fmtInt, parseNum } from '@/lib/format';
 import { compressImage } from '@/lib/image';
 import { MEAL_ORDER, mealTypeForNow } from '@/lib/labels';
-import type { AnalysisResult, MealSource, MealType } from '@/lib/types';
+import { recipeToFood } from '@/lib/recipe';
+import type { AnalysisResult, FoodResult, MealSource, MealType } from '@/lib/types';
+import { FoodPortionSheet } from './FoodPortionSheet';
 import { FoodSearch } from './FoodSearch';
 import { MacroDots } from './MacroLegend';
 import { CameraIcon, ChevronLeft, PlusIcon, SparkIcon } from './Icons';
 import { type DraftItem, draftFromAnalysis, ItemsEditor, newDraft, resolveKcal, toPayload } from './ItemsEditor';
+import { QuickChips } from './QuickChips';
 
 type Mode = 'search' | 'photo' | 'text' | 'manual';
 
@@ -57,6 +59,7 @@ export function AddMealView() {
 
   const [busy, setBusy] = useState<'analyze' | 'save' | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [chipFood, setChipFood] = useState<FoodResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -171,6 +174,7 @@ export function AddMealView() {
         json: { date, type, source, items: valid.map(toPayload) },
       });
       await mutate(`/days/${date}`);
+      void mutate('/recipes'); // a contagem de uso ("mais usadas") pode ter mudado
       router.push(date === today ? '/' : `/?date=${date}`);
     } catch (err) {
       setError(errorMessage(err));
@@ -210,6 +214,8 @@ export function AddMealView() {
           </label>
         </section>
 
+        <QuickChips onPickRecipe={(r) => setChipFood(recipeToFood(r))} />
+
         <div className="segmented" role="group" aria-label="Como registrar">
           {MODES.map((m) => (
             <button key={m.value} type="button" aria-pressed={mode === m.value} onClick={() => chooseMode(m.value)}>
@@ -218,16 +224,7 @@ export function AddMealView() {
           ))}
         </div>
 
-        {mode === 'search' && (
-          <section className="stack">
-            <div className="row" style={{ justifyContent: 'flex-end' }}>
-              <Link href="/recipes" className="btn btn-glass btn-sm">
-                Receitas
-              </Link>
-            </div>
-            <FoodSearch onAdd={addFromSearch} />
-          </section>
-        )}
+        {mode === 'search' && <FoodSearch onAdd={addFromSearch} />}
 
         {mode === 'photo' && (
           <section className="stack">
@@ -367,6 +364,18 @@ export function AddMealView() {
           </div>
         )}
       </div>
+
+      {chipFood && (
+        <FoodPortionSheet
+          key={chipFood.id}
+          food={chipFood}
+          onClose={() => setChipFood(null)}
+          onAdd={(item) => {
+            addFromSearch(item);
+            setChipFood(null);
+          }}
+        />
+      )}
     </main>
   );
 }

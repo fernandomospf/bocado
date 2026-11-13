@@ -3,15 +3,21 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
+import { useSWRConfig } from 'swr';
+import { api } from '@/lib/api';
 import { addDays, dayTitle, isValidISO, todayISO } from '@/lib/date';
 import { fmtInt } from '@/lib/format';
 import { useDay } from '@/lib/hooks';
-import { useShortcuts } from '@/lib/useShortcuts';
 import { MEAL_LABEL, MEAL_ORDER } from '@/lib/labels';
-import type { Meal, MealItem } from '@/lib/types';
-import { ChevronLeft, ChevronRight, PlusIcon } from './Icons';
+import { recipeToFood } from '@/lib/recipe';
+import type { FoodResult, Meal, MealItem, MealType } from '@/lib/types';
+import { useShortcuts } from '@/lib/useShortcuts';
+import { FoodPortionSheet } from './FoodPortionSheet';
+import { ChevronLeft, ChevronRight, PlusIcon, PotIcon } from './Icons';
+import { type DraftItem, toPayload } from './ItemsEditor';
 import { ItemSheet } from './ItemSheet';
 import { MacroDots, MacroLegend } from './MacroLegend';
+import { RecipePickerSheet } from './RecipePickerSheet';
 import { Rings } from './Rings';
 import { ringSpecs } from './ringSpecs';
 
@@ -23,7 +29,19 @@ export function TodayView() {
   const date = isValidISO(param) && param <= today ? param : today;
 
   const { data, error, isLoading, mutate } = useDay(date);
+  const { mutate: globalMutate } = useSWRConfig();
   const [selected, setSelected] = useState<{ meal: Meal; item: MealItem } | null>(null);
+  // "Da receita": primeiro escolhe a receita, depois a porção (já com a refeição e a data do card)
+  const [recipeFor, setRecipeFor] = useState<MealType | null>(null);
+  const [portion, setPortion] = useState<{ type: MealType; food: FoodResult } | null>(null);
+  const cardContext = (type: MealType) => `${MEAL_LABEL[type]} · ${dayTitle(date)}`;
+
+  async function logRecipe(type: MealType, item: DraftItem) {
+    await api('/meals', { method: 'POST', json: { date, type, source: 'SEARCH', items: [toPayload(item)] } });
+    await mutate();
+    void globalMutate('/recipes'); // a contagem de uso ("mais usadas") mudou
+    setPortion(null);
+  }
 
   const go = (d: string) => router.replace(d === today ? '/' : `/?date=${d}`, { scroll: false });
 
@@ -114,10 +132,16 @@ export function TodayView() {
                 {isLoading && !data ? (
                   <div className="skeleton" style={{ height: 40 }} />
                 ) : meals.length === 0 ? (
-                  <Link href={`/add?type=${type}&date=${date}`} className="empty-add">
-                    <PlusIcon width={18} height={18} />
-                    Adicionar
-                  </Link>
+                  <div className="empty-actions">
+                    <Link href={`/add?type=${type}&date=${date}`} className="empty-add">
+                      <PlusIcon width={18} height={18} />
+                      Adicionar
+                    </Link>
+                    <button type="button" className="empty-add" onClick={() => setRecipeFor(type)}>
+                      <PotIcon width={18} height={18} />
+                      Da receita
+                    </button>
+                  </div>
                 ) : (
                   <div className="list">
                     {meals.flatMap((meal) =>
@@ -151,6 +175,28 @@ export function TodayView() {
           })}
         </div>
       </div>
+
+      {recipeFor && (
+        <RecipePickerSheet
+          context={cardContext(recipeFor)}
+          onClose={() => setRecipeFor(null)}
+          onPick={(recipe) => {
+            setPortion({ type: recipeFor, food: recipeToFood(recipe) });
+            setRecipeFor(null);
+          }}
+        />
+      )}
+
+      {portion && (
+        <FoodPortionSheet
+          key={portion.food.id}
+          food={portion.food}
+          context={cardContext(portion.type)}
+          actionLabel="Registrar"
+          onClose={() => setPortion(null)}
+          onAdd={(item) => logRecipe(portion.type, item)}
+        />
+      )}
 
       <ItemSheet
         meal={selected?.meal ?? null}

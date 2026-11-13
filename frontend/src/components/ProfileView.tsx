@@ -67,7 +67,7 @@ export function ProfileView() {
       {/*
         Desktop: duas colunas (perfil e metas | dados e demais seções). O DOM segue as colunas;
         no celular e no tablet os wrappers usam display: contents e as classes profile-o* (order)
-        devolvem a ordem de sempre: usuário, peso, metas, dados, receitas, sair.
+        devolvem a ordem de sempre: usuário, peso, metas, dados, sair.
       */}
       <div className="profile-col">
         {me && (
@@ -164,15 +164,6 @@ export function ProfileView() {
             {error.message}
           </p>
         )}
-
-        <section className="card glass profile-o5" style={{ paddingTop: 6, paddingBottom: 6 }}>
-          <div className="list">
-            <Link href="/recipes" className="list-row" style={{ color: 'var(--accent)' }}>
-              <span className="list-row-main headline">Minhas receitas</span>
-              <ChevronRight width={18} height={18} />
-            </Link>
-          </div>
-        </section>
 
         <nav
           className="caption profile-o5"

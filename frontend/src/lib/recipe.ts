@@ -1,4 +1,30 @@
-import type { Macros, RecipeNutrition } from './types';
+import type { FoodResult, Macros, RecipeNutrition, RecipeSummary } from './types';
+
+/** Receita no formato da busca de alimentos, para abrir o mesmo Sheet de porção. */
+export function recipeToFood(r: RecipeSummary): FoodResult {
+  return {
+    id: r.id,
+    name: r.name,
+    origin: 'recipe',
+    per100: r.per100,
+    ...(r.portionGrams ? { portion: { grams: r.portionGrams, label: '1 porção' } } : {}),
+    whole: { grams: r.baseGrams },
+  };
+}
+
+/** Comparação de nomes sem acento e sem diferenciar maiúsculas (busca por nome). */
+export function matchesName(name: string, query: string) {
+  const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const q = norm(query);
+  return !q || q.split(/\s+/).every((w) => norm(name).includes(w));
+}
+
+/** "1 porção (325 g) · 491 kcal" ou "100 g · 151 kcal". */
+export function recipeSubtitle(r: RecipeSummary) {
+  const fmt = (n: number) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(Math.round(n));
+  if (r.portionGrams) return `1 porção (${fmt(r.portionGrams)} g) · ${fmt((r.per100.kcal * r.portionGrams) / 100)} kcal`;
+  return `100 g · ${fmt(r.per100.kcal)} kcal`;
+}
 
 /** Diferença relativa entre peso cozido e cru a partir da qual a tela pede para conferir. */
 export const COOKED_WEIGHT_WARNING_RATIO = 0.5;

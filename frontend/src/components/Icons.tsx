@@ -22,6 +22,14 @@ export const RingsIcon = (p: IconProps) => (
   </svg>
 );
 
+/** Panela com tampa: aba Receitas. */
+export const PotIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 10h16v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z" />
+    <path d="M2 11h2M20 11h2M4 7h16M10 4h4" />
+  </svg>
+);
+
 export const ChartIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M5 20V11M12 20V5M19 20v-6" />

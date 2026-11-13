@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { FoodSource, Prisma, Recipe, RecipeIngredient } from '@prisma/client';
-import { normalizeName } from '../foods/food-normalize';
+import { NORMALIZED_NAME_SQL, normalizeName } from '../foods/food-normalize';
 import { PrismaService } from '../prisma/prisma.service';
 import { SaveRecipeDto } from './dto/recipe.dto';
 import { computeRecipe } from './recipe.math';
@@ -37,27 +37,51 @@ export class RecipesService {
     return null;
   }
 
+  /** Receitas visíveis, as mais usadas primeiro (empate: a editada mais recentemente). */
   async list(userId: string) {
     const recipes = await this.prisma.recipe.findMany({
       where: await this.visibleWhere(userId),
       include: { ingredients: { select: { grams: true } } },
       orderBy: { updatedAt: 'desc' },
     });
-    return recipes.map((r) => {
-      const baseGrams = baseGramsOf(r, r.ingredients);
-      return {
-        id: r.id,
-        name: r.name,
-        servings: r.servings,
-        baseGrams,
-        per100: per100Of(r),
-        portionGrams: r.servings ? round1(baseGrams / r.servings) : null,
-        ingredientCount: r.ingredients.length,
-        isOwner: r.ownerId === userId,
-        shared: r.householdId !== null,
-        updatedAt: r.updatedAt,
-      };
-    });
+    const usage = await this.usageByName(userId, recipes.map((r) => r.name));
+
+    return recipes
+      .map((r) => {
+        const baseGrams = baseGramsOf(r, r.ingredients);
+        return {
+          id: r.id,
+          name: r.name,
+          servings: r.servings,
+          baseGrams,
+          per100: per100Of(r),
+          portionGrams: r.servings ? round1(baseGrams / r.servings) : null,
+          ingredientCount: r.ingredients.length,
+          isOwner: r.ownerId === userId,
+          shared: r.householdId !== null,
+          timesUsed: usage.get(normalizeName(r.name)) ?? 0,
+          updatedAt: r.updatedAt,
+        };
+      })
+      .sort((a, b) => b.timesUsed - a.timesUsed || b.updatedAt.getTime() - a.updatedAt.getTime());
+  }
+
+  /**
+   * Quantas vezes o usuário registrou cada receita. Um item registrado a partir de uma receita leva o nome
+   * dela, então a contagem é por nome normalizado nas refeições do próprio usuário (nunca de outra pessoa).
+   */
+  private async usageByName(userId: string, names: string[]): Promise<Map<string, number>> {
+    const normalized = [...new Set(names.map(normalizeName).filter(Boolean))];
+    if (normalized.length === 0) return new Map();
+    const norm = Prisma.raw(NORMALIZED_NAME_SQL('i.name'));
+    const rows = await this.prisma.$queryRaw<{ norm: string; times: bigint }[]>`
+      SELECT ${norm} AS norm, COUNT(*) AS times
+        FROM meal_items i
+        JOIN meals m ON m.id = i."mealId"
+       WHERE m."userId" = ${userId}::uuid
+         AND ${norm} = ANY(${normalized}::text[])
+       GROUP BY 1`;
+    return new Map(rows.map((r) => [r.norm, Number(r.times)]));
   }
 
   async get(userId: string, id: string) {

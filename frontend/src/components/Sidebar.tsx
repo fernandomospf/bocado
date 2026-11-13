@@ -4,12 +4,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMe } from '@/lib/hooks';
 import { Avatar } from './Avatar';
-import { ChartIcon, PlusIcon, RingsIcon, UserIcon } from './Icons';
+import { ChartIcon, PlusIcon, PotIcon, RingsIcon, UserIcon } from './Icons';
 import { Logo } from './Logo';
 
+/** Abas da TabBar e itens da Sidebar (mesma ordem nos dois). */
 export const NAV_ITEMS = [
   { href: '/', label: 'Hoje', Icon: RingsIcon },
   { href: '/history', label: 'Histórico', Icon: ChartIcon },
+  { href: '/recipes', label: 'Receitas', Icon: PotIcon },
   { href: '/profile', label: 'Perfil', Icon: UserIcon },
 ];
 

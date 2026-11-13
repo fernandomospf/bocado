@@ -596,8 +596,8 @@ img {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px;
-  padding: 0 16px;
+  gap: 6px;
+  padding: 0 4px;
   pointer-events: none;
 }
 
@@ -613,9 +613,8 @@ img {
 .tabbar-pill {
   display: flex;
   align-items: center;
-  gap: 2px;
   height: var(--tabbar-h);
-  padding: 5px;
+  padding: 4px;
   border-radius: 999px;
 }
 
@@ -625,10 +624,15 @@ img {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  width: 84px;
+  /*
+    4 abas + botão "+" cabem em 360px: 4 × 68 + 8 (pílula) + 6 (espaço) + 64 (botão) + 8 (margens) = 358px.
+    Cresce com a tela até 84px.
+  */
+  width: clamp(68px, calc(25vw - 22px), 84px);
   height: 100%;
   border-radius: 999px;
   font-size: 11px;
+  white-space: nowrap;
   font-weight: 600;
   color: var(--text-2);
   transition: background 220ms var(--ease), color 220ms var(--ease);
@@ -666,6 +670,66 @@ img {
 .tabbar-action svg {
   width: 28px;
   height: 28px;
+}
+
+/* Faixa de atalhos no topo da Nova refeição (rolagem horizontal, sangrando até a borda) */
+.chip-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 -18px;
+  padding: 2px 18px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-padding-inline: 18px;
+}
+
+.chip-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.chip-group-label {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+/* Sem backdrop-filter de propósito: dentro de um contêiner com rolagem ele borra só a faixa */
+.chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--glass-strong);
+  box-shadow: inset 0 0 0 1px var(--glass-line);
+  transition: transform 160ms var(--ease);
+}
+
+.chip:active {
+  transform: scale(0.96);
+}
+
+.chip-plain {
+  background: none;
+  box-shadow: none;
+  color: var(--accent);
+}
+
+/* Card de refeição vazio: "Adicionar" e "Da receita" lado a lado */
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 22px;
 }
 
 /* --------------------------------------------------------------------------
@@ -1625,6 +1689,12 @@ img {
     max-height: 420px;
   }
 
+  /* Na coluna do desktop a faixa não precisa sangrar até a borda da tela */
+  .chip-strip {
+    margin: 0;
+    padding: 2px 0;
+  }
+
   /* Histórico: gráfico em largura total; resumo | dias */
   .history-screen .bars {
     height: 240px;
@@ -1799,6 +1869,10 @@ img {
   .choice:not([aria-pressed='true']):hover,
   .photo-drop:not(:disabled):hover {
     box-shadow: var(--glass-shadow), inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+
+  .chip:not(.chip-plain):hover {
+    background: var(--glass);
   }
 
   .tabbar-action:not([aria-current='page']):hover {

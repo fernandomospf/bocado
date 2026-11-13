@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { errorMessage } from '@/lib/api';
 import { fmtDec, fmtInt, parseNum } from '@/lib/format';
 import type { FoodResult } from '@/lib/types';
 import { type DraftItem, draftFromPer100, scalePer100 } from './ItemsEditor';
@@ -24,15 +25,34 @@ const fmtGrams = (n: number) => String(Math.round(n * 10) / 10).replace('.', ','
 interface FoodPortionSheetProps {
   food: FoodResult;
   onClose: () => void;
-  onAdd: (item: DraftItem) => void;
+  /** Pode ser assíncrono (ex.: registrar direto na tela Hoje); erros aparecem no próprio Sheet. */
+  onAdd: (item: DraftItem) => void | Promise<void>;
+  /** Onde o item vai entrar, ex.: "Almoço · Hoje". */
+  context?: string;
+  actionLabel?: string;
 }
 
 /** Escolha da quantidade de um alimento da busca, com prévia dos macros. */
-export function FoodPortionSheet({ food, onClose, onAdd }: FoodPortionSheetProps) {
+export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 'Adicionar' }: FoodPortionSheetProps) {
   const [grams, setGrams] = useState(fmtGrams(food.portion?.grams ?? 100));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const value = parseNum(grams);
   const m = scalePer100(food.per100, value);
   const portionGrams = food.portion?.grams;
+
+  async function add() {
+    setBusy(true);
+    setError(null);
+    try {
+      // foodId só para alimentos da base (TACO ou próprios); receitas e histórico não são um Food
+      const foodId = food.origin === 'taco' || food.origin === 'custom' ? food.id : undefined;
+      await onAdd(draftFromPer100(food.name, food.per100, value, foodId));
+    } catch (err) {
+      setError(errorMessage(err));
+      setBusy(false);
+    }
+  }
 
   return (
     <Sheet open title={food.name} onClose={onClose}>
@@ -42,6 +62,7 @@ export function FoodPortionSheet({ food, onClose, onAdd }: FoodPortionSheetProps
             {ORIGIN_LABEL[food.origin]}
           </span>
           <h2 className="title">{food.name}</h2>
+          {context && <p className="caption">{context}</p>}
           <p className="body-2 num">{fmtInt(m.kcal)} kcal</p>
         </div>
 
@@ -110,22 +131,14 @@ export function FoodPortionSheet({ food, onClose, onAdd }: FoodPortionSheetProps
           </button>
         )}
 
-        <button
-          className="btn btn-primary btn-block"
-          disabled={!(value > 0)}
-          onClick={() =>
-            // foodId só para alimentos da base (TACO ou próprios); receitas e histórico não são um Food
-            onAdd(
-              draftFromPer100(
-                food.name,
-                food.per100,
-                value,
-                food.origin === 'taco' || food.origin === 'custom' ? food.id : undefined,
-              ),
-            )
-          }
-        >
-          Adicionar
+        {error && (
+          <p className="alert" role="alert">
+            {error}
+          </p>
+        )}
+
+        <button className="btn btn-primary btn-block" disabled={!(value > 0) || busy} onClick={add}>
+          {busy ? <span className="spinner" aria-label="Salvando" /> : actionLabel}
         </button>
       </div>
     </Sheet>
