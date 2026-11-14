@@ -176,12 +176,14 @@ export interface AnalysisResult {
   totals: Macros;
 }
 
-export type SuggestionOrigin = 'history' | 'recipe' | 'taco' | 'ai';
+/** De onde veio a sugestão: refeição que a pessoa já comeu, modelo de prato, despensa ou IA. */
+export type SuggestionOrigin = 'history' | 'template' | 'pantry' | 'ai';
 
 export interface SuggestionItem extends Macros {
   name: string;
   grams: number;
-  origin: SuggestionOrigin;
+  /** Quantidade amigável: "150 g Peito de frango grelhado", "2 ovos cozidos", "1 concha de feijão". */
+  label: string;
 }
 
 export interface MealSuggestion {
@@ -208,4 +210,8 @@ export interface CloseDayResponse {
   canAskAi: boolean;
   aiRemaining: number;
   isPremiumFeature: boolean;
+  /** Ingredientes que a pessoa mais usa (chips do "O que tem em casa?"). */
+  pantryChips: string[];
+  /** Só nas respostas da despensa: o que foi reconhecido no texto. */
+  pantry?: { recognized: { term: string; name: string }[]; unknown: string[] };
 }

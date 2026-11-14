@@ -51,6 +51,7 @@ interface HistoryRow {
 interface TacoRow {
   id: string;
   name: string;
+  displayName: string | null;
   kcal100: number;
   protein100: number;
   carbs100: number;
@@ -262,7 +263,7 @@ export class FoodsService {
   private queryTaco(query: string, tokens: string[], limit: number, fuzzy: boolean) {
     const col = Prisma.raw('f."searchName"');
     return this.prisma.$queryRaw<TacoRow[]>`
-      SELECT f.id, f.name, f.kcal100, f.protein100, f.carbs100, f.fat100, f."portionGrams", f."portionLabel"
+      SELECT f.id, f.name, f."displayName", f.kcal100, f.protein100, f.carbs100, f.fat100, f."portionGrams", f."portionLabel"
         FROM foods f
        WHERE f.source = 'TACO'::"FoodSource"
          AND ${matchSql(col, tokens, fuzzy)}
@@ -309,7 +310,7 @@ type SerializableFood = Pick<
   Food,
   'id' | 'name' | 'kcal100' | 'protein100' | 'carbs100' | 'fat100' | 'portionGrams' | 'portionLabel'
 > &
-  Partial<Pick<Food, 'brand' | 'barcode' | 'servingGrams' | 'servingLabel'>> & { source: FoodSource };
+  Partial<Pick<Food, 'brand' | 'barcode' | 'servingGrams' | 'servingLabel' | 'displayName'>> & { source: FoodSource };
 
 /** Porção sugerida: a medida caseira (TACO e próprios) ou a porção do rótulo (produtos). */
 function serializeFood(f: SerializableFood, origin: FoodOrigin): FoodResult {
@@ -321,7 +322,8 @@ function serializeFood(f: SerializableFood, origin: FoodOrigin): FoodResult {
   const isProduct = f.source === FoodSource.OFF || f.source === FoodSource.LABEL;
   return {
     id: f.id,
-    name: f.name,
+    // Nome natural na interface ("Peito de frango grelhado" em vez de "Frango, peito, sem pele, grelhado")
+    name: f.displayName || f.name,
     origin,
     per100: { kcal: f.kcal100, protein: f.protein100, carbs: f.carbs100, fat: f.fat100 },
     ...(portion ? { portion } : {}),

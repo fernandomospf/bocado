@@ -4,5 +4,10 @@ import { FoodsController } from './foods.controller';
 import { FoodsService } from './foods.service';
 import { OffClient } from './off.client';
 
-@Module({ imports: [RecipesModule], controllers: [FoodsController], providers: [FoodsService, OffClient] })
+@Module({
+  imports: [RecipesModule],
+  controllers: [FoodsController],
+  providers: [FoodsService, OffClient],
+  exports: [FoodsService],
+})
 export class FoodsModule {}

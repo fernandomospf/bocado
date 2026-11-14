@@ -1,12 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
-import useSWR from 'swr';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
+import useSWR, { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
 import { fmtInt } from '@/lib/format';
-import type { CloseDayResponse, MealSuggestion, MealType, SuggestionOrigin } from '@/lib/types';
-import { ChevronLeft, ChevronRight, CloseIcon, SparkIcon } from './Icons';
+import { success as hapticSuccess } from '@/lib/haptics';
+import type { CloseDayResponse, Macros, MealSuggestion, MealType, SuggestionOrigin } from '@/lib/types';
+import { CloseIcon, SparkIcon } from './Icons';
 import { Sheet } from './Sheet';
 import { useToast } from './Toast';
 
@@ -14,17 +15,22 @@ import { useToast } from './Toast';
 const FROM_HOUR = 18;
 /** Depois deste horário, a sugestão é um lanche (ceia), não um jantar. */
 const SNACK_FROM_HOUR = 21;
-/** Rascunho lido pela Nova refeição (registrar a sugestão, editável). */
+/** Rascunho lido pela Nova refeição ("Usar": entra preenchida e editável). */
 export const PREFILL_KEY = 'bocado:prefill';
 
 const ORIGIN_BADGE: Record<SuggestionOrigin, { label: string; className: string }> = {
-  history: { label: 'Do seu dia a dia', className: 'badge-origin-history' },
-  recipe: { label: 'Receita', className: 'badge-origin-recipe' },
-  taco: { label: 'TACO', className: 'badge-origin-taco' },
+  history: { label: 'Você já comeu', className: 'badge-origin-history' },
+  template: { label: 'Sugestão Bocado', className: 'badge-origin-template' },
+  pantry: { label: 'Com o que você tem', className: 'badge-origin-pantry' },
   ai: { label: 'Criada com IA', className: 'badge-origin-ai' },
 };
 
 const dismissKey = (date: string) => `bocado:closeDay:dismissed:${date}`;
+const pantryKey = (date: string) => `bocado:pantry:${date}`;
+
+/** Itens no formato da API de refeições (sem o rótulo de exibição). */
+const toMealItems = (s: MealSuggestion) =>
+  s.items.map(({ name, grams, kcal, protein, carbs, fat }) => ({ name, grams, kcal, protein, carbs, fat }));
 
 interface CloseDayCardProps {
   date: string;
@@ -35,38 +41,42 @@ interface CloseDayCardProps {
 
 /**
  * "Para fechar o dia": a partir das 18h, uma refeição que cubra o que falta.
- * Primeiro a base local (sem IA); a IA só se a pessoa pedir e o local não bastar.
+ * Base local primeiro (o que a pessoa já comeu → pratos comuns); a IA só se pedirem e o local não bastar.
  */
 export function CloseDayCard({ date, isToday, eatenKcal }: CloseDayCardProps) {
   const router = useRouter();
   const toast = useToast();
-  // Horário e "dispensado" só no navegador: a página é pré-renderizada no build
+  const { mutate: globalMutate } = useSWRConfig();
+
+  // Horário, "dispensado" e despensa só no navegador: a página é pré-renderizada no build
   const [hour, setHour] = useState<number | null>(null);
   const [dismissed, setDismissed] = useState(true);
+  const [pantryText, setPantryText] = useState('');
 
   useEffect(() => {
     setHour(new Date().getHours());
     setDismissed(localStorage.getItem(dismissKey(date)) === '1');
+    setPantryText(localStorage.getItem(pantryKey(date)) ?? '');
   }, [date]);
 
   const visible = isToday && hour !== null && hour >= FROM_HOUR && !dismissed;
   const meal: 'DINNER' | 'SNACK' = hour !== null && hour >= SNACK_FROM_HOUR ? 'SNACK' : 'DINNER';
+  const mealLabel = meal === 'SNACK' ? 'lanche' : 'jantar';
   const { data, mutate } = useSWR<CloseDayResponse>(visible ? `/suggestions/close-day?date=${date}&meal=${meal}` : null, {
     revalidateOnFocus: false,
   });
 
-  const [ai, setAi] = useState<CloseDayResponse | null>(null);
-  const [index, setIndex] = useState(0);
-  const [asking, setAsking] = useState(false);
+  /** Resultado que sobrepõe o local: despensa ou IA. */
+  const [override, setOverride] = useState<CloseDayResponse | null>(null);
+  const [busy, setBusy] = useState<'pantry' | 'ai' | 'log' | null>(null);
   const [showAll, setShowAll] = useState(false);
-  const touchX = useRef<number | null>(null);
 
   // Registrou algo no dia: o que falta mudou
   const lastKcal = useRef(eatenKcal);
   useEffect(() => {
     if (visible && lastKcal.current !== eatenKcal) {
       lastKcal.current = eatenKcal;
-      setAi(null);
+      setOverride(null);
       void mutate();
     }
   }, [eatenKcal, visible, mutate]);
@@ -98,125 +108,195 @@ export function CloseDayCard({ date, isToday, eatenKcal }: CloseDayCardProps) {
     );
   }
 
-  const view = ai ?? data;
+  const view = override ?? data;
+  const target = view.target ?? data.target ?? data.remaining;
   const list = view.suggestions;
-  const current = list[Math.min(index, list.length - 1)];
-  const mealLabel = meal === 'SNACK' ? 'lanche' : 'jantar';
-  const rem = data.remaining;
-  const capped = data.target && data.target.kcal < rem.kcal;
+  const best = list[0];
+  const pantryTerms = override?.pantry ? [...override.pantry.recognized.map((r) => r.term), ...override.pantry.unknown] : [];
 
-  const go = (delta: number) => setIndex((i) => (i + delta + list.length) % list.length);
-
-  function register(s: MealSuggestion) {
-    sessionStorage.setItem(
-      PREFILL_KEY,
-      JSON.stringify({ date, type: meal as MealType, items: s.items.map(({ origin: _origin, ...item }) => item) }),
-    );
+  function use(s: MealSuggestion) {
+    sessionStorage.setItem(PREFILL_KEY, JSON.stringify({ date, type: meal as MealType, items: toMealItems(s) }));
     router.push(`/add?type=${meal}&date=${date}&prefill=1`);
   }
 
-  async function askAi() {
-    setAsking(true);
+  async function logDirect(s: MealSuggestion) {
+    setBusy('log');
     try {
-      const res = await api<CloseDayResponse>('/suggestions/close-day/ai', { method: 'POST', json: { date, meal } });
+      await api('/suggestions/log', { method: 'POST', json: { date, type: meal, items: toMealItems(s) } });
+      hapticSuccess();
+      toast.show({ message: `${meal === 'SNACK' ? 'Lanche' : 'Jantar'} registrado · +${fmtInt(s.totals.kcal)} kcal` });
+      setShowAll(false);
+      await globalMutate(`/days/${date}`);
+    } catch (err) {
+      toast.show({ message: errorMessage(err), tone: 'error' });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function submitPantry(e?: FormEvent) {
+    e?.preventDefault();
+    const text = pantryText.trim();
+    if (!text) {
+      setOverride(null);
+      localStorage.removeItem(pantryKey(date));
+      return;
+    }
+    localStorage.setItem(pantryKey(date), text);
+    setBusy('pantry');
+    try {
+      setOverride(await api<CloseDayResponse>('/suggestions/close-day/pantry', { method: 'POST', json: { date, meal, text } }));
+    } catch (err) {
+      toast.show({ message: errorMessage(err), tone: 'error' });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function askAi() {
+    setBusy('ai');
+    try {
+      const res = await api<CloseDayResponse>('/suggestions/close-day/ai', {
+        method: 'POST',
+        json: { date, meal, ...(pantryTerms.length ? { ingredients: pantryTerms } : {}) },
+      });
       if (res.suggestions.length === 0) {
         toast.show({ message: 'A IA não trouxe uma sugestão válida desta vez. Tente de novo.', tone: 'error' });
       } else {
-        setAi(res);
-        setIndex(0);
+        setOverride(res);
       }
     } catch (err) {
       toast.show({ message: errorMessage(err), tone: 'error' });
     } finally {
-      setAsking(false);
+      setBusy(null);
     }
   }
+
+  const addChip = (chip: string) => {
+    const parts = pantryText
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (!parts.some((p) => p.toLowerCase() === chip.toLowerCase())) setPantryText([...parts, chip].join(', '));
+  };
+
+  const remainingLine = (
+    <p className="body-2 num">
+      Faltam {fmtInt(data.remaining.kcal)} kcal
+      {data.remaining.protein >= 5 && <> · {fmtInt(data.remaining.protein)} g de proteína</>}
+    </p>
+  );
+
+  const pantryForm = (idSuffix: string) => (
+    <form className="pantry-form" onSubmit={submitPantry}>
+      <label className="sr-only" htmlFor={`pantry-${idSuffix}`}>
+        O que você tem em casa?
+      </label>
+      <input
+        id={`pantry-${idSuffix}`}
+        className="input"
+        placeholder="Ex.: frango, ovos, arroz, batata"
+        value={pantryText}
+        maxLength={300}
+        enterKeyHint="search"
+        onChange={(e) => setPantryText(e.target.value)}
+      />
+      <button type="submit" className="btn btn-glass" disabled={busy === 'pantry'}>
+        {busy === 'pantry' ? <span className="spinner" aria-label="Buscando" /> : 'Sugerir'}
+      </button>
+    </form>
+  );
+
+  const pantryFeedback = override?.pantry && override.pantry.unknown.length > 0 && (
+    <p className="caption">Não reconhecemos: {override.pantry.unknown.join(', ')}.</p>
+  );
+
+  const aiButton = view.canAskAi && (
+    <div className="stack" style={{ gap: 4 }}>
+      <button type="button" className="btn btn-glass btn-block" onClick={askAi} disabled={busy === 'ai'}>
+        {busy === 'ai' ? <span className="spinner" aria-label="Criando" /> : <SparkIcon width={20} height={20} />}
+        {busy === 'ai' ? 'Criando' : pantryTerms.length ? 'Criar receita com IA (com o que tenho)' : 'Criar receita com IA'}
+      </button>
+      <p className="caption" style={{ textAlign: 'center' }}>
+        {view.aiRemaining === 1 ? 'Resta 1 hoje' : `Restam ${view.aiRemaining} hoje`}
+      </p>
+    </div>
+  );
+
+  const empty = (
+    <p className="body-2">Nenhuma combinação boa com o que temos. Diga o que tem em casa ou crie uma receita com IA.</p>
+  );
 
   return (
     <section className="card glass close-day stack" aria-label="Para fechar o dia">
       <div className="spread" style={{ alignItems: 'flex-start' }}>
         <div>
           <h2 className="headline">Para fechar o dia</h2>
-          <p className="body-2 num">
-            Faltam {fmtInt(rem.kcal)} kcal
-            {rem.protein >= 5 && <> · {fmtInt(rem.protein)} g de proteína</>}
-          </p>
-          {capped && (
-            <p className="caption">Uma refeição não precisa cobrir tudo: a sugestão mira até {fmtInt(data.target!.kcal)} kcal.</p>
-          )}
+          {remainingLine}
         </div>
         {dismissButton}
       </div>
 
-      {current ? (
-        <div
-          className="close-day-suggestion"
-          onTouchStart={(e) => (touchX.current = e.touches[0].clientX)}
-          onTouchEnd={(e) => {
-            if (touchX.current === null || list.length < 2) return;
-            const dx = e.changedTouches[0].clientX - touchX.current;
-            touchX.current = null;
-            if (Math.abs(dx) > 50) go(dx < 0 ? 1 : -1);
-          }}
-        >
-          <SuggestionView suggestion={current} />
-          {list.length > 1 && (
-            <div className="close-day-nav">
-              <button type="button" className="btn btn-glass btn-icon" onClick={() => go(-1)} aria-label="Sugestão anterior">
-                <ChevronLeft width={18} height={18} />
-              </button>
-              <span className="caption num" aria-live="polite">
-                {Math.min(index, list.length - 1) + 1} de {list.length}
-              </span>
-              <button type="button" className="btn btn-glass btn-icon" onClick={() => go(1)} aria-label="Próxima sugestão">
-                <ChevronRight width={18} height={18} />
-              </button>
-            </div>
-          )}
-        </div>
+      {pantryForm('card')}
+      {pantryFeedback}
+
+      {best ? (
+        <SuggestionCard
+          suggestion={best}
+          target={target}
+          busy={busy === 'log'}
+          onUse={() => use(best)}
+          onLog={() => logDirect(best)}
+        />
       ) : (
-        <p className="body-2">Não encontramos uma boa combinação com a base local.</p>
+        empty
       )}
 
-      {current && (
-        <div className="stack" style={{ gap: 10 }}>
-          <button type="button" className="btn btn-primary btn-block" onClick={() => register(current)}>
-            Registrar no {mealLabel}
-          </button>
-          {list.length > 1 && (
-            <button type="button" className="btn btn-glass btn-block" onClick={() => setShowAll(true)}>
-              Outras ideias
-            </button>
-          )}
-        </div>
+      {list.length > 1 && (
+        <button type="button" className="btn btn-plain" style={{ alignSelf: 'center' }} onClick={() => setShowAll(true)}>
+          Ver outras ideias ({list.length - 1})
+        </button>
       )}
 
-      {!ai && data.canAskAi && (
-        <div className="stack" style={{ gap: 6 }}>
-          <button type="button" className="btn btn-glass btn-block" onClick={askAi} disabled={asking}>
-            {asking ? <span className="spinner" aria-label="Criando" /> : <SparkIcon width={20} height={20} />}
-            {asking ? 'Criando' : 'Criar uma receita com IA'}
-          </button>
-          <p className="caption" style={{ textAlign: 'center' }}>
-            {data.aiRemaining === 1 ? 'Resta 1 hoje' : `Restam ${data.aiRemaining} hoje`}
-          </p>
-        </div>
-      )}
+      {aiButton}
 
       <p className="caption close-day-disclaimer">Sugestões aproximadas, não substituem um nutricionista.</p>
 
       {showAll && (
         <Sheet open title="Outras ideias" onClose={() => setShowAll(false)}>
-          <div className="stack-lg">
-            <h2 className="title">Outras ideias</h2>
-            {list.map((s, i) => (
-              <div key={`${s.title}-${i}`} className="stack close-day-option">
-                <SuggestionView suggestion={s} />
-                <button type="button" className="btn btn-glass btn-block" onClick={() => register(s)}>
-                  Registrar no {mealLabel}
-                </button>
+          <div className="sheet-sticky stack" style={{ gap: 10 }}>
+            <div>
+              <h2 className="title">Ideias para o {mealLabel}</h2>
+              {remainingLine}
+            </div>
+            {pantryForm('sheet')}
+            {data.pantryChips.length > 0 && (
+              <div className="pantry-chips" aria-label="Ingredientes que você mais usa">
+                {data.pantryChips.map((chip) => (
+                  <button key={chip} type="button" className="chip chip-sm" onClick={() => addChip(chip)}>
+                    + {chip}
+                  </button>
+                ))}
               </div>
-            ))}
+            )}
+            {pantryFeedback}
+          </div>
+
+          <div className="stack" style={{ marginTop: 14 }}>
+            {list.length
+              ? list.map((s, i) => (
+                  <SuggestionCard
+                    key={`${s.title}-${i}`}
+                    suggestion={s}
+                    target={target}
+                    busy={busy === 'log'}
+                    onUse={() => use(s)}
+                    onLog={() => logDirect(s)}
+                  />
+                ))
+              : empty}
+            {aiButton}
+            <p className="caption close-day-disclaimer">Sugestões aproximadas, não substituem um nutricionista.</p>
           </div>
         </Sheet>
       )}
@@ -224,35 +304,59 @@ export function CloseDayCard({ date, isToday, eatenKcal }: CloseDayCardProps) {
   );
 }
 
-function SuggestionView({ suggestion: s }: { suggestion: MealSuggestion }) {
+interface SuggestionCardProps {
+  suggestion: MealSuggestion;
+  target: Macros;
+  busy: boolean;
+  onUse: () => void;
+  onLog: () => void;
+}
+
+/** Sugestão compacta: selo, título, itens com quantidade amigável, encaixe e ações discretas. */
+function SuggestionCard({ suggestion: s, target, busy, onUse, onLog }: SuggestionCardProps) {
   const badge = ORIGIN_BADGE[s.mainOrigin];
+  const pct = (value: number, of: number) => (of > 0 ? Math.round((value / of) * 100) : 0);
+  const kcalPct = pct(s.totals.kcal, target.kcal);
+  const proteinPct = pct(s.totals.protein, target.protein);
+
   return (
-    <div className="stack" style={{ gap: 8 }}>
+    <article className="suggestion-card" aria-label={s.title}>
       <div className="stack" style={{ gap: 4 }}>
         <span className={`badge ${badge.className}`} style={{ alignSelf: 'flex-start' }}>
           {badge.label}
         </span>
-        <p className="headline">{s.title}</p>
+        <h3 className="headline suggestion-title">{s.title}</h3>
       </div>
-      <ul className="close-day-items">
-        {s.items.map((item) => (
-          <li key={item.name}>
-            <span>
-              <span className="num">{fmtInt(item.grams)} g</span> {item.name}
-            </span>
+
+      <ul className="suggestion-items">
+        {s.items.map((item, i) => (
+          <li key={`${item.name}-${i}`}>
+            <span>{item.label}</span>
             <span className="caption num">{fmtInt(item.kcal)} kcal</span>
           </li>
         ))}
       </ul>
-      <p className="caption num">
-        Total ≈ {fmtInt(s.totals.kcal)} kcal · P {fmtInt(s.totals.protein)} g · C {fmtInt(s.totals.carbs)} g · G{' '}
-        {fmtInt(s.totals.fat)} g
-      </p>
+
+      <div className="fit-bars" aria-label={`Cobre ${kcalPct}% das calorias e ${proteinPct}% da proteína que faltam`}>
+        <span aria-hidden>Kcal</span>
+        <span className="fit-track" aria-hidden>
+          <span className="fit-fill" style={{ display: 'block', width: `${Math.min(kcalPct, 100)}%`, background: 'var(--ring-kcal)' }} />
+        </span>
+        <span className="num" aria-hidden>
+          {kcalPct}%
+        </span>
+        <span aria-hidden>Proteína</span>
+        <span className="fit-track" aria-hidden>
+          <span className="fit-fill" style={{ display: 'block', width: `${Math.min(proteinPct, 100)}%`, background: 'var(--ring-protein)' }} />
+        </span>
+        <span className="num" aria-hidden>
+          {proteinPct}%
+        </span>
+      </div>
+
       {s.steps && s.steps.length > 0 && (
         <div className="stack" style={{ gap: 4 }}>
-          <p className="caption">
-            Modo de preparo{s.minutes ? ` · cerca de ${s.minutes} min` : ''}
-          </p>
+          <p className="caption">Modo de preparo{s.minutes ? ` · cerca de ${s.minutes} min` : ''}</p>
           <ol className="close-day-steps">
             {s.steps.map((step) => (
               <li key={step}>{step}</li>
@@ -260,6 +364,15 @@ function SuggestionView({ suggestion: s }: { suggestion: MealSuggestion }) {
           </ol>
         </div>
       )}
-    </div>
+
+      <div className="suggestion-actions">
+        <button type="button" className="btn btn-primary btn-sm" onClick={onUse}>
+          Usar
+        </button>
+        <button type="button" className="btn btn-plain btn-sm" onClick={onLog} disabled={busy}>
+          Registrar direto
+        </button>
+      </div>
+    </article>
   );
 }

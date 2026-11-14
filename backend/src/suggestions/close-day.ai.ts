@@ -43,7 +43,16 @@ function coerceItem(raw: unknown): SuggestionItem | null {
   if (fromMacros > 0 && (kcal <= 0 || Math.abs(kcal - fromMacros) / fromMacros > KCAL_TOLERANCE)) kcal = fromMacros;
   if (kcal <= 0) return null;
 
-  return { name, grams: Math.round(grams), kcal: Math.round(kcal), protein: round1(protein), carbs: round1(carbs), fat: round1(fat), origin: 'ai' };
+  const g = Math.round(grams);
+  return {
+    name,
+    grams: g,
+    kcal: Math.round(kcal),
+    protein: round1(protein),
+    carbs: round1(carbs),
+    fat: round1(fat),
+    label: `${g} g ${name}`,
+  };
 }
 
 function coerceSteps(raw: unknown): string[] {

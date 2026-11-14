@@ -9,6 +9,7 @@
 import { FoodSource, PrismaClient } from '@prisma/client';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { formatFoodName } from '../src/foods/food-names';
 import { normalizeName } from '../src/foods/food-normalize';
 
 interface TacoFood {
@@ -41,7 +42,8 @@ async function main() {
   try {
     const existing = await prisma.food.count({ where: { source: FoodSource.TACO } });
     if (existing > 0 && !force) {
-      console.log(`[seed] TACO já carregada (${existing} alimentos). Nada a fazer.`);
+      await backfillDisplayNames(prisma);
+      console.log(`[seed] TACO já carregada (${existing} alimentos).`);
       return;
     }
 
@@ -62,6 +64,7 @@ async function main() {
       return {
         name: f.name,
         searchName: normalizeName(f.name),
+        displayName: formatFoodName(f.name, f.category),
         category: f.category,
         source: FoodSource.TACO,
         kcal100: f.kcal,
@@ -84,6 +87,21 @@ async function main() {
   } finally {
     await prisma.$disconnect();
   }
+}
+
+/**
+ * Bancos que já tinham a TACO antes do nome amigável: preenche displayName (roda a cada deploy, só se faltar).
+ */
+async function backfillDisplayNames(prisma: PrismaClient) {
+  const missing = await prisma.food.findMany({
+    where: { source: FoodSource.TACO, displayName: null },
+    select: { id: true, name: true, category: true },
+  });
+  if (missing.length === 0) return;
+  await prisma.$transaction(
+    missing.map((f) => prisma.food.update({ where: { id: f.id }, data: { displayName: formatFoodName(f.name, f.category) } })),
+  );
+  console.log(`[seed] Nomes amigáveis preenchidos: ${missing.length}.`);
 }
 
 main().catch((err) => {

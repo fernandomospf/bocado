@@ -134,6 +134,8 @@ model Food {
   name            String
   /// Nome em minúsculas, sem acento e sem pontuação, para a busca por trigramas
   searchName      String
+  /// Nome natural para a interface ("Peito de frango grelhado"); nulo = usa o name
+  displayName     String?
   category        String?
   source          FoodSource
   kcal100         Float
