@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { CreateMealDto, DayParamDto, RangeQueryDto, UpdateMealItemDto } from './dto/meal.dto';
+import { CreateMealDto, DayParamDto, MoveMealItemDto, RangeQueryDto, UpdateMealItemDto } from './dto/meal.dto';
 import { MealsService } from './meals.service';
 
 @Controller()
@@ -38,6 +38,18 @@ export class MealsController {
     @Body() dto: UpdateMealItemDto,
   ) {
     return this.meals.updateItem(user.id, mealId, itemId, dto);
+  }
+
+  /** Move o alimento para outra refeição/dia (cria a refeição de destino se preciso). */
+  @Post('meals/:mealId/items/:itemId/move')
+  @HttpCode(200)
+  moveItem(
+    @CurrentUser() user: AuthUser,
+    @Param('mealId', ParseUUIDPipe) mealId: string,
+    @Param('itemId', ParseUUIDPipe) itemId: string,
+    @Body() dto: MoveMealItemDto,
+  ) {
+    return this.meals.moveItem(user.id, mealId, itemId, dto);
   }
 
   @Delete('meals/:mealId/items/:itemId')

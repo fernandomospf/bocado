@@ -9,7 +9,7 @@ import { isValidISO, todayISO } from '@/lib/date';
 import { fmtInt, parseNum } from '@/lib/format';
 import { tap } from '@/lib/haptics';
 import { compressImage } from '@/lib/image';
-import { MEAL_ORDER, mealTypeForNow } from '@/lib/labels';
+import { MEAL_ORDER, MEAL_SHORT, mealTypeForNow } from '@/lib/labels';
 import { recipeToFood } from '@/lib/recipe';
 import {
   applyFatChoice,
@@ -46,13 +46,6 @@ const MODES: { value: Mode; label: string }[] = [
   { value: 'text', label: 'Descrever' },
   { value: 'manual', label: 'Manual' },
 ];
-
-const SHORT_MEAL: Record<MealType, string> = {
-  BREAKFAST: 'Café',
-  LUNCH: 'Almoço',
-  SNACK: 'Lanche',
-  DINNER: 'Jantar',
-};
 
 export function AddMealView() {
   const router = useRouter();
@@ -272,7 +265,7 @@ export function AddMealView() {
           <div className="segmented" role="group" aria-label="Refeição">
             {MEAL_ORDER.map((t) => (
               <button key={t} type="button" aria-pressed={type === t} onClick={() => setType(t)}>
-                {SHORT_MEAL[t]}
+                {MEAL_SHORT[t]}
               </button>
             ))}
           </div>

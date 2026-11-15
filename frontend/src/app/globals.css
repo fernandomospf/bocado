@@ -1649,6 +1649,61 @@ img {
 }
 
 /* --------------------------------------------------------------------------
+   Interruptor (checkbox com role="switch")
+   -------------------------------------------------------------------------- */
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 4px;
+  font-size: 15px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.switch {
+  flex: none;
+  position: relative;
+  width: 51px;
+  height: 31px;
+  margin: 0;
+  border-radius: 999px;
+  background: rgb(120 120 128 / 0.32);
+  appearance: none;
+  cursor: pointer;
+  transition: background 200ms var(--ease);
+}
+
+.switch::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.2);
+  transition: transform 200ms var(--ease);
+}
+
+.switch:checked {
+  background: var(--success, #2fb551);
+}
+
+.switch:checked::before {
+  transform: translateX(20px);
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* --------------------------------------------------------------------------
    Gordura de preparo e selo "estimativa"
    -------------------------------------------------------------------------- */
 
@@ -1949,6 +2004,14 @@ button.badge-estimate::before {
   from {
     opacity: 0;
     transform: translateY(12px) scale(0.98);
+  }
+}
+
+/* Com uma Sheet aberta (celular e tablet), o toast sobe para o topo: embaixo ele cobriria os botões da folha */
+@media (max-width: 1099px) {
+  body:has([aria-modal='true']) .toast-region {
+    bottom: auto;
+    top: calc(var(--safe-top) + 12px);
   }
 }
 

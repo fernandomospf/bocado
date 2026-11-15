@@ -93,6 +93,15 @@ export class UpdateMealItemDto {
   fat?: number;
 }
 
+/** Mover um alimento para outra refeição e/ou outro dia. */
+export class MoveMealItemDto {
+  @IsEnum(MealType, { message: 'Selecione a refeição' })
+  type: MealType;
+
+  @Matches(ISO_DATE, { message: 'Data inválida' })
+  date: string;
+}
+
 export class DayParamDto {
   @Matches(ISO_DATE, { message: 'Data inválida' })
   date: string;

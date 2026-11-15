@@ -7,6 +7,14 @@ export const MEAL_LABEL: Record<MealType, string> = {
   DINNER: 'Jantar',
 };
 
+/** Rótulos curtos para controles segmentados. */
+export const MEAL_SHORT: Record<MealType, string> = {
+  BREAKFAST: 'Café',
+  LUNCH: 'Almoço',
+  SNACK: 'Lanche',
+  DINNER: 'Jantar',
+};
+
 export const MEAL_ORDER: MealType[] = ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER'];
 
 export function mealTypeForNow(date = new Date()): MealType {

@@ -3,7 +3,7 @@ import { Meal, MealItem, MealSource } from '@prisma/client';
 import { formatDay, parseDay } from '../common/dates';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfileService } from '../profile/profile.service';
-import { CreateMealDto, UpdateMealItemDto } from './dto/meal.dto';
+import { CreateMealDto, MoveMealItemDto, UpdateMealItemDto } from './dto/meal.dto';
 
 export interface Totals {
   kcal: number;
@@ -16,6 +16,14 @@ const MEAL_ORDER = ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER'] as const;
 const MAX_RANGE_DAYS = 93;
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/**
+ * Último dia aceito como "não futuro". O servidor não sabe o fuso do usuário: aceita até a data de hoje no fuso
+ * mais adiantado (UTC+14). A interface limita a hoje no fuso local.
+ */
+export function latestAllowedDay(now = new Date()): string {
+  return formatDay(new Date(now.getTime() + 14 * 3_600_000));
+}
 
 function sumItems(items: Pick<MealItem, 'kcal' | 'protein' | 'carbs' | 'fat'>[]): Totals {
   const t = items.reduce(
@@ -66,6 +74,37 @@ export class MealsService {
       data: touchesValues ? { ...dto, estimated: false } : dto,
     });
     return item;
+  }
+
+  /**
+   * Move o item para a refeição (type, date) do usuário: usa a mais antiga que já existir ou cria uma nova
+   * (com a mesma origem). A refeição de origem que ficar vazia é apagada. Tudo numa transação.
+   */
+  async moveItem(userId: string, mealId: string, itemId: string, dto: MoveMealItemDto) {
+    if (dto.date > latestAllowedDay()) throw new BadRequestException('Não dá para mover para um dia futuro');
+    await this.ownedItem(userId, mealId, itemId);
+    const source = await this.ownedMeal(userId, mealId);
+    const fromDate = formatDay(source.date);
+
+    if (source.type === dto.type && fromDate === dto.date) {
+      return { fromDate, toDate: dto.date, mealId: source.id };
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const date = parseDay(dto.date);
+      const target =
+        (await tx.meal.findFirst({
+          where: { userId, type: dto.type, date, id: { not: source.id } },
+          orderBy: { createdAt: 'asc' },
+        })) ??
+        (await tx.meal.create({ data: { userId, type: dto.type, date, source: source.source } }));
+
+      await tx.mealItem.update({ where: { id: itemId }, data: { mealId: target.id } });
+      const left = await tx.mealItem.count({ where: { mealId: source.id } });
+      if (left === 0) await tx.meal.delete({ where: { id: source.id } });
+
+      return { fromDate, toDate: dto.date, mealId: target.id };
+    });
   }
 
   async removeItem(userId: string, mealId: string, itemId: string) {
