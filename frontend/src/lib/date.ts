@@ -57,8 +57,40 @@ export function weekStart(iso: string, weekStartsOn: WeekStart = 'MONDAY') {
   return addDays(iso, -back);
 }
 
-/** Os 7 dias (ISO) da semana que contém `iso`, na ordem da preferência. */
-export function weekDays(iso: string, weekStartsOn: WeekStart = 'MONDAY') {
-  const start = weekStart(iso, weekStartsOn);
-  return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const shortWeekday = (iso: string) =>
+  cap(new Intl.DateTimeFormat('pt-BR', { weekday: 'short' }).format(fromISO(iso)).replace('.', ''));
+
+/** Rótulo curto de pílula: "Hoje", "Ontem", "Qui 13" (ou "Seg 2 nov" com `withMonth`). */
+export function pillLabel(iso: string, today: string, withMonth = false) {
+  if (iso === today) return 'Hoje';
+  if (iso === addDays(today, -1)) return 'Ontem';
+  const d = fromISO(iso);
+  const month = withMonth
+    ? ` ${new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(d).replace('.', '')}`
+    : '';
+  return `${shortWeekday(iso)} ${d.getDate()}${month}`;
+}
+
+/** Primeiro e último dia do mês de `iso`. */
+export function monthStart(iso: string) {
+  return `${iso.slice(0, 7)}-01`;
+}
+
+export function monthEnd(iso: string) {
+  const d = fromISO(monthStart(iso));
+  return toISO(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+}
+
+/** Mesmo dia `n` meses depois, limitado ao fim do mês (31/jan + 1 → 28/fev). */
+export function addMonths(iso: string, n: number) {
+  const d = fromISO(iso);
+  const target = new Date(d.getFullYear(), d.getMonth() + n, 1);
+  const last = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+  return toISO(new Date(target.getFullYear(), target.getMonth(), Math.min(d.getDate(), last)));
+}
+
+/** "novembro de 2026" → "Novembro de 2026". */
+export function monthLabel(iso: string) {
+  return cap(new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(fromISO(iso)));
 }

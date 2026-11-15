@@ -63,6 +63,13 @@ export const CameraIcon = (p: IconProps) => (
   </svg>
 );
 
+export const CalendarIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3.5" y="5" width="17" height="15.5" rx="3" />
+    <path d="M3.5 10h17M8 3v4M16 3v4" />
+  </svg>
+);
+
 /** Galeria: moldura com montanha e sol. */
 export const ImageIcon = (p: IconProps) => (
   <svg {...base(p)}>

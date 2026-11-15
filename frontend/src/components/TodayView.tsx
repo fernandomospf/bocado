@@ -22,7 +22,7 @@ import { MacroDots, MacroLegend } from './MacroLegend';
 import { RecipePickerSheet } from './RecipePickerSheet';
 import { Rings } from './Rings';
 import { ringSpecs } from './ringSpecs';
-import { WeekStrip } from './WeekStrip';
+import { DayPills } from './DayPills';
 
 /** Distância mínima (px) do arraste horizontal que troca de dia. */
 const SWIPE_MIN = 60;
@@ -116,7 +116,7 @@ export function TodayView() {
           </div>
         </header>
 
-        <WeekStrip date={date} today={today} weekStartsOn={weekStartsOn} onSelect={go} />
+        <DayPills date={date} today={today} weekStartsOn={weekStartsOn} onSelect={go} />
 
         {error && (
           <p className="alert" role="alert">

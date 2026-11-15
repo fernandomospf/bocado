@@ -1,7 +1,7 @@
 // Testes de lib/date.ts com o runner nativo do Node (24+ remove os tipos sozinho): npm test
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { weekDays, weekStart } from './date.ts';
+import { addMonths, monthEnd, monthStart, pillLabel, weekStart } from './date.ts';
 
 // Novembro de 2026: dia 15 é domingo, 16 é segunda
 describe('weekStart', () => {
@@ -27,11 +27,25 @@ describe('weekStart', () => {
   });
 });
 
-describe('weekDays', () => {
-  it('devolve 7 dias consecutivos a partir do início', () => {
-    const days = weekDays('2026-11-18', 'SUNDAY');
-    assert.deepEqual(days, [
-      '2026-11-15', '2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20', '2026-11-21',
-    ]);
+describe('pillLabel', () => {
+  it('Hoje, Ontem e dia da semana com número', () => {
+    assert.equal(pillLabel('2026-11-15', '2026-11-15'), 'Hoje');
+    assert.equal(pillLabel('2026-11-14', '2026-11-15'), 'Ontem');
+    assert.equal(pillLabel('2026-11-13', '2026-11-15'), 'Sex 13');
+    assert.equal(pillLabel('2026-11-02', '2026-11-15', true), 'Seg 2 nov');
+  });
+});
+
+describe('meses', () => {
+  it('início e fim do mês, inclusive fevereiro bissexto', () => {
+    assert.equal(monthStart('2026-11-15'), '2026-11-01');
+    assert.equal(monthEnd('2026-11-15'), '2026-11-30');
+    assert.equal(monthEnd('2028-02-10'), '2028-02-29');
+  });
+
+  it('addMonths limita ao último dia do mês e atravessa o ano', () => {
+    assert.equal(addMonths('2026-01-31', 1), '2026-02-28');
+    assert.equal(addMonths('2026-12-15', 1), '2027-01-15');
+    assert.equal(addMonths('2026-01-10', -1), '2025-12-10');
   });
 });
