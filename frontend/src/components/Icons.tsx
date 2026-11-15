@@ -30,6 +30,13 @@ export const PotIcon = (p: IconProps) => (
   </svg>
 );
 
+/** Código de barras: modo "Código" da Nova refeição. */
+export const BarcodeIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 6v12M8 6v12M11 6v12M15 6v12M18 6v12M20 6v12" />
+  </svg>
+);
+
 export const ChartIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M5 20V11M12 20V5M19 20v-6" />

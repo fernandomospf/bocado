@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { errorMessage } from '@/lib/api';
+import { api, errorMessage } from '@/lib/api';
 import { fmtDec, fmtInt, parseNum } from '@/lib/format';
 import type { FoodResult } from '@/lib/types';
 import { type DraftItem, draftFromPer100, scalePer100 } from './ItemsEditor';
 import { Sheet } from './Sheet';
+import { useToast } from './Toast';
 
 export const ORIGIN_LABEL: Record<FoodResult['origin'], string> = {
   history: 'Você já comeu',
@@ -39,6 +40,22 @@ export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 
   const [grams, setGrams] = useState(fmtGrams(food.portion?.grams ?? 100));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
+  // "Informar erro": só produtos do acervo compartilhado (Open Food Facts e rótulos)
+  const reportable = (food.origin === 'off' || food.origin === 'label') && !!food.id;
+  const [reporting, setReporting] = useState<{ open: boolean; reason: string; busy: boolean }>({ open: false, reason: '', busy: false });
+
+  async function sendReport() {
+    setReporting((r) => ({ ...r, busy: true }));
+    try {
+      await api(`/foods/${food.id}/report`, { method: 'POST', json: { reason: reporting.reason.trim() } });
+      toast.show({ message: 'Obrigado! Vamos revisar esse produto.' });
+      setReporting({ open: false, reason: '', busy: false });
+    } catch (err) {
+      toast.show({ message: errorMessage(err), tone: 'error' });
+      setReporting((r) => ({ ...r, busy: false }));
+    }
+  }
   const value = parseNum(grams);
   const m = scalePer100(food.per100, value);
   const portionGrams = food.portion?.grams;
@@ -103,7 +120,9 @@ export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 
         {portionGrams && food.portion && (
           <div className="stack" style={{ gap: 8 }}>
             <span className="caption">
-              Porção: {food.portion.label} ({fmtGrams(portionGrams)} g)
+              Porção: {food.portion.label}
+              {/* rótulos de produto já trazem o peso ("15 g (1 colher de sopa)"): não repete */}
+              {/\d\s*(g|ml)\b/i.test(food.portion.label) ? '' : ` (${fmtGrams(portionGrams)} g)`}
             </span>
             <div className="segmented" role="group" aria-label="Porções rápidas">
               {MULTIPLIERS.map(({ label, factor }) => {
@@ -143,6 +162,45 @@ export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 
             (ODbL)
           </p>
         )}
+
+        {reportable &&
+          (reporting.open ? (
+            <div className="stack" style={{ gap: 8 }}>
+              <label className="field">
+                <span className="field-label">O que está errado?</span>
+                <input
+                  className="input"
+                  placeholder="Ex.: as calorias não batem com a embalagem"
+                  value={reporting.reason}
+                  maxLength={200}
+                  onChange={(e) => setReporting((r) => ({ ...r, reason: e.target.value }))}
+                  autoFocus
+                />
+              </label>
+              <div className="suggestion-actions">
+                <button
+                  type="button"
+                  className="btn btn-glass btn-sm"
+                  onClick={sendReport}
+                  disabled={reporting.busy || reporting.reason.trim().length < 3}
+                >
+                  {reporting.busy ? <span className="spinner" aria-label="Enviando" /> : 'Enviar'}
+                </button>
+                <button type="button" className="btn btn-plain btn-sm" onClick={() => setReporting({ open: false, reason: '', busy: false })}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-plain btn-sm"
+              style={{ alignSelf: 'flex-start', paddingLeft: 0 }}
+              onClick={() => setReporting((r) => ({ ...r, open: true }))}
+            >
+              Informar erro
+            </button>
+          ))}
 
         {error && (
           <p className="alert" role="alert">

@@ -2,6 +2,8 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    /** Corpo da resposta de erro (ex.: 409 com o produto que já existe). */
+    public readonly data: unknown = null,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -35,7 +37,7 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
   if (!res.ok) {
     const raw = data?.message;
     const message = Array.isArray(raw) ? raw[0] : typeof raw === 'string' ? raw : null;
-    throw new ApiError(res.status, message ?? fallbackMessage(res.status));
+    throw new ApiError(res.status, message ?? fallbackMessage(res.status), data);
   }
   return data as T;
 }

@@ -11,18 +11,20 @@ import { compressImage } from '@/lib/image';
 import { MEAL_ORDER, mealTypeForNow } from '@/lib/labels';
 import { recipeToFood } from '@/lib/recipe';
 import type { AnalysisResult, FoodResult, MealSource, MealType } from '@/lib/types';
+import { BarcodeFlow } from './BarcodeFlow';
 import { FoodPortionSheet } from './FoodPortionSheet';
 import { FoodSearch } from './FoodSearch';
 import { MacroDots } from './MacroLegend';
-import { CameraIcon, ChevronLeft, PlusIcon, SparkIcon } from './Icons';
+import { BarcodeIcon, CameraIcon, ChevronLeft, PlusIcon, SparkIcon } from './Icons';
 import { PREFILL_KEY } from './CloseDayCard';
 import { type DraftItem, draftFromAnalysis, draftFromValues, ItemsEditor, newDraft, resolveKcal, toPayload } from './ItemsEditor';
 import { QuickChips } from './QuickChips';
 
-type Mode = 'search' | 'photo' | 'text' | 'manual';
+type Mode = 'search' | 'barcode' | 'photo' | 'text' | 'manual';
 
 const MODES: { value: Mode; label: string }[] = [
   { value: 'search', label: 'Buscar' },
+  { value: 'barcode', label: 'Código' },
   { value: 'photo', label: 'Foto' },
   { value: 'text', label: 'Descrever' },
   { value: 'manual', label: 'Manual' },
@@ -234,15 +236,18 @@ export function AddMealView() {
 
         <QuickChips onPickRecipe={(r) => setChipFood(recipeToFood(r))} />
 
-        <div className="segmented" role="group" aria-label="Como registrar">
+        <div className="segmented segmented-modes" role="group" aria-label="Como registrar">
           {MODES.map((m) => (
             <button key={m.value} type="button" aria-pressed={mode === m.value} onClick={() => chooseMode(m.value)}>
+              {m.value === 'barcode' && <BarcodeIcon width={16} height={16} />}
               {m.label}
             </button>
           ))}
         </div>
 
         {mode === 'search' && <FoodSearch onAdd={addFromSearch} />}
+
+        {mode === 'barcode' && <BarcodeFlow onAdd={addFromSearch} />}
 
         {mode === 'photo' && (
           <section className="stack">
