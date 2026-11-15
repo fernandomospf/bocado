@@ -72,6 +72,7 @@ model User {
   recipes      Recipe[]
   contributed  Food[]        @relation("FoodContributor")
   aiUsage      AiUsage[]
+  foodReports  FoodReport[]
 
   @@map("users")
 }
@@ -159,6 +160,7 @@ model Food {
   reportCount     Int                @default(0)
   createdAt       DateTime           @default(now())
   ingredients     RecipeIngredient[]
+  reports         FoodReport[]
 
   @@index([searchName(ops: raw("gin_trgm_ops"))], type: Gin)
   @@index([userId])
@@ -254,4 +256,18 @@ model AiUsage {
 
   @@id([userId, day, feature])
   @@map("ai_usage")
+}
+
+/// Denúncia de dados errados num produto do acervo (uma por usuário e produto). 3 usuários → REPORTED.
+model FoodReport {
+  id        String   @id @default(uuid()) @db.Uuid
+  foodId    String   @db.Uuid
+  food      Food     @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@unique([foodId, userId])
+  @@map("food_reports")
 }

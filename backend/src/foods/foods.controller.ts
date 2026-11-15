@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Qu
 import { Throttle } from '@nestjs/throttler';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { CreateFoodDto, SearchFoodsQueryDto } from './dto/food.dto';
+import { CreateFoodDto, CreateProductDto, ReportFoodDto, SearchFoodsQueryDto } from './dto/food.dto';
 import { FoodsService } from './foods.service';
 
 @Controller('foods')
@@ -23,6 +23,21 @@ export class FoodsController {
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   barcode(@Param('code') code: string) {
     return this.foods.lookupBarcode(code);
+  }
+
+  /** Produto lido do rótulo e revisado: entra no acervo compartilhado. */
+  @Post('products')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  createProduct(@CurrentUser() user: AuthUser, @Body() dto: CreateProductDto) {
+    return this.foods.createProduct(user.id, dto);
+  }
+
+  /** "Informar erro" num produto do acervo. */
+  @Post(':id/report')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  report(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() { reason }: ReportFoodDto) {
+    return this.foods.report(user.id, id, reason);
   }
 
   @Post()

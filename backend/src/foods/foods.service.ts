@@ -1,9 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Food, FoodSource, FoodStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RecipesService } from '../recipes/recipes.service';
 import { normalizeBarcode } from './barcode';
-import { CreateFoodDto } from './dto/food.dto';
+import { CreateFoodDto, CreateProductDto } from './dto/food.dto';
 import { Macros, NORMALIZED_NAME_SQL, normalizeName, searchTokens, toPer100 } from './food-normalize';
 import { OffClient, OffProduct } from './off.client';
 
@@ -27,6 +27,9 @@ export interface FoodResult {
 export type BarcodeLookup =
   | { found: true; origin: 'local' | 'off'; food: FoodResult }
   | { found: false; code: string };
+
+/** Denúncias de usuários diferentes para tirar um produto da busca até a revisão. */
+export const REPORTS_TO_HIDE = 3;
 
 /** Por quanto tempo um código que o OFF não tem deixa de ser consultado de novo. */
 export const BARCODE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -115,6 +118,102 @@ export class FoodsService {
       },
     });
     return serializeFood(food, 'custom');
+  }
+
+  /**
+   * Produto lido do rótulo e revisado: entra no acervo compartilhado (source LABEL, sem dono) com o
+   * contribuidor registrado. Código já ativo no acervo → 409 com o produto existente. Código de um produto
+   * denunciado → a contribuição nova substitui os dados e o reativa (é a correção que a denúncia pedia).
+   */
+  async createProduct(userId: string, dto: CreateProductDto): Promise<FoodResult> {
+    let barcode: string | null = null;
+    if (dto.barcode) {
+      barcode = normalizeBarcode(dto.barcode);
+      if (!barcode) throw new BadRequestException('Código de barras inválido');
+    }
+    const { kcal, protein, carbs, fat } = dto.per100;
+    if (protein + carbs + fat > 100) {
+      throw new BadRequestException('Proteína + carboidratos + gorduras passam de 100 g em 100 g de produto.');
+    }
+
+    const data = {
+      source: FoodSource.LABEL,
+      userId: null,
+      contributedById: userId,
+      name: dto.name,
+      brand: dto.brand || null,
+      displayName: null,
+      searchName: normalizeName([dto.name, dto.brand].filter(Boolean).join(' ')),
+      kcal100: kcal,
+      protein100: protein,
+      carbs100: carbs,
+      fat100: fat,
+      servingGrams: dto.serving?.grams ?? null,
+      servingLabel: dto.serving ? dto.serving.label || `${dto.serving.grams} g` : null,
+      status: FoodStatus.ACTIVE,
+      reportCount: 0,
+    };
+
+    if (barcode) {
+      const existing = await this.prisma.food.findUnique({ where: { barcode } });
+      if (existing?.status === FoodStatus.ACTIVE) throw this.duplicate(existing);
+      if (existing) {
+        const food = await this.prisma.$transaction(async (tx) => {
+          await tx.foodReport.deleteMany({ where: { foodId: existing.id } });
+          return tx.food.update({ where: { id: existing.id }, data });
+        });
+        return serializeFood(food, 'label');
+      }
+    }
+
+    try {
+      const food = await this.prisma.food.create({ data: { ...data, barcode } });
+      if (barcode) await this.prisma.barcodeMiss.deleteMany({ where: { code: barcode } });
+      return serializeFood(food, 'label');
+    } catch (err) {
+      // Outra pessoa salvou o mesmo código no mesmo instante
+      if (barcode && err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw this.duplicate(await this.prisma.food.findUniqueOrThrow({ where: { barcode } }));
+      }
+      throw err;
+    }
+  }
+
+  private duplicate(existing: Food) {
+    return new ConflictException({
+      statusCode: 409,
+      message: 'Esse produto já está no acervo.',
+      product: serializeFood(existing, originOf(existing.source)),
+    });
+  }
+
+  /**
+   * Denúncia de dado errado num produto do acervo (Open Food Facts ou rótulo). Uma por usuário: repetir não
+   * conta de novo. Com 3 usuários diferentes, o produto vira REPORTED e sai da busca até a revisão.
+   */
+  async report(userId: string, foodId: string, reason: string) {
+    const food = await this.prisma.food.findUnique({ where: { id: foodId } });
+    if (!food || (food.source !== FoodSource.OFF && food.source !== FoodSource.LABEL)) {
+      throw new NotFoundException('Produto não encontrado');
+    }
+    const already = await this.prisma.foodReport.findUnique({ where: { foodId_userId: { foodId, userId } } });
+    if (already) return { reportCount: food.reportCount, status: food.status, alreadyReported: true };
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        await tx.foodReport.create({ data: { foodId, userId, reason } });
+        const reportCount = await tx.foodReport.count({ where: { foodId } });
+        const status = reportCount >= REPORTS_TO_HIDE ? FoodStatus.REPORTED : food.status;
+        await tx.food.update({ where: { id: foodId }, data: { reportCount, status } });
+        return { reportCount, status, alreadyReported: false };
+      });
+    } catch (err) {
+      // Dois envios simultâneos da mesma pessoa: o segundo não conta
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        return { reportCount: food.reportCount, status: food.status, alreadyReported: true };
+      }
+      throw err;
+    }
   }
 
   async remove(userId: string, id: string) {

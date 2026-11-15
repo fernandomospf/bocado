@@ -126,3 +126,56 @@ export const SUGGEST_TOOL: Anthropic.Tool = {
     required: ['suggestions'],
   },
 };
+
+// ---------------------------------------------------------------------------
+// Leitura de embalagem e tabela nutricional (uma vez por produto: o resultado vai para o acervo)
+// ---------------------------------------------------------------------------
+
+export const LABEL_TOOL_NAME = 'registrar_produto';
+
+export const LABEL_SYSTEM_PROMPT = `Você lê embalagens de produtos industrializados vendidos no Brasil e extrai a tabela nutricional para um app de contagem de calorias.
+
+Como ler:
+- O rótulo brasileiro (RDC 429/2020) tem colunas "100 g" (ou "100 ml") e "porção". PREFIRA SEMPRE a coluna de 100 g/100 ml.
+- Ignore a coluna %VD.
+- "Valor energético" pode vir em kcal e em kJ: use o valor em kcal.
+- "Gorduras totais" = fat. "Carboidratos" = carbs (não use "açúcares totais" nem "açúcares adicionados"). "Proteínas" = protein.
+- Se o rótulo só tiver os valores por porção, deixe per100Available = false, preencha perServing e serving.grams (peso da porção em gramas ou ml).
+- serving.label é a porção como escrita no rótulo, ex.: "30 g (1 xícara)".
+- name: nome do produto como o consumidor chamaria (ex.: "Biscoito de chocolate recheado"). brand: a marca, se visível na frente.
+- Números puros, com ponto decimal, sem unidade. Se não conseguir ler um valor com segurança, use confidence "low".
+- Se a imagem não for uma embalagem ou tabela nutricional legível, responda com confidence "low" e os valores que conseguir.
+
+Responda SEMPRE e SOMENTE chamando a ferramenta ${LABEL_TOOL_NAME}, sem texto antes ou depois.
+Se por algum motivo não puder usar a ferramenta, responda apenas com o mesmo objeto em JSON puro.`;
+
+const macroProps = (scope: string) => ({
+  kcal: { type: 'number', description: `Calorias (kcal) ${scope}: número puro, ex.: 480.` },
+  protein: { type: 'number', description: `Proteínas (g) ${scope}: número puro, ex.: 6.5.` },
+  carbs: { type: 'number', description: `Carboidratos (g) ${scope}, não açúcares: número puro.` },
+  fat: { type: 'number', description: `Gorduras totais (g) ${scope}: número puro.` },
+});
+
+export const LABEL_TOOL: Anthropic.Tool = {
+  name: LABEL_TOOL_NAME,
+  description: 'Registra o produto e a tabela nutricional lida da embalagem.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      name: { type: 'string', description: 'Nome do produto em português.' },
+      brand: { type: 'string', description: 'Marca, se visível.' },
+      per100Available: { type: 'boolean', description: 'true se o rótulo tem a coluna de 100 g/100 ml.' },
+      per100: { type: 'object', description: 'Valores por 100 g/100 ml (se a coluna existir).', properties: macroProps('em 100 g') },
+      perServing: { type: 'object', description: 'Valores por porção (se só houver essa coluna).', properties: macroProps('por porção') },
+      serving: {
+        type: 'object',
+        properties: {
+          grams: { type: 'number', description: 'Peso da porção em gramas (ou ml): número puro.' },
+          label: { type: 'string', description: 'Porção como no rótulo, ex.: "30 g (1 xícara)".' },
+        },
+      },
+      confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
+    },
+    required: ['name', 'per100Available', 'confidence'],
+  },
+};

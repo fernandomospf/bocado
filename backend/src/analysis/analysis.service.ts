@@ -10,7 +10,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { extractItemObjects, parseLooseJson, toNumber } from './analysis.parse';
-import { ANALYSIS_TOOL, ANALYSIS_TOOL_NAME, SYSTEM_PROMPT } from './analysis.prompt';
+import { ANALYSIS_TOOL, ANALYSIS_TOOL_NAME, LABEL_SYSTEM_PROMPT, LABEL_TOOL, SYSTEM_PROMPT } from './analysis.prompt';
+import { coerceLabel, LabelDraft } from './label';
 
 export type Confidence = 'low' | 'medium' | 'high';
 
@@ -67,6 +68,38 @@ export class AnalysisService {
       },
       { type: 'text', text },
     ]);
+  }
+
+  /**
+   * Lê a embalagem (frente opcional + tabela nutricional) e devolve um RASCUNHO para revisão.
+   * Nada é salvo aqui, e as imagens não são armazenadas (ficam só na memória desta requisição).
+   */
+  async analyzeLabel(
+    images: { buffer: Buffer; mimeType: string; role: 'front' | 'table' }[],
+    barcode: string | null,
+  ): Promise<LabelDraft> {
+    for (const img of images) {
+      if (!SUPPORTED_MEDIA.includes(img.mimeType as SupportedMedia)) {
+        throw new BadRequestException('Formato de imagem não suportado. Use JPG, PNG ou WebP.');
+      }
+    }
+    const content: Anthropic.ContentBlockParam[] = images.flatMap((img) => [
+      { type: 'text' as const, text: img.role === 'table' ? 'Tabela nutricional:' : 'Frente da embalagem:' },
+      {
+        type: 'image' as const,
+        source: { type: 'base64' as const, media_type: img.mimeType as SupportedMedia, data: img.buffer.toString('base64') },
+      },
+    ]);
+    content.push({ type: 'text', text: 'Extraia o produto e a tabela nutricional.' });
+
+    const raw = await this.callTool({
+      system: LABEL_SYSTEM_PROMPT,
+      tool: LABEL_TOOL,
+      content,
+      maxTokens: 1500,
+      truncatedMessage: 'A leitura da embalagem ficou incompleta. Tente de novo.',
+    });
+    return coerceLabel(raw, barcode);
   }
 
   async analyzeText(description: string): Promise<AnalysisResult> {

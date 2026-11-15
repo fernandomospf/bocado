@@ -19,3 +19,12 @@ export class AnalyzePhotoDto {
   @Transform(trim)
   hint?: string;
 }
+
+export class AnalyzeLabelDto {
+  /** Código de barras lido antes (o produto será salvo com ele). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  @Transform(trim)
+  barcode?: string;
+}
