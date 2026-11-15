@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AnalysisModule } from './analysis/analysis.module';
 import { AuthModule } from './auth/auth.module';
+import { ExportModule } from './export/export.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { UserThrottlerGuard } from './common/user-throttler.guard';
 import { validateEnv } from './config/env.validation';
@@ -28,6 +29,7 @@ import { WeightModule } from './weight/weight.module';
     RecipesModule,
     SuggestionsModule,
     WeightModule,
+    ExportModule,
     AnalysisModule,
     HealthModule,
   ],

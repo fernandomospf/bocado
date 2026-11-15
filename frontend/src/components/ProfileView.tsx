@@ -12,6 +12,7 @@ import { ACTIVITY_OPTIONS, GOAL_OPTIONS } from '@/lib/labels';
 import type { Profile, WeekStart } from '@/lib/types';
 import { Avatar } from './Avatar';
 import { BodyForm } from './BodyForm';
+import { ExportCard } from './ExportCard';
 import { ChevronRight } from './Icons';
 import { Sheet } from './Sheet';
 import { useToast } from './Toast';
@@ -191,6 +192,13 @@ export function ProfileView() {
                 ))}
               </div>
             </section>
+          </div>
+        )}
+
+        {profile && (
+          <div className="screen-group profile-o4">
+            <h2 className="section-title">Seus registros</h2>
+            <ExportCard />
           </div>
         )}
 

@@ -1828,14 +1828,16 @@ img {
   gap: 8px;
 }
 
-.fat-chip {
+.fat-chip,
+.chip-toggle {
   min-height: 44px;
   padding: 0 16px;
   color: var(--text-2);
   transition: transform 160ms var(--ease), background 200ms var(--ease), color 200ms var(--ease);
 }
 
-.fat-chip[aria-pressed='true'] {
+.fat-chip[aria-pressed='true'],
+.chip-toggle[aria-pressed='true'] {
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 14%, var(--glass-strong));
   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent);
