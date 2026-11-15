@@ -22,6 +22,8 @@ export interface DraftItem {
   estimated?: boolean;
   /** Item gerenciado pela pergunta da gordura de preparo: é substituído, não duplicado. */
   kind?: 'preparationFat';
+  /** Veio da análise da foto atual: "Reanalisar" e "Trocar foto" substituem só esses itens. */
+  fromPhoto?: boolean;
 }
 
 type MacroField = 'kcal' | 'protein' | 'carbs' | 'fat';

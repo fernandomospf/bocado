@@ -2529,8 +2529,7 @@ button.badge-estimate::before {
     background: var(--fill);
   }
 
-  .choice:not([aria-pressed='true']):hover,
-  .photo-drop:not(:disabled):hover {
+  .choice:not([aria-pressed='true']):hover {
     box-shadow: var(--glass-shadow), inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 45%, transparent);
   }
 

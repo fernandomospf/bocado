@@ -63,6 +63,15 @@ export const CameraIcon = (p: IconProps) => (
   </svg>
 );
 
+/** Galeria: moldura com montanha e sol. */
+export const ImageIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="3" y="4" width="18" height="16" rx="2.5" />
+    <circle cx="9" cy="9.5" r="1.8" />
+    <path d="M21 16l-5-5-9 9" />
+  </svg>
+);
+
 export const SparkIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3ZM19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8-1.8-.7 1.8-.7L19 16Z" />

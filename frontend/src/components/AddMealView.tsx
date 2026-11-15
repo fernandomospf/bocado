@@ -24,7 +24,7 @@ import { FoodPortionSheet } from './FoodPortionSheet';
 import { FoodSearch } from './FoodSearch';
 import { FatQuestion } from './FatQuestion';
 import { MacroDots } from './MacroLegend';
-import { BarcodeIcon, CameraIcon, ChevronLeft, PlusIcon, SparkIcon } from './Icons';
+import { BarcodeIcon, CameraIcon, ChevronLeft, ImageIcon, PlusIcon, SparkIcon } from './Icons';
 import { PREFILL_KEY } from './CloseDayCard';
 import {
   type DraftItem,
@@ -74,7 +74,9 @@ export function AddMealView() {
   const [dragging, setDragging] = useState(false);
   const [chipFood, setChipFood] = useState<FoodResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
+  // Câmera abre direto a câmera traseira; Galeria (e "Trocar foto") abre o seletor do sistema
+  const cameraInput = useRef<HTMLInputElement>(null);
+  const galleryInput = useRef<HTMLInputElement>(null);
 
   // Pergunta da gordura de preparo (só depois de uma análise com comida cozida)
   const [fat, setFat] = useState<FatQuestionState | null>(null);
@@ -123,6 +125,9 @@ export function AddMealView() {
     [items],
   );
 
+  const analyzing = busy === 'analyze';
+  const photoAnalyzed = items.some((i) => i.fromPhoto);
+
   function chooseMode(next: Mode) {
     setMode(next);
     setError(null);
@@ -135,12 +140,17 @@ export function AddMealView() {
       return;
     }
     setError(null);
+    let blob: Blob;
     try {
-      const blob = await compressImage(file);
-      setPhoto({ blob, url: URL.createObjectURL(blob) });
+      blob = await compressImage(file);
     } catch (err) {
       setError(errorMessage(err));
+      return;
     }
+    setPhoto({ blob, url: URL.createObjectURL(blob) });
+    setHint(''); // a dica era da foto anterior
+    // Um toque a menos: a análise começa sozinha assim que a foto está pronta
+    await analyzePhoto(blob, '');
   }
 
   async function onPickPhoto(e: ChangeEvent<HTMLInputElement>) {
@@ -150,7 +160,7 @@ export function AddMealView() {
   }
 
   /** Desktop: arrastar e soltar a imagem na área da foto (além do clique). */
-  function onDrop(e: DragEvent<HTMLButtonElement>) {
+  function onDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     setDragging(false);
     const file = e.dataTransfer.files?.[0];
@@ -166,11 +176,16 @@ export function AddMealView() {
 
   function applyAnalysis(result: AnalysisResult, from: MealSource) {
     const nextFat = nextFatState(fatRef.current, result.hasCookedFood, result.preparationFat);
+    const fromPhoto = from === 'PHOTO';
     setFat(nextFat);
     setItems((prev) => {
-      // O item de gordura sai e volta no fim da lista, depois dos alimentos novos
-      const kept = prev.filter((i) => !isFatItem(i) && (i.name.trim() || resolveKcal(i) > 0));
-      const next = [...kept, ...result.items.map(draftFromAnalysis)];
+      // O item de gordura sai e volta no fim da lista, depois dos alimentos novos.
+      // Uma análise de foto substitui os itens da foto anterior; os adicionados à mão ficam.
+      const kept = prev.filter(
+        (i) => !isFatItem(i) && !(fromPhoto && i.fromPhoto) && (i.name.trim() || resolveKcal(i) > 0),
+      );
+      const added = result.items.map((r) => ({ ...draftFromAnalysis(r), ...(fromPhoto ? { fromPhoto: true } : {}) }));
+      const next = [...kept, ...added];
       return nextFat && fatTable ? applyFatChoice(next, nextFat.choice, fatTable) : next;
     });
     setNotes(result.notes);
@@ -195,14 +210,13 @@ export function AddMealView() {
     }
   }
 
-  async function analyzePhoto() {
-    if (!photo) return;
+  async function analyzePhoto(blob: Blob, hintText: string) {
     setBusy('analyze');
     setError(null);
     try {
       const form = new FormData();
-      form.append('image', photo.blob, 'refeicao.jpg');
-      if (hint.trim()) form.append('hint', hint.trim());
+      form.append('image', blob, 'refeicao.jpg');
+      if (hintText.trim()) form.append('hint', hintText.trim());
       applyAnalysis(await api<AnalysisResult>('/analysis/photo', { method: 'POST', body: form }), 'PHOTO');
     } catch (err) {
       setError(errorMessage(err));
@@ -299,17 +313,27 @@ export function AddMealView() {
         {mode === 'photo' && (
           <section className="stack">
             <input
-              ref={fileInput}
+              ref={cameraInput}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="sr-only"
+              tabIndex={-1}
+              onChange={onPickPhoto}
+              aria-label="Tirar foto da refeição"
+            />
+            <input
+              ref={galleryInput}
               type="file"
               accept="image/*"
               className="sr-only"
+              tabIndex={-1}
               onChange={onPickPhoto}
               aria-label="Escolher foto da refeição"
             />
-            <button
-              type="button"
+            {/* Área de pré-visualização; no desktop também recebe a imagem arrastada */}
+            <div
               className="photo-drop glass"
-              onClick={() => fileInput.current?.click()}
               onDragOver={(e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'copy';
@@ -318,43 +342,67 @@ export function AddMealView() {
               onDragLeave={() => setDragging(false)}
               onDrop={onDrop}
               data-dragging={dragging || undefined}
-              disabled={busy === 'analyze'}
+              aria-busy={analyzing || undefined}
             >
               {photo ? (
                 <>
                   <img src={photo.url} alt="Foto da refeição" />
-                  {busy === 'analyze' && <span className="scan" aria-hidden />}
+                  {analyzing && <span className="scan" aria-hidden />}
                 </>
               ) : (
                 <>
                   <CameraIcon />
-                  Tirar ou escolher foto
+                  Fotografe o prato
                   <span className="caption">Enquadre o prato inteiro, de cima</span>
                   <span className="caption desktop-only">ou arraste a imagem para cá</span>
                 </>
               )}
-            </button>
-            {photo && (
-              <>
-                <label className="field">
-                  <span className="field-label">Algo que a foto não mostra? (opcional)</span>
-                  <input
-                    className="input"
-                    placeholder="Ex.: arroz integral, frango sem óleo"
-                    value={hint}
-                    maxLength={300}
-                    onChange={(e) => setHint(e.target.value)}
-                  />
-                </label>
-                <div className="grid-2">
-                  <button className="btn btn-glass" onClick={() => fileInput.current?.click()} disabled={!!busy}>
-                    Trocar foto
+            </div>
+
+            <p className="sr-only" role="status">
+              {analyzing ? 'Analisando a foto' : ''}
+            </p>
+
+            {photo ? (
+              <div className={photoAnalyzed || analyzing ? 'stack' : 'grid-2'}>
+                <button
+                  type="button"
+                  className="btn btn-glass"
+                  onClick={() => galleryInput.current?.click()}
+                  disabled={!!busy}
+                >
+                  {analyzing ? <span className="spinner" aria-hidden /> : null}
+                  {analyzing ? 'Analisando a foto' : 'Trocar foto'}
+                </button>
+                {/* A análise falhou: tentar de novo com a mesma foto */}
+                {!photoAnalyzed && !analyzing && (
+                  <button type="button" className="btn btn-primary" onClick={() => analyzePhoto(photo.blob, hint)}>
+                    <SparkIcon width={20} height={20} />
+                    Analisar de novo
                   </button>
-                  <button className="btn btn-primary" onClick={analyzePhoto} disabled={!!busy}>
-                    {busy === 'analyze' ? <span className="spinner" aria-hidden /> : <SparkIcon width={20} height={20} />}
-                    {busy === 'analyze' ? 'Analisando' : 'Analisar'}
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="grid-2 not-desktop">
+                  <button type="button" className="btn btn-primary" onClick={() => cameraInput.current?.click()} disabled={!!busy}>
+                    <CameraIcon width={20} height={20} />
+                    Câmera
+                  </button>
+                  <button type="button" className="btn btn-glass" onClick={() => galleryInput.current?.click()} disabled={!!busy}>
+                    <ImageIcon width={20} height={20} />
+                    Galeria
                   </button>
                 </div>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-block desktop-only"
+                  onClick={() => galleryInput.current?.click()}
+                  disabled={!!busy}
+                >
+                  <ImageIcon width={20} height={20} />
+                  Escolher foto
+                </button>
               </>
             )}
           </section>
@@ -411,6 +459,35 @@ export function AddMealView() {
             {notes && <p className="note">{notes}</p>}
             {fat && <FatQuestion state={fat} onChange={chooseFat} />}
             <ItemsEditor items={items} onChange={changeItems} />
+            {/* A dica vem depois da análise: corrige o que a foto não mostra sem atrasar o primeiro resultado */}
+            {photo && photoAnalyzed && (
+              <section className="card glass stack" aria-label="Dica para a foto">
+                <label className="field">
+                  <span className="field-label">Algo que a foto não mostra?</span>
+                  <input
+                    className="input"
+                    placeholder="Ex.: arroz integral, frango sem óleo"
+                    value={hint}
+                    maxLength={300}
+                    enterKeyHint="send"
+                    onChange={(e) => setHint(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && hint.trim() && !busy) void analyzePhoto(photo.blob, hint);
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-glass"
+                  onClick={() => analyzePhoto(photo.blob, hint)}
+                  disabled={!!busy || !hint.trim()}
+                >
+                  {analyzing ? <span className="spinner" aria-hidden /> : <SparkIcon width={20} height={20} />}
+                  {analyzing ? 'Reanalisando' : 'Reanalisar com a dica'}
+                </button>
+                <p className="caption">Substitui os itens da foto; os que você adicionou à mão ficam.</p>
+              </section>
+            )}
           </section>
         )}
 
