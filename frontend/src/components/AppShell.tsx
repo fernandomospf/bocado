@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { useShortcuts } from '@/lib/useShortcuts';
 import { Sidebar } from './Sidebar';
 import { TabBar } from './TabBar';
+import { TopBar } from './TopBar';
 
 /**
  * Moldura da área logada. Renderiza sempre a Sidebar e a TabBar; o CSS decide qual aparece
@@ -16,6 +17,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <>
+      <TopBar />
       <Sidebar />
       <div className="app-content">{children}</div>
       <TabBar />
