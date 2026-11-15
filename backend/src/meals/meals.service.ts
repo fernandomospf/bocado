@@ -1,9 +1,15 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Meal, MealItem, MealSource } from '@prisma/client';
+import {
+  BadRequestException,
+  ConflictException,
+  GoneException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Meal, MealItem, MealSource, Prisma } from '@prisma/client';
 import { formatDay, parseDay } from '../common/dates';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfileService } from '../profile/profile.service';
-import { CreateMealDto, MoveMealItemDto, UpdateMealItemDto } from './dto/meal.dto';
+import { CreateMealDto, MealSnapshotDto, MoveMealItemDto, UpdateMealItemDto } from './dto/meal.dto';
 
 export interface Totals {
   kcal: number;
@@ -14,6 +20,33 @@ export interface Totals {
 
 const MEAL_ORDER = ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER'] as const;
 const MAX_RANGE_DAYS = 93;
+/** Por quanto tempo uma exclusão pode ser desfeita. */
+export const RESTORE_WINDOW_MS = 10 * 60_000;
+/** Tolerância para relógios adiantados (deletedAt vem do servidor, mas passa pelo app). */
+const CLOCK_SKEW_MS = 60_000;
+
+export interface MealSnapshot {
+  meal: { id: string; date: string; type: Meal['type']; source: MealSource; note: string | null; createdAt: string };
+  items: Omit<MealItem, 'mealId'>[];
+  mealDeleted: boolean;
+  deletedAt: string;
+}
+
+function snapshotOf(meal: Meal, items: MealItem[], mealDeleted: boolean): MealSnapshot {
+  return {
+    meal: {
+      id: meal.id,
+      date: formatDay(meal.date),
+      type: meal.type,
+      source: meal.source,
+      note: meal.note,
+      createdAt: meal.createdAt.toISOString(),
+    },
+    items: items.map(({ mealId: _mealId, ...item }) => item),
+    mealDeleted,
+    deletedAt: new Date().toISOString(),
+  };
+}
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
@@ -60,9 +93,11 @@ export class MealsService {
     return this.serializeMeal(meal);
   }
 
-  async remove(userId: string, mealId: string) {
-    await this.ownedMeal(userId, mealId);
+  async remove(userId: string, mealId: string): Promise<MealSnapshot> {
+    const meal = await this.prisma.meal.findFirst({ where: { id: mealId, userId }, include: { items: true } });
+    if (!meal) throw new NotFoundException('Refeição não encontrada');
     await this.prisma.meal.delete({ where: { id: mealId } });
+    return snapshotOf(meal, meal.items, true);
   }
 
   async updateItem(userId: string, mealId: string, itemId: string, dto: UpdateMealItemDto) {
@@ -107,14 +142,81 @@ export class MealsService {
     });
   }
 
-  async removeItem(userId: string, mealId: string, itemId: string) {
-    await this.ownedItem(userId, mealId, itemId);
+  async removeItem(userId: string, mealId: string, itemId: string): Promise<MealSnapshot> {
+    const item = await this.prisma.mealItem.findFirst({
+      where: { id: itemId, mealId, meal: { userId } },
+      include: { meal: true },
+    });
+    if (!item) throw new NotFoundException('Alimento não encontrado');
+    const { meal, ...row } = item;
     // Remover o último item remove a refeição inteira
-    await this.prisma.$transaction(async (tx) => {
+    const mealDeleted = await this.prisma.$transaction(async (tx) => {
       await tx.mealItem.delete({ where: { id: itemId } });
       const left = await tx.mealItem.count({ where: { mealId } });
       if (left === 0) await tx.meal.delete({ where: { id: mealId } });
+      return left === 0;
     });
+    return snapshotOf(meal, [row], mealDeleted);
+  }
+
+  /**
+   * Desfaz uma exclusão. Com mealDeleted, recria a refeição com o MESMO id; senão, devolve os itens à refeição
+   * existente (do usuário). Os itens voltam com os mesmos ids. O dono vem sempre da sessão, nunca do snapshot.
+   */
+  async restore(userId: string, s: MealSnapshotDto) {
+    const age = Date.now() - Date.parse(s.deletedAt);
+    if (!Number.isFinite(age) || age < -CLOCK_SKEW_MS) throw new BadRequestException('Exclusão inválida');
+    if (age > RESTORE_WINDOW_MS) throw new GoneException('Passou o tempo para desfazer esta exclusão');
+    if (s.meal.date > latestAllowedDay()) throw new BadRequestException('Data inválida');
+    const ids = s.items.map((i) => i.id);
+    if (new Set(ids).size !== ids.length) throw new BadRequestException('Alimentos repetidos');
+
+    const conflict = () => new ConflictException('Isso já foi restaurado');
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        let date = s.meal.date;
+        if (s.mealDeleted) {
+          if (await tx.meal.findUnique({ where: { id: s.meal.id }, select: { id: true } })) throw conflict();
+        } else {
+          const meal = await tx.meal.findFirst({ where: { id: s.meal.id, userId } });
+          if (!meal) throw new NotFoundException('A refeição não existe mais');
+          date = formatDay(meal.date);
+        }
+        if ((await tx.mealItem.count({ where: { id: { in: ids } } })) > 0) throw conflict();
+
+        if (s.mealDeleted) {
+          await tx.meal.create({
+            data: {
+              id: s.meal.id,
+              userId,
+              date: parseDay(s.meal.date),
+              type: s.meal.type,
+              source: s.meal.source,
+              note: s.meal.note ?? null,
+              createdAt: new Date(s.meal.createdAt),
+            },
+          });
+        }
+        await tx.mealItem.createMany({
+          data: s.items.map((i) => ({
+            id: i.id,
+            mealId: s.meal.id,
+            name: i.name,
+            grams: i.grams,
+            kcal: i.kcal,
+            protein: i.protein,
+            carbs: i.carbs,
+            fat: i.fat,
+            estimated: i.estimated ?? false,
+          })),
+        });
+        return { mealId: s.meal.id, date };
+      });
+    } catch (err) {
+      // Dois "Desfazer" ao mesmo tempo: o segundo bate na chave primária
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') throw conflict();
+      throw err;
+    }
   }
 
   async day(userId: string, date: string) {

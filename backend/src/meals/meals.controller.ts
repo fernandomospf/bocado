@@ -12,7 +12,14 @@ import {
 } from '@nestjs/common';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { CreateMealDto, DayParamDto, MoveMealItemDto, RangeQueryDto, UpdateMealItemDto } from './dto/meal.dto';
+import {
+  CreateMealDto,
+  DayParamDto,
+  MoveMealItemDto,
+  RangeQueryDto,
+  RestoreMealDto,
+  UpdateMealItemDto,
+} from './dto/meal.dto';
 import { MealsService } from './meals.service';
 
 @Controller()
@@ -24,8 +31,15 @@ export class MealsController {
     return this.meals.create(user.id, dto);
   }
 
+  /** Desfaz uma exclusão a partir do snapshot devolvido pelo DELETE (até 10 minutos depois). */
+  @Post('meals/restore')
+  @HttpCode(200)
+  restore(@CurrentUser() user: AuthUser, @Body() dto: RestoreMealDto) {
+    return this.meals.restore(user.id, dto.snapshot);
+  }
+
+  /** Responde com o snapshot do que foi apagado, para o app oferecer "Desfazer". */
   @Delete('meals/:mealId')
-  @HttpCode(204)
   remove(@CurrentUser() user: AuthUser, @Param('mealId', ParseUUIDPipe) mealId: string) {
     return this.meals.remove(user.id, mealId);
   }
@@ -52,8 +66,8 @@ export class MealsController {
     return this.meals.moveItem(user.id, mealId, itemId, dto);
   }
 
+  /** Responde com o snapshot (inclui a refeição, se ela tiver ficado vazia e sido apagada). */
   @Delete('meals/:mealId/items/:itemId')
-  @HttpCode(204)
   removeItem(
     @CurrentUser() user: AuthUser,
     @Param('mealId', ParseUUIDPipe) mealId: string,

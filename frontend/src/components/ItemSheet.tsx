@@ -7,6 +7,7 @@ import { dayTitle, isValidISO, todayISO } from '@/lib/date';
 import { fmtInt, parseNum, round1 } from '@/lib/format';
 import { success as hapticSuccess, tap } from '@/lib/haptics';
 import { MEAL_ORDER, MEAL_SHORT } from '@/lib/labels';
+import { useMealRemoval } from '@/lib/useMealRemoval';
 import type { Meal, MealItem, MealType } from '@/lib/types';
 import { EstimateBadge } from './EstimateBadge';
 import { Sheet } from './Sheet';
@@ -42,6 +43,7 @@ function ItemForm({ meal, item, onClose, onChanged }: ItemSheetProps & { meal: M
   const id = useId();
   const toast = useToast();
   const { mutate } = useSWRConfig();
+  const { remove } = useMealRemoval();
   const today = todayISO();
 
   const [name, setName] = useState(item.name);
@@ -141,17 +143,16 @@ function ItemForm({ meal, item, onClose, onChanged }: ItemSheetProps & { meal: M
       return { days: [res.fromDate, res.toDate], message: `Movido para ${MEAL_SHORT[type]}${where}` };
     });
 
-  const removeItem = () =>
-    run(async () => {
-      await api(`/meals/${meal.id}/items/${item.id}`, { method: 'DELETE' });
-      return { days: [meal.date], message: 'Alimento removido' };
-    });
+  // Sem confirmação: some na hora e o toast oferece "Desfazer"
+  const removeItem = () => {
+    onClose();
+    void remove(meal, item);
+  };
 
-  const removeMeal = () =>
-    run(async () => {
-      await api(`/meals/${meal.id}`, { method: 'DELETE' });
-      return { days: [meal.date], message: 'Refeição removida' };
-    });
+  const removeMeal = () => {
+    onClose();
+    void remove(meal);
+  };
 
   return (
     <Sheet open title={`Editar ${item.name}`} onClose={onClose}>

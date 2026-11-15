@@ -64,6 +64,14 @@ export interface Meal {
   items: MealItem[];
 }
 
+/** Resposta dos DELETE de refeição/alimento: o que foi apagado, para "Desfazer" (POST /meals/restore). */
+export interface MealSnapshot {
+  meal: Pick<Meal, 'id' | 'date' | 'type' | 'source' | 'note' | 'createdAt'>;
+  items: MealItem[];
+  mealDeleted: boolean;
+  deletedAt: string;
+}
+
 export interface DaySummary {
   date: string;
   targets: Macros | null;

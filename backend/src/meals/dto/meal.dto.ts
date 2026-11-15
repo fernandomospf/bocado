@@ -6,9 +6,11 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsISO8601,
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   Max,
   MaxLength,
@@ -100,6 +102,63 @@ export class MoveMealItemDto {
 
   @Matches(ISO_DATE, { message: 'Data inválida' })
   date: string;
+}
+
+// ---------------------------------------------------------------------------
+// Desfazer exclusão: o DELETE devolve um snapshot e o app o reenvia para restaurar
+// ---------------------------------------------------------------------------
+
+export class SnapshotMealDto {
+  @IsUUID()
+  id: string;
+
+  @Matches(ISO_DATE, { message: 'Data inválida' })
+  date: string;
+
+  @IsEnum(MealType)
+  type: MealType;
+
+  @IsEnum(MealSource)
+  source: MealSource;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(280)
+  note?: string | null;
+
+  @IsISO8601()
+  createdAt: string;
+}
+
+export class SnapshotItemDto extends MealItemDto {
+  @IsUUID()
+  id: string;
+}
+
+/** O que foi apagado. Nunca traz userId: o dono é sempre o usuário da sessão. */
+export class MealSnapshotDto {
+  @ValidateNested()
+  @Type(() => SnapshotMealDto)
+  meal: SnapshotMealDto;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => SnapshotItemDto)
+  items: SnapshotItemDto[];
+
+  @IsBoolean()
+  mealDeleted: boolean;
+
+  @IsISO8601()
+  deletedAt: string;
+}
+
+export class RestoreMealDto {
+  @ValidateNested()
+  @Type(() => MealSnapshotDto)
+  snapshot: MealSnapshotDto;
 }
 
 export class DayParamDto {
