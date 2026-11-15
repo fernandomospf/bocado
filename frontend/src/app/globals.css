@@ -53,6 +53,15 @@
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --tabbar-h: 64px;
+
+  /*
+    Escala única de camadas. Toda camada fixa do app usa uma destas; valores pequenos (-1, 1, 2, 5) só aparecem
+    para empilhar dentro de um mesmo componente.
+  */
+  --z-header: 30; /* barra do topo (vidro ao rolar) */
+  --z-nav: 40; /* TabBar (celular/tablet) e Sidebar (desktop) */
+  --z-sheet: 60; /* folhas e diálogos, acima da navegação */
+  --z-toast: 70; /* avisos ficam acima de tudo, inclusive das folhas */
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
@@ -335,7 +344,7 @@ img {
   position: fixed;
   inset: 0 0 auto;
   height: calc(var(--safe-top) + 12px);
-  z-index: 30;
+  z-index: var(--z-header);
   pointer-events: none;
   background: transparent;
   transition:
@@ -643,7 +652,7 @@ img {
   left: 0;
   right: 0;
   bottom: calc(var(--safe-bottom) + 12px);
-  z-index: 40;
+  z-index: var(--z-nav);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1500,7 +1509,7 @@ img {
 .sheet-root {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: var(--z-sheet);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -1514,28 +1523,76 @@ img {
 }
 
 .sheet {
-  --sheet-pad-top: 10px;
   --sheet-pad-x: 20px;
   position: relative;
   width: 100%;
   max-width: 560px;
   max-height: 88dvh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  /* O painel não rola: o topo (grabber + X) fica sempre visível e só o corpo rola */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   margin: 0 8px calc(var(--safe-bottom) + 8px);
-  /* padding inferior com a safe-area: o último botão nunca fica cortado */
-  padding: var(--sheet-pad-top) var(--sheet-pad-x) calc(var(--safe-bottom) + 24px);
   border-radius: 34px;
   background: var(--glass-strong);
   animation: rise 360ms var(--ease);
+  transition: transform 220ms var(--ease);
+}
+
+.sheet[data-dragging] {
+  transition: none;
+}
+
+/* Topo da folha: área de arrastar (celular) e botão de fechar */
+.sheet-top {
+  position: relative;
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 48px;
+  padding: 4px 8px 0;
+  touch-action: none;
 }
 
 .sheet-grabber {
+  position: absolute;
+  top: 10px;
+  left: 50%;
   width: 38px;
   height: 5px;
+  margin-left: -19px;
   border-radius: 3px;
   background: var(--fill-strong);
-  margin: 0 auto 14px;
+}
+
+/* Folha com cabeçalho fixo (.sheet-sticky, fundo sólido): o topo usa o mesmo fundo, sem faixa de dois tons */
+.sheet:has(.sheet-sticky) .sheet-top {
+  background: linear-gradient(var(--glass-strong), var(--glass-strong)), var(--bg);
+}
+
+.sheet-close {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--text-2);
+  background: var(--fill);
+}
+
+.sheet-close:active {
+  background: var(--fill-strong);
+}
+
+.sheet-body {
+  --sheet-pad-top: 4px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* padding inferior com a safe-area: o último botão nunca fica cortado */
+  padding: var(--sheet-pad-top) var(--sheet-pad-x) calc(var(--safe-bottom) + 24px);
 }
 
 @keyframes rise {
@@ -2085,7 +2142,7 @@ button.badge-estimate::before {
   right: 0;
   /* acima da TabBar (que fica a 12px do rodapé, com a safe-area) */
   bottom: calc(var(--safe-bottom) + 12px + var(--tabbar-h) + 12px);
-  z-index: 70;
+  z-index: var(--z-toast);
   display: flex;
   justify-content: center;
   padding: 0 12px;
@@ -2170,6 +2227,11 @@ button.badge-estimate::before {
 @media (hover: hover) and (pointer: fine) {
   .toast-action:hover {
     background: color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+
+  .sheet-close:hover {
+    background: var(--fill-strong);
+    color: var(--text);
   }
 
   .toast-close:hover {
@@ -2267,14 +2329,17 @@ button.badge-estimate::before {
   }
 
   .sheet {
-    --sheet-pad-top: 24px;
     --sheet-pad-x: 24px;
     max-width: 520px;
     max-height: min(88dvh, 760px);
     margin: 0;
-    padding: var(--sheet-pad-top) var(--sheet-pad-x) calc(var(--safe-bottom) + 24px);
     border-radius: 28px;
     animation: pop 260ms var(--ease);
+  }
+
+  .sheet-top {
+    padding: 12px 12px 0;
+    touch-action: auto;
   }
 
   .sheet-grabber {
@@ -2335,7 +2400,7 @@ button.badge-estimate::before {
     top: var(--sidebar-gap);
     bottom: var(--sidebar-gap);
     left: var(--sidebar-gap);
-    z-index: 30;
+    z-index: var(--z-nav);
     width: var(--sidebar-w);
     display: flex;
     flex-direction: column;
