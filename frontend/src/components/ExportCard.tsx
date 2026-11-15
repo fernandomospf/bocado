@@ -100,7 +100,8 @@ export function ExportCard({ hasWeight = true }: { hasWeight?: boolean }) {
   }
 
   return (
-    <section id="exportar" className="card glass stack-lg" aria-labelledby={`${id}-title`}>
+    // tabIndex -1: o atalho "Exportar meus dados antes" (Excluir conta) leva o foco até aqui
+    <section id="exportar" tabIndex={-1} className="card glass stack-lg" aria-labelledby={`${id}-title`}>
       <div className="stack" style={{ gap: 4 }}>
         <h3 className="headline" id={`${id}-title`}>
           Exportar dados

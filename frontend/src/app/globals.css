@@ -465,6 +465,36 @@ img {
   color: var(--danger);
 }
 
+/* Ação destrutiva final (ex.: "Excluir minha conta"): vermelho sólido, só dentro da confirmação */
+.btn-destructive {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn-destructive:disabled {
+  background: color-mix(in srgb, var(--danger) 35%, var(--fill));
+  color: color-mix(in srgb, #fff 75%, transparent);
+}
+
+/* Área de perigo: discreta, no fim do Perfil */
+.danger-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-top: 8px;
+}
+
+.danger-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 15px;
+  color: var(--text-2);
+}
+
 .btn-block {
   width: 100%;
 }
@@ -2208,6 +2238,11 @@ button.badge-estimate::before {
   }
 }
 
+/* Telas sem TabBar (login, cadastro, onboarding): o toast fica perto da borda, sem cobrir o fim do formulário */
+body:not(:has(.tabbar)) .toast-region {
+  bottom: calc(var(--safe-bottom) + 16px);
+}
+
 /* Com uma Sheet aberta (celular e tablet), o toast sobe para o topo: embaixo ele cobriria os botões da folha */
 @media (max-width: 1099px) {
   body:has([aria-modal='true']) .toast-region {
@@ -2307,6 +2342,9 @@ button.badge-estimate::before {
   }
   .profile-o5 {
     order: 5;
+  }
+  .profile-o6 {
+    order: 6;
   }
 }
 

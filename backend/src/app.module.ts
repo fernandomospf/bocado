@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AnalysisModule } from './analysis/analysis.module';
+import { AccountModule } from './account/account.module';
 import { AuthModule } from './auth/auth.module';
 import { ExportModule } from './export/export.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -30,6 +31,7 @@ import { WeightModule } from './weight/weight.module';
     SuggestionsModule,
     WeightModule,
     ExportModule,
+    AccountModule,
     AnalysisModule,
     HealthModule,
   ],

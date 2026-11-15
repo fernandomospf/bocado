@@ -12,6 +12,7 @@ import { ACTIVITY_OPTIONS, GOAL_OPTIONS } from '@/lib/labels';
 import type { Profile, WeekStart } from '@/lib/types';
 import { Avatar } from './Avatar';
 import { BodyForm } from './BodyForm';
+import { DeleteAccountSheet } from './DeleteAccountSheet';
 import { ExportCard } from './ExportCard';
 import { ChevronRight } from './Icons';
 import { Sheet } from './Sheet';
@@ -32,6 +33,7 @@ export function ProfileView() {
 
   const [draft, setDraft] = useState<TargetsDraft | null>(null);
   const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const toast = useToast();
@@ -226,7 +228,36 @@ export function ProfileView() {
         <button className="btn btn-glass btn-block btn-danger profile-o5" onClick={logout}>
           Sair da conta
         </button>
+
+        {me && (
+          <section className="danger-zone profile-o6" aria-labelledby="danger-zone-title">
+            <h2 className="caption" id="danger-zone-title">
+              Área de perigo
+            </h2>
+            <button type="button" className="btn btn-plain btn-danger" onClick={() => setDeleting(true)}>
+              Excluir conta
+            </button>
+          </section>
+        )}
       </div>
+
+      {me && (
+        <DeleteAccountSheet
+          open={deleting}
+          hasPassword={me.hasPassword}
+          onClose={() => setDeleting(false)}
+          onExportFirst={() => {
+            setDeleting(false);
+            // Depois de a folha fechar (ela devolve o foco a quem abriu), leva até o card de exportação
+            setTimeout(() => {
+              const card = document.getElementById('exportar');
+              const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+              card?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+              card?.focus({ preventScroll: true });
+            }, 50);
+          }}
+        />
+      )}
 
       {profile && (
         <Sheet open={editing} title="Editar dados" onClose={() => setEditing(false)}>
