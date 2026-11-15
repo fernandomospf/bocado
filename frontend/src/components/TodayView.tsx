@@ -153,8 +153,6 @@ export function TodayView() {
             </div>
           )}
         </section>
-
-        {targets && <CloseDayCard date={date} isToday={date === today} eatenKcal={totals.kcal} />}
       </div>
 
       <div className="today-main">
@@ -218,6 +216,16 @@ export function TodayView() {
             );
           })}
         </div>
+
+        {/* Depois do Jantar, como último bloco das refeições (no desktop, no fim da coluna das refeições) */}
+        {targets && (
+          <CloseDayCard
+            date={date}
+            isToday={date === today}
+            eatenKcal={totals.kcal}
+            dinnerLogged={data?.meals.some((m) => m.type === 'DINNER' && m.items.length > 0) ?? false}
+          />
+        )}
       </div>
 
       {recipeFor && (

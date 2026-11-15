@@ -2502,11 +2502,6 @@ button.badge-estimate::before {
     gap: 18px;
   }
 
-  /* Com o card "Para fechar o dia" a coluna fica mais alta que a janela: fixa, o fim do card ficaria inalcançável */
-  .today-aside:has(.close-day) {
-    position: static;
-  }
-
   .today-main {
     display: flex;
     flex-direction: column;

@@ -13,8 +13,6 @@ import { useToast } from './Toast';
 
 /** A partir deste horário (local) o card aparece. */
 const FROM_HOUR = 18;
-/** Depois deste horário, a sugestão é um lanche (ceia), não um jantar. */
-const SNACK_FROM_HOUR = 21;
 /** Rascunho lido pela Nova refeição ("Usar": entra preenchida e editável). */
 export const PREFILL_KEY = 'bocado:prefill';
 
@@ -37,13 +35,15 @@ interface CloseDayCardProps {
   isToday: boolean;
   /** kcal já registradas no dia: quando muda, as sugestões são recalculadas. */
   eatenKcal: number;
+  /** O Jantar já tem itens: a sugestão passa a ser registrada como lanche. */
+  dinnerLogged: boolean;
 }
 
 /**
  * "Para fechar o dia": a partir das 18h, uma refeição que cubra o que falta.
  * Base local primeiro (o que a pessoa já comeu → pratos comuns); a IA só se pedirem e o local não bastar.
  */
-export function CloseDayCard({ date, isToday, eatenKcal }: CloseDayCardProps) {
+export function CloseDayCard({ date, isToday, eatenKcal, dinnerLogged }: CloseDayCardProps) {
   const router = useRouter();
   const toast = useToast();
   const { mutate: globalMutate } = useSWRConfig();
@@ -60,7 +60,8 @@ export function CloseDayCard({ date, isToday, eatenKcal }: CloseDayCardProps) {
   }, [date]);
 
   const visible = isToday && hour !== null && hour >= FROM_HOUR && !dismissed;
-  const meal: 'DINNER' | 'SNACK' = hour !== null && hour >= SNACK_FROM_HOUR ? 'SNACK' : 'DINNER';
+  // Sem jantar registrado, a sugestão é o jantar; depois dele, um lanche
+  const meal: 'DINNER' | 'SNACK' = dinnerLogged ? 'SNACK' : 'DINNER';
   const mealLabel = meal === 'SNACK' ? 'lanche' : 'jantar';
   const { data, mutate } = useSWR<CloseDayResponse>(visible ? `/suggestions/close-day?date=${date}&meal=${meal}` : null, {
     revalidateOnFocus: false,
@@ -94,20 +95,27 @@ export function CloseDayCard({ date, isToday, eatenKcal }: CloseDayCardProps) {
     </button>
   );
 
+  /** Título de seção no estilo de "Refeições"; só aparece junto com o card. */
+  const sectionTitle = <h2 className="section-title">Para fechar o dia</h2>;
+
   if (data.closed) {
     return (
-      <section className="card glass close-day" aria-label="Para fechar o dia">
-        <div className="spread">
-          <div>
-            <h2 className="headline">Dia fechado</h2>
-            <p className="caption">Você chegou perto da meta de hoje.</p>
+      <>
+        {sectionTitle}
+        <section className="card glass close-day" aria-label="Para fechar o dia">
+          <div className="spread">
+            <div>
+              <h2 className="headline">Dia fechado</h2>
+              <p className="caption">Você chegou perto da meta de hoje.</p>
+            </div>
+            {dismissButton}
           </div>
-          {dismissButton}
-        </div>
-      </section>
+        </section>
+      </>
     );
   }
 
+  const logLabel = meal === 'SNACK' ? 'Registrar como lanche' : 'Registrar no jantar';
   const view = override ?? data;
   const target = view.target ?? data.target ?? data.remaining;
   const list = view.suggestions;
@@ -228,79 +236,84 @@ export function CloseDayCard({ date, isToday, eatenKcal }: CloseDayCardProps) {
   );
 
   return (
-    <section className="card glass close-day stack" aria-label="Para fechar o dia">
-      <div className="spread" style={{ alignItems: 'flex-start' }}>
-        <div>
-          <h2 className="headline">Para fechar o dia</h2>
-          {remainingLine}
+    <>
+      {sectionTitle}
+      <section className="card glass close-day stack" aria-label="Para fechar o dia">
+        <div className="spread" style={{ alignItems: 'flex-start' }}>
+          <div>
+            <h2 className="headline">Para fechar o dia</h2>
+            {remainingLine}
+          </div>
+          {dismissButton}
         </div>
-        {dismissButton}
-      </div>
 
-      {pantryForm('card')}
-      {pantryFeedback}
+        {pantryForm('card')}
+        {pantryFeedback}
 
-      {best ? (
-        <SuggestionCard
-          suggestion={best}
-          target={target}
-          busy={busy === 'log'}
-          onUse={() => use(best)}
-          onLog={() => logDirect(best)}
-        />
-      ) : (
-        empty
-      )}
+        {best ? (
+          <SuggestionCard
+            suggestion={best}
+            target={target}
+            busy={busy === 'log'}
+            logLabel={logLabel}
+            onUse={() => use(best)}
+            onLog={() => logDirect(best)}
+          />
+        ) : (
+          empty
+        )}
 
-      {list.length > 1 && (
-        <button type="button" className="btn btn-plain" style={{ alignSelf: 'center' }} onClick={() => setShowAll(true)}>
-          Ver outras ideias ({list.length - 1})
-        </button>
-      )}
+        {list.length > 1 && (
+          <button type="button" className="btn btn-plain" style={{ alignSelf: 'center' }} onClick={() => setShowAll(true)}>
+            Ver outras ideias ({list.length - 1})
+          </button>
+        )}
 
-      {aiButton}
+        {aiButton}
 
-      <p className="caption close-day-disclaimer">Sugestões aproximadas, não substituem um nutricionista.</p>
+        <p className="caption close-day-disclaimer">Sugestões aproximadas, não substituem um nutricionista.</p>
 
-      {showAll && (
-        <Sheet open title="Outras ideias" onClose={() => setShowAll(false)}>
-          <div className="sheet-sticky stack" style={{ gap: 10 }}>
-            <div>
-              <h2 className="title">Ideias para o {mealLabel}</h2>
-              {remainingLine}
-            </div>
-            {pantryForm('sheet')}
-            {data.pantryChips.length > 0 && (
-              <div className="pantry-chips" aria-label="Ingredientes que você mais usa">
-                {data.pantryChips.map((chip) => (
-                  <button key={chip} type="button" className="chip chip-sm" onClick={() => addChip(chip)}>
-                    + {chip}
-                  </button>
-                ))}
+        {showAll && (
+          <Sheet open title="Outras ideias" onClose={() => setShowAll(false)}>
+            <div className="sheet-sticky stack" style={{ gap: 10 }}>
+              <div>
+                <h2 className="title">Ideias para o {mealLabel}</h2>
+                {remainingLine}
               </div>
-            )}
-            {pantryFeedback}
-          </div>
+              {pantryForm('sheet')}
+              {data.pantryChips.length > 0 && (
+                <div className="pantry-chips" aria-label="Ingredientes que você mais usa">
+                  {data.pantryChips.map((chip) => (
+                    <button key={chip} type="button" className="chip chip-sm" onClick={() => addChip(chip)}>
+                      + {chip}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {pantryFeedback}
+            </div>
 
-          <div className="stack" style={{ marginTop: 14 }}>
-            {list.length
-              ? list.map((s, i) => (
-                  <SuggestionCard
-                    key={`${s.title}-${i}`}
-                    suggestion={s}
-                    target={target}
-                    busy={busy === 'log'}
-                    onUse={() => use(s)}
-                    onLog={() => logDirect(s)}
-                  />
-                ))
-              : empty}
-            {aiButton}
-            <p className="caption close-day-disclaimer">Sugestões aproximadas, não substituem um nutricionista.</p>
-          </div>
-        </Sheet>
-      )}
-    </section>
+            <div className="stack" style={{ marginTop: 14 }}>
+              {list.length
+                ? list.map((s, i) => (
+                    <SuggestionCard
+                      key={`${s.title}-${i}`}
+                      suggestion={s}
+                      target={target}
+                      busy={busy === 'log'}
+                      logLabel={logLabel}
+                      onUse={() => use(s)}
+                      onLog={() => logDirect(s)}
+                    />
+                  ))
+                : empty}
+              {aiButton}
+              <p className="caption close-day-disclaimer">Sugestões aproximadas, não substituem um nutricionista.</p>
+            </div>
+          </Sheet>
+        )}
+      </section>
+    </>
   );
 }
 
@@ -308,12 +321,14 @@ interface SuggestionCardProps {
   suggestion: MealSuggestion;
   target: Macros;
   busy: boolean;
+  /** "Registrar no jantar" ou, com o jantar já registrado, "Registrar como lanche". */
+  logLabel: string;
   onUse: () => void;
   onLog: () => void;
 }
 
 /** Sugestão compacta: selo, título, itens com quantidade amigável, encaixe e ações discretas. */
-function SuggestionCard({ suggestion: s, target, busy, onUse, onLog }: SuggestionCardProps) {
+function SuggestionCard({ suggestion: s, target, busy, logLabel, onUse, onLog }: SuggestionCardProps) {
   const badge = ORIGIN_BADGE[s.mainOrigin];
   const pct = (value: number, of: number) => (of > 0 ? Math.round((value / of) * 100) : 0);
   const kcalPct = pct(s.totals.kcal, target.kcal);
@@ -370,7 +385,7 @@ function SuggestionCard({ suggestion: s, target, busy, onUse, onLog }: Suggestio
           Usar
         </button>
         <button type="button" className="btn btn-plain btn-sm" onClick={onLog} disabled={busy}>
-          Registrar direto
+          {logLabel}
         </button>
       </div>
     </article>
