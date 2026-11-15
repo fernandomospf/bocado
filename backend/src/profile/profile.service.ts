@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Profile } from '@prisma/client';
 import { formatDay, parseDay } from '../common/dates';
 import { PrismaService } from '../prisma/prisma.service';
-import { BodyDataDto, SaveProfileDto, TargetsDto } from './dto/profile.dto';
+import { BodyDataDto, PreferencesDto, SaveProfileDto, TargetsDto } from './dto/profile.dto';
 import { ageFrom, BodyData, suggestTargets, Targets } from './nutrition';
 
 @Injectable()
@@ -98,6 +98,16 @@ export class ProfileService {
     return this.serialize(profile);
   }
 
+  async updatePreferences(userId: string, dto: PreferencesDto) {
+    const existing = await this.prisma.profile.findUnique({ where: { userId } });
+    if (!existing) throw new NotFoundException('Perfil ainda não criado');
+    const profile = await this.prisma.profile.update({
+      where: { userId },
+      data: { weekStartsOn: dto.weekStartsOn },
+    });
+    return this.serialize(profile);
+  }
+
   async targetsFor(userId: string): Promise<Targets | null> {
     const profile = await this.prisma.profile.findUnique({ where: { userId } });
     return profile ? fromProfile(profile) : null;
@@ -115,6 +125,7 @@ export class ProfileService {
       targets: fromProfile(p),
       customTargets: p.customTargets,
       suggestion: suggestTargets(p),
+      weekStartsOn: p.weekStartsOn,
       updatedAt: p.updatedAt,
     };
   }

@@ -1649,6 +1649,149 @@ img {
 }
 
 /* --------------------------------------------------------------------------
+   Faixa da semana (Hoje)
+   -------------------------------------------------------------------------- */
+
+.week-strip {
+  display: flex;
+  align-items: stretch;
+  /* No celular avança sobre o respiro lateral da tela: assim cada dia mantém ≥ 44px de largura */
+  margin: -6px -14px 0;
+}
+
+.week-arrow {
+  flex: none;
+  width: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: var(--text-2);
+}
+
+.week-arrow:disabled {
+  color: var(--text-3);
+  opacity: 0.4;
+}
+
+.week-days {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.week-day {
+  width: 100%;
+  min-height: 74px;
+  padding: 6px 0 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  border-radius: 16px;
+  color: var(--text-2);
+  position: relative;
+  transition: background 200ms var(--ease), color 200ms var(--ease);
+}
+
+.week-day-letter {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.week-day-num {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.week-ring-track {
+  stroke: var(--ring-kcal);
+  stroke-opacity: 0.16;
+}
+
+.week-ring-fill {
+  stroke: var(--ring-kcal);
+}
+
+.week-day[aria-pressed='true'] {
+  color: var(--text);
+  background: var(--glass-strong);
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.1), inset 0 1px 0 var(--glass-edge-soft);
+}
+
+/* Hoje: número em destaque e um ponto embaixo */
+.week-day[aria-current='date'] .week-day-num {
+  color: var(--accent);
+}
+
+.week-day[aria-current='date']::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.week-day:disabled {
+  opacity: 0.35;
+}
+
+.week-day:not(:disabled):not([aria-pressed='true']):active,
+.week-arrow:not(:disabled):active {
+  background: var(--fill);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .week-day:not(:disabled):not([aria-pressed='true']):hover,
+  .week-arrow:not(:disabled):hover {
+    background: var(--fill);
+  }
+}
+
+@media (min-width: 768px) {
+  .week-strip {
+    margin: -6px 0 0;
+  }
+}
+
+/* Troca de dia: o conteúdo entra do lado para onde o dia andou (desligado com movimento reduzido) */
+.today-screen[data-slide='next'] .day-slide {
+  animation: day-from-right 220ms var(--ease);
+}
+
+.today-screen[data-slide='prev'] .day-slide {
+  animation: day-from-left 220ms var(--ease);
+}
+
+@keyframes day-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+}
+
+@keyframes day-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .today-screen[data-slide] .day-slide {
+    animation: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
    Toast: pílula flutuante, um por vez
    -------------------------------------------------------------------------- */
 

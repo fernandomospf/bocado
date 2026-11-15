@@ -1,4 +1,4 @@
-import { ActivityLevel, GoalType, Sex } from '@prisma/client';
+import { ActivityLevel, GoalType, Sex, WeekStart } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsEnum,
@@ -56,4 +56,10 @@ export class SaveProfileDto extends BodyDataDto {
   @ValidateNested()
   @Type(() => TargetsDto)
   targets?: TargetsDto;
+}
+
+/** Preferências de exibição (não afetam o cálculo das metas). */
+export class PreferencesDto {
+  @IsEnum(WeekStart, { message: 'Escolha segunda ou domingo' })
+  weekStartsOn: WeekStart;
 }

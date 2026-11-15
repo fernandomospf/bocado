@@ -2,25 +2,41 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { type TouchEvent, useRef, useState } from 'react';
 import { useSWRConfig } from 'swr';
 import { api } from '@/lib/api';
 import { addDays, dayTitle, isValidISO, todayISO } from '@/lib/date';
 import { fmtInt } from '@/lib/format';
-import { useDay } from '@/lib/hooks';
+import { tap } from '@/lib/haptics';
+import { useDay, useWeekStartsOn } from '@/lib/hooks';
 import { MEAL_LABEL, MEAL_ORDER } from '@/lib/labels';
 import { recipeToFood } from '@/lib/recipe';
 import type { FoodResult, Meal, MealItem, MealType } from '@/lib/types';
 import { useShortcuts } from '@/lib/useShortcuts';
 import { FoodPortionSheet } from './FoodPortionSheet';
 import { CloseDayCard } from './CloseDayCard';
-import { ChevronLeft, ChevronRight, PlusIcon, PotIcon } from './Icons';
+import { PlusIcon, PotIcon } from './Icons';
 import { type DraftItem, toPayload } from './ItemsEditor';
 import { ItemSheet } from './ItemSheet';
 import { MacroDots, MacroLegend } from './MacroLegend';
 import { RecipePickerSheet } from './RecipePickerSheet';
 import { Rings } from './Rings';
 import { ringSpecs } from './ringSpecs';
+import { WeekStrip } from './WeekStrip';
+
+/** Distância mínima (px) do arraste horizontal que troca de dia. */
+const SWIPE_MIN = 60;
+
+/** Toques que começam em campos, em áreas com rolagem horizontal própria ou marcadas com data-no-swipe não trocam de dia. */
+function ignoresSwipe(target: EventTarget | null) {
+  let el = target instanceof Element ? target : null;
+  if (el?.closest('input, textarea, select, [contenteditable="true"], [data-no-swipe]')) return true;
+  for (; el && el !== document.body; el = el.parentElement) {
+    const overflow = getComputedStyle(el).overflowX;
+    if ((overflow === 'auto' || overflow === 'scroll') && el.scrollWidth > el.clientWidth) return true;
+  }
+  return false;
+}
 
 export function TodayView() {
   const router = useRouter();
@@ -28,6 +44,10 @@ export function TodayView() {
   const today = todayISO();
   const param = params.get('date');
   const date = isValidISO(param) && param <= today ? param : today;
+  const weekStartsOn = useWeekStartsOn();
+  // Direção da última troca de dia: define de que lado o conteúdo entra (null = sem animação)
+  const [slide, setSlide] = useState<'prev' | 'next' | null>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const { data, error, isLoading, mutate } = useDay(date);
   const { mutate: globalMutate } = useSWRConfig();
@@ -44,7 +64,30 @@ export function TodayView() {
     setPortion(null);
   }
 
-  const go = (d: string) => router.replace(d === today ? '/' : `/?date=${d}`, { scroll: false });
+  const go = (d: string) => {
+    if (d === date || d > today) return;
+    setSlide(d < date ? 'prev' : 'next');
+    router.replace(d === today ? '/' : `/?date=${d}`, { scroll: false });
+  };
+
+  function onTouchStart(e: TouchEvent) {
+    touchStart.current =
+      e.touches.length === 1 && !ignoresSwipe(e.target) ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+  }
+
+  function onTouchEnd(e: TouchEvent) {
+    const start = touchStart.current;
+    touchStart.current = null;
+    // Eventos de Sheets (portal) também sobem até aqui pela árvore do React: com um diálogo aberto, nada de trocar o dia
+    if (!start || document.querySelector('[aria-modal="true"]')) return;
+    const dx = e.changedTouches[0].clientX - start.x;
+    const dy = e.changedTouches[0].clientY - start.y;
+    if (Math.abs(dx) < SWIPE_MIN || Math.abs(dx) <= Math.abs(dy)) return;
+    const next = addDays(date, dx > 0 ? -1 : 1);
+    if (next > today) return;
+    tap();
+    go(next);
+  }
 
   // Desktop: ← e → trocam o dia (só com mouse/trackpad e fora de campos de texto)
   useShortcuts({
@@ -57,7 +100,13 @@ export function TodayView() {
   const remaining = targets ? targets.kcal - totals.kcal : 0;
 
   return (
-    <main className="screen today-screen">
+    <main
+      className="screen today-screen"
+      data-slide={slide ?? undefined}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={() => (touchStart.current = null)}
+    >
       {/* Colunas do desktop; no celular os wrappers usam display: contents e não mudam nada */}
       <div className="today-aside">
         <header className="header">
@@ -65,20 +114,9 @@ export function TodayView() {
             <p className="caption">{date === today ? 'Seu dia' : 'Revendo'}</p>
             <h1 className="large-title">{dayTitle(date)}</h1>
           </div>
-          <div className="row" style={{ gap: 8 }}>
-            <button className="btn btn-glass btn-icon" onClick={() => go(addDays(date, -1))} aria-label="Dia anterior">
-              <ChevronLeft width={20} height={20} />
-            </button>
-            <button
-              className="btn btn-glass btn-icon"
-              onClick={() => go(addDays(date, 1))}
-              disabled={date >= today}
-              aria-label="Próximo dia"
-            >
-              <ChevronRight width={20} height={20} />
-            </button>
-          </div>
         </header>
+
+        <WeekStrip date={date} today={today} weekStartsOn={weekStartsOn} onSelect={go} />
 
         {error && (
           <p className="alert" role="alert">
@@ -86,7 +124,8 @@ export function TodayView() {
           </p>
         )}
 
-        <section className="card glass" aria-label="Resumo do dia">
+        {/* key por dia: o bloco remonta e entra deslizando do lado da troca */}
+        <section key={date} className="card glass day-slide" aria-label="Resumo do dia">
           {targets ? (
             <>
               <div className="rings-card">
@@ -126,7 +165,7 @@ export function TodayView() {
             const meals = data?.meals.filter((m) => m.type === type) ?? [];
             const kcal = meals.reduce((s, m) => s + m.totals.kcal, 0);
             return (
-              <section key={type} className="card glass" aria-label={MEAL_LABEL[type]}>
+              <section key={`${type}-${date}`} className="card glass day-slide" aria-label={MEAL_LABEL[type]}>
                 <div className="meal-head">
                   <h3 className="headline">{MEAL_LABEL[type]}</h3>
                   {meals.length > 0 && <span className="list-row-end">{fmtInt(kcal)} kcal</span>}

@@ -26,6 +26,11 @@ enum GoalType {
   GAIN
 }
 
+enum WeekStart {
+  MONDAY
+  SUNDAY
+}
+
 enum MealType {
   BREAKFAST
   LUNCH
@@ -93,6 +98,8 @@ model Profile {
   customTargets   Boolean       @default(false)
   /// Peso usado no último cálculo/salvamento das metas (para avisar quando ficarem desatualizadas)
   targetsWeightKg Float?
+  /// Primeiro dia da semana na faixa da tela Hoje e nos agrupamentos por semana
+  weekStartsOn    WeekStart     @default(MONDAY)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 

@@ -1,7 +1,7 @@
-import { Body, Controller, Get, HttpCode, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Patch, Post, Put } from '@nestjs/common';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { BodyDataDto, SaveProfileDto, TargetsDto } from './dto/profile.dto';
+import { BodyDataDto, PreferencesDto, SaveProfileDto, TargetsDto } from './dto/profile.dto';
 import { ProfileService } from './profile.service';
 
 @Controller('profile')
@@ -28,6 +28,11 @@ export class ProfileController {
   @Put('targets')
   updateTargets(@CurrentUser() user: AuthUser, @Body() dto: TargetsDto) {
     return this.profiles.updateTargets(user.id, dto);
+  }
+
+  @Patch('preferences')
+  updatePreferences(@CurrentUser() user: AuthUser, @Body() dto: PreferencesDto) {
+    return this.profiles.updatePreferences(user.id, dto);
   }
 
   @Post('targets/reset')

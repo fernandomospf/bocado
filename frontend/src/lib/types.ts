@@ -4,6 +4,7 @@ export type GoalType = 'LOSE' | 'MAINTAIN' | 'GAIN';
 export type MealType = 'BREAKFAST' | 'LUNCH' | 'SNACK' | 'DINNER';
 export type MealSource = 'MANUAL' | 'PHOTO' | 'TEXT' | 'SEARCH';
 export type Confidence = 'low' | 'medium' | 'high';
+export type WeekStart = 'MONDAY' | 'SUNDAY';
 
 export interface Me {
   id: string;
@@ -40,6 +41,7 @@ export interface Profile extends BodyData {
   targets: Macros;
   customTargets: boolean;
   suggestion: Suggestion;
+  weekStartsOn: WeekStart;
   updatedAt: string;
 }
 

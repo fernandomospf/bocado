@@ -6,15 +6,22 @@ import { useEffect, useState } from 'react';
 import { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
 import { fmtDec, fmtInt } from '@/lib/format';
+import { tap } from '@/lib/haptics';
 import { useMe, useProfile } from '@/lib/hooks';
 import { ACTIVITY_OPTIONS, GOAL_OPTIONS } from '@/lib/labels';
-import type { Profile } from '@/lib/types';
+import type { Profile, WeekStart } from '@/lib/types';
 import { Avatar } from './Avatar';
 import { BodyForm } from './BodyForm';
 import { ChevronRight } from './Icons';
 import { Sheet } from './Sheet';
+import { useToast } from './Toast';
 import { fromDraft, TargetsEditor, type TargetsDraft, toDraft } from './TargetsEditor';
 import { WeightSection } from './WeightSection';
+
+const WEEK_START_OPTIONS: { value: WeekStart; label: string }[] = [
+  { value: 'MONDAY', label: 'Segunda' },
+  { value: 'SUNDAY', label: 'Domingo' },
+];
 
 export function ProfileView() {
   const router = useRouter();
@@ -26,6 +33,7 @@ export function ProfileView() {
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     if (profile) setDraft(toDraft(profile.targets));
@@ -53,6 +61,16 @@ export function ProfileView() {
     await api('/auth/logout', { method: 'POST' }).catch(() => undefined);
     await globalMutate(() => true, undefined, { revalidate: false });
     router.replace('/login');
+  }
+
+  async function setWeekStart(weekStartsOn: WeekStart) {
+    if (!profile || profile.weekStartsOn === weekStartsOn) return;
+    tap();
+    // Otimista: a faixa da semana na Hoje já usa o novo início; em erro, volta ao valor do servidor
+    await mutate(
+      async () => api<Profile>('/profile/preferences', { method: 'PATCH', json: { weekStartsOn } }),
+      { optimisticData: { ...profile, weekStartsOn }, rollbackOnError: true, revalidate: false },
+    ).catch((err) => toast.show({ message: errorMessage(err), tone: 'error' }));
   }
 
   const goal = GOAL_OPTIONS.find((o) => o.value === profile?.goal)?.label;
@@ -148,6 +166,29 @@ export function ProfileView() {
                   <span className="list-row-main headline">Editar dados</span>
                   <ChevronRight width={18} height={18} />
                 </button>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {profile && (
+          <div className="screen-group profile-o4">
+            <h2 className="section-title">Preferências</h2>
+            <section className="card glass stack">
+              <p className="body-2" id="week-start-label">
+                A semana começa na
+              </p>
+              <div className="segmented" role="group" aria-labelledby="week-start-label">
+                {WEEK_START_OPTIONS.map((o) => (
+                  <button
+                    key={o.value}
+                    type="button"
+                    aria-pressed={profile.weekStartsOn === o.value}
+                    onClick={() => void setWeekStart(o.value)}
+                  >
+                    {o.label}
+                  </button>
+                ))}
               </div>
             </section>
           </div>
