@@ -200,6 +200,8 @@ export function TodayView() {
                             <span className="list-row-sub">
                               {item.grams > 0 && <span style={{ marginRight: 10 }}>{fmtInt(item.grams)} g</span>}
                               <MacroDots m={item} />
+                              {/* Só o selo aqui (a linha inteira já é um botão); a explicação fica na ItemSheet */}
+                              {item.estimated && <span className="badge badge-estimate badge-inline">estimativa</span>}
                             </span>
                           </span>
                           <span className="list-row-end">{fmtInt(item.kcal)}</span>

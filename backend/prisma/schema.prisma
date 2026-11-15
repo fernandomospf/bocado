@@ -122,15 +122,17 @@ model Meal {
 }
 
 model MealItem {
-  id      String @id @default(uuid()) @db.Uuid
-  mealId  String @db.Uuid
-  meal    Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
-  name    String
-  grams   Float
-  kcal    Float
-  protein Float
-  carbs   Float
-  fat     Float
+  id        String  @id @default(uuid()) @db.Uuid
+  mealId    String  @db.Uuid
+  meal      Meal    @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  name      String
+  grams     Float
+  kcal      Float
+  protein   Float
+  carbs     Float
+  fat       Float
+  /// Valores estimados pela IA (foto ou descrição) e não editados pelo usuário
+  estimated Boolean @default(false)
 
   @@index([mealId])
   @@map("meal_items")

@@ -25,11 +25,23 @@ export interface AnalyzedItem {
   confidence: Confidence;
 }
 
+export type FatLevel = 'none' | 'little' | 'lots';
+export type FatKind = 'oil' | 'butter' | 'sauce' | 'unknown';
+
+/** Palpite da IA sobre a gordura de preparo, que fica FORA dos itens (o usuário confirma no app). */
+export interface PreparationFatGuess {
+  level: FatLevel;
+  kind: FatKind;
+  reason: string;
+}
+
 export interface AnalysisResult {
   title: string;
   notes: string | null;
   items: AnalyzedItem[];
   totals: { kcal: number; protein: number; carbs: number; fat: number };
+  hasCookedFood: boolean;
+  preparationFat: PreparationFatGuess;
 }
 
 const SUPPORTED_MEDIA = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
@@ -265,6 +277,8 @@ export class AnalysisService {
 
     return {
       title: String(raw.title ?? 'Refeição').slice(0, 80),
+      hasCookedFood: raw.hasCookedFood === true,
+      preparationFat: coercePreparationFat(raw.preparationFat),
       notes: typeof raw.notes === 'string' && raw.notes.trim() ? raw.notes.trim().slice(0, 280) : null,
       items,
       totals: {
@@ -358,6 +372,25 @@ export function coerceAnalysis(raw: unknown, stats?: CoerceStats): Record<string
     ...obj,
     isFood: obj.isFood === false || obj.isFood === 'false' ? false : true,
     items,
+    hasCookedFood: obj.hasCookedFood === true || obj.hasCookedFood === 'true',
+    preparationFat: coercePreparationFat(obj.preparationFat),
+  };
+}
+
+const FAT_LEVELS: readonly FatLevel[] = ['none', 'little', 'lots'];
+const FAT_KINDS: readonly FatKind[] = ['oil', 'butter', 'sauce', 'unknown'];
+const NO_FAT: PreparationFatGuess = { level: 'none', kind: 'unknown', reason: '' };
+
+/** Ausente ou inválido vira "sem gordura, tipo desconhecido": a pergunta aparece com "Nada" marcado. */
+export function coercePreparationFat(value: unknown): PreparationFatGuess {
+  const obj = parseMaybeJson(value);
+  if (!isRecord(obj)) return { ...NO_FAT };
+  const level = typeof obj.level === 'string' ? obj.level.trim().toLowerCase() : '';
+  const kind = typeof obj.kind === 'string' ? obj.kind.trim().toLowerCase() : '';
+  return {
+    level: FAT_LEVELS.includes(level as FatLevel) ? (level as FatLevel) : 'none',
+    kind: FAT_KINDS.includes(kind as FatKind) ? (kind as FatKind) : 'unknown',
+    reason: typeof obj.reason === 'string' ? obj.reason.trim().slice(0, 120) : '',
   };
 }
 

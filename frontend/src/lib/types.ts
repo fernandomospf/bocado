@@ -49,6 +49,8 @@ export interface MealItem extends Macros {
   id: string;
   name: string;
   grams: number;
+  /** Valores estimados pela IA e não editados (selo "estimativa"). */
+  estimated: boolean;
 }
 
 export interface Meal {
@@ -171,12 +173,37 @@ export interface RecipeDetail {
   updatedAt: string;
 }
 
+export type FatLevel = 'none' | 'little' | 'lots';
+export type FatKind = 'oil' | 'butter' | 'sauce' | 'unknown';
+export type FatRefKind = Exclude<FatKind, 'unknown'>;
+
+/** Palpite da IA sobre a gordura de preparo, que fica fora dos itens. */
+export interface PreparationFatGuess {
+  level: FatLevel;
+  kind: FatKind;
+  reason: string;
+}
+
 export interface AnalysisResult {
   title: string;
   notes: string | null;
   items: AnalyzedItem[];
   totals: Macros;
+  hasCookedFood: boolean;
+  preparationFat: PreparationFatGuess;
 }
+
+export interface FatPortion extends Macros {
+  grams: number;
+  /** Medida caseira, ex.: "1 colher de chá". */
+  portion: string;
+}
+
+/** GET /analysis/preparation-fat: valores de referência por tipo e nível. */
+export type PreparationFatTable = Record<
+  FatRefKind,
+  { label: string; per100: Macros; fromTaco: boolean; little: FatPortion; lots: FatPortion }
+>;
 
 /** De onde veio a sugestão: refeição que a pessoa já comeu, modelo de prato, despensa ou IA. */
 export type SuggestionOrigin = 'history' | 'template' | 'pantry' | 'ai';

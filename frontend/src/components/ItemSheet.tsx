@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api, errorMessage } from '@/lib/api';
 import { fmtDec, fmtInt, parseNum, round1 } from '@/lib/format';
 import type { Meal, MealItem } from '@/lib/types';
+import { EstimateBadge } from './EstimateBadge';
 import { Sheet } from './Sheet';
 
 interface ItemSheetProps {
@@ -63,7 +64,11 @@ export function ItemSheet({ meal, item, onClose, onChanged }: ItemSheetProps) {
       <div className="stack-lg">
         <div className="stack" style={{ gap: 4 }}>
           <h2 className="title">{item.name}</h2>
-          <p className="body-2 num">{fmtInt(shown.kcal)} kcal</p>
+          <div className="estimate-host">
+            <p className="body-2 num">{fmtInt(shown.kcal)} kcal</p>
+            {/* Ajustar a porção torna o valor do usuário: o servidor desliga a estimativa ao salvar */}
+            {item.estimated && !changed && <EstimateBadge />}
+          </div>
         </div>
 
         <div className="grid-4">

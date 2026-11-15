@@ -3,21 +3,38 @@
 /* eslint-disable @next/next/no-img-element */
 import { useRouter, useSearchParams } from 'next/navigation';
 import { type ChangeEvent, type DragEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { useSWRConfig } from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
 import { isValidISO, todayISO } from '@/lib/date';
 import { fmtInt, parseNum } from '@/lib/format';
+import { tap } from '@/lib/haptics';
 import { compressImage } from '@/lib/image';
 import { MEAL_ORDER, mealTypeForNow } from '@/lib/labels';
 import { recipeToFood } from '@/lib/recipe';
-import type { AnalysisResult, FoodResult, MealSource, MealType } from '@/lib/types';
+import {
+  applyFatChoice,
+  type FatChoice,
+  type FatQuestionState,
+  isFatItem,
+  nextFatState,
+} from '@/lib/preparationFat';
+import type { AnalysisResult, FoodResult, MealSource, MealType, PreparationFatTable } from '@/lib/types';
 import { BarcodeFlow } from './BarcodeFlow';
 import { FoodPortionSheet } from './FoodPortionSheet';
 import { FoodSearch } from './FoodSearch';
+import { FatQuestion } from './FatQuestion';
 import { MacroDots } from './MacroLegend';
 import { BarcodeIcon, CameraIcon, ChevronLeft, PlusIcon, SparkIcon } from './Icons';
 import { PREFILL_KEY } from './CloseDayCard';
-import { type DraftItem, draftFromAnalysis, draftFromValues, ItemsEditor, newDraft, resolveKcal, toPayload } from './ItemsEditor';
+import {
+  type DraftItem,
+  draftFromAnalysis,
+  draftFromValues,
+  ItemsEditor,
+  newDraft,
+  resolveKcal,
+  toMealPayload,
+} from './ItemsEditor';
 import { QuickChips } from './QuickChips';
 
 type Mode = 'search' | 'barcode' | 'photo' | 'text' | 'manual';
@@ -65,6 +82,18 @@ export function AddMealView() {
   const [chipFood, setChipFood] = useState<FoodResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // Pergunta da gordura de preparo (só depois de uma análise com comida cozida)
+  const [fat, setFat] = useState<FatQuestionState | null>(null);
+  const fatRef = useRef(fat); // lido depois do await da análise: o usuário pode ter tocado num chip no meio
+  fatRef.current = fat;
+  const { data: fatTable } = useSWR<PreparationFatTable>('/analysis/preparation-fat', { revalidateOnFocus: false });
+
+  // A tabela chegou depois da análise (rede lenta): monta agora o item da escolha atual
+  useEffect(() => {
+    const current = fatRef.current;
+    if (fatTable && current) setItems((prev) => applyFatChoice(prev, current.choice, fatTable));
+  }, [fatTable]);
 
   useEffect(() => () => {
     if (photo) URL.revokeObjectURL(photo.url);
@@ -143,9 +172,34 @@ export function AddMealView() {
   }
 
   function applyAnalysis(result: AnalysisResult, from: MealSource) {
-    setItems((prev) => [...prev.filter((i) => i.name.trim() || resolveKcal(i) > 0), ...result.items.map(draftFromAnalysis)]);
+    const nextFat = nextFatState(fatRef.current, result.hasCookedFood, result.preparationFat);
+    setFat(nextFat);
+    setItems((prev) => {
+      // O item de gordura sai e volta no fim da lista, depois dos alimentos novos
+      const kept = prev.filter((i) => !isFatItem(i) && (i.name.trim() || resolveKcal(i) > 0));
+      const next = [...kept, ...result.items.map(draftFromAnalysis)];
+      return nextFat && fatTable ? applyFatChoice(next, nextFat.choice, fatTable) : next;
+    });
     setNotes(result.notes);
     setSource((prev) => (prev === 'PHOTO' || from === 'PHOTO' ? 'PHOTO' : from));
+  }
+
+  function chooseFat(patch: Partial<FatChoice>) {
+    if (!fat) return;
+    tap();
+    const choice = { ...fat.choice, ...patch };
+    setFat({ ...fat, choice, touched: true });
+    if (fatTable) setItems((prev) => applyFatChoice(prev, choice, fatTable));
+  }
+
+  /** Mudanças vindas do editor: remover o item de gordura à mão equivale a escolher "Nada". */
+  function changeItems(next: DraftItem[]) {
+    setItems(next);
+    if (!fat) return;
+    if (next.length === 0) setFat(null);
+    else if (fat.choice.level !== 'none' && !next.some(isFatItem)) {
+      setFat({ ...fat, choice: { ...fat.choice, level: 'none' }, touched: true });
+    }
   }
 
   async function analyzePhoto() {
@@ -191,7 +245,7 @@ export function AddMealView() {
     try {
       await api('/meals', {
         method: 'POST',
-        json: { date, type, source, items: valid.map(toPayload) },
+        json: { date, type, source, items: valid.map(toMealPayload) },
       });
       await mutate(`/days/${date}`);
       void mutate('/recipes'); // a contagem de uso ("mais usadas") pode ter mudado
@@ -362,7 +416,8 @@ export function AddMealView() {
               <span className="caption">Toque para ajustar</span>
             </div>
             {notes && <p className="note">{notes}</p>}
-            <ItemsEditor items={items} onChange={setItems} />
+            {fat && <FatQuestion state={fat} onChange={chooseFat} />}
+            <ItemsEditor items={items} onChange={changeItems} />
           </section>
         )}
 

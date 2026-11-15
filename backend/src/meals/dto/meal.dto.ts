@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsNumber,
   IsOptional,
@@ -40,6 +41,11 @@ export class MealItemDto {
 
   @IsNumber({ maxDecimalPlaces: 1 }) @Min(0) @Max(1000)
   fat: number;
+
+  /** Veio da análise por IA e não foi editado antes de salvar (mostra o selo "estimativa"). */
+  @IsOptional()
+  @IsBoolean()
+  estimated?: boolean;
 }
 
 export class CreateMealDto {

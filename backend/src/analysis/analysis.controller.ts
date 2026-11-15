@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   HttpCode,
   Post,
   UploadedFile,
@@ -13,6 +14,7 @@ import { Throttle } from '@nestjs/throttler';
 import { AnalysisService } from './analysis.service';
 import { normalizeBarcode } from '../foods/barcode';
 import { AnalyzeLabelDto, AnalyzePhotoDto, AnalyzeTextDto } from './dto/analysis.dto';
+import { PreparationFatService } from './preparation-fat';
 
 // Sem 'dest', o Multer mantém o arquivo só em memória (não grava em disco)
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
@@ -21,7 +23,17 @@ const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 @Throttle({ default: { limit: 12, ttl: 60_000 } })
 @Controller('analysis')
 export class AnalysisController {
-  constructor(private readonly analysis: AnalysisService) {}
+  constructor(
+    private readonly analysis: AnalysisService,
+    private readonly preparationFat: PreparationFatService,
+  ) {}
+
+  /** Valores de referência da gordura de preparo (sem IA): o app monta o item com eles, sem duplicar a regra. */
+  @Get('preparation-fat')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  preparationFatTable() {
+    return this.preparationFat.table();
+  }
 
   @Post('photo')
   @HttpCode(200)

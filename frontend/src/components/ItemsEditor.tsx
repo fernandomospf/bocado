@@ -2,6 +2,7 @@
 
 import { fmtInt, parseNum, round1 } from '@/lib/format';
 import type { Confidence, Macros } from '@/lib/types';
+import { EstimateBadge } from './EstimateBadge';
 import { TrashIcon } from './Icons';
 
 export interface DraftItem {
@@ -17,6 +18,10 @@ export interface DraftItem {
   foodId?: string;
   /** Referência para escalar macros quando a porção muda. */
   base?: { grams: number; kcal: number; protein: number; carbs: number; fat: number };
+  /** Veio da IA e ainda não teve porção ou macros editados (selo "estimativa"). */
+  estimated?: boolean;
+  /** Item gerenciado pela pergunta da gordura de preparo: é substituído, não duplicado. */
+  kind?: 'preparationFat';
 }
 
 type MacroField = 'kcal' | 'protein' | 'carbs' | 'fat';
@@ -66,6 +71,7 @@ export function draftFromAnalysis(i: {
     fat: str(i.fat),
     confidence: i.confidence,
     base: { grams: i.grams, kcal: i.kcal, protein: i.protein, carbs: i.carbs, fat: i.fat },
+    estimated: true,
   });
 }
 
@@ -127,6 +133,11 @@ export function toPayload(d: DraftItem) {
   };
 }
 
+/** Item de refeição: inclui a marca de estimativa (receitas não têm esse campo). */
+export function toMealPayload(d: DraftItem) {
+  return { ...toPayload(d), ...(d.estimated ? { estimated: true } : {}) };
+}
+
 interface ItemsEditorProps {
   items: DraftItem[];
   onChange: (items: DraftItem[]) => void;
@@ -142,18 +153,20 @@ export function ItemsEditor({ items, onChange }: ItemsEditorProps) {
       const f = grams / item.base.grams;
       update(item.key, {
         grams: value,
+        estimated: false,
         kcal: str(item.base.kcal * f),
         protein: str(item.base.protein * f),
         carbs: str(item.base.carbs * f),
         fat: str(item.base.fat * f),
       });
     } else {
-      update(item.key, { grams: value });
+      update(item.key, { grams: value, estimated: false });
     }
   }
 
   function setMacro(item: DraftItem, field: MacroField, value: string) {
-    const next = { ...item, [field]: value };
+    // Editar um macro à mão: o valor deixa de ser a estimativa da IA
+    const next = { ...item, [field]: value, estimated: false };
     const grams = parseNum(next.grams);
     // Edição manual vira a nova referência para escalar a porção
     next.base =
@@ -224,15 +237,18 @@ export function ItemsEditor({ items, onChange }: ItemsEditorProps) {
               ))}
             </div>
 
-            <div className="spread">
+            <div className="item-meta estimate-host">
+              {item.estimated && <EstimateBadge />}
               {item.confidence ? (
                 <span className={`badge badge-${item.confidence}`}>{CONFIDENCE_LABEL[item.confidence]}</span>
+              ) : item.kind === 'preparationFat' ? (
+                <span className="caption">Valores de referência (TACO)</span>
               ) : (
                 <span className="caption">kcal em branco é calculada pelos macros</span>
               )}
               <button
                 type="button"
-                className="btn btn-plain btn-danger btn-sm"
+                className="btn btn-plain btn-danger btn-sm item-meta-end"
                 onClick={() => onChange(items.filter((it) => it.key !== item.key))}
                 aria-label={`Remover ${item.name || 'alimento'}`}
               >

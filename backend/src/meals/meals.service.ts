@@ -59,7 +59,12 @@ export class MealsService {
 
   async updateItem(userId: string, mealId: string, itemId: string, dto: UpdateMealItemDto) {
     await this.ownedItem(userId, mealId, itemId);
-    const item = await this.prisma.mealItem.update({ where: { id: itemId }, data: dto });
+    // Mexeu na porção ou nos macros: o valor passa a ser do usuário, não mais a estimativa da IA (só o nome não conta)
+    const touchesValues = (['grams', 'kcal', 'protein', 'carbs', 'fat'] as const).some((k) => dto[k] !== undefined);
+    const item = await this.prisma.mealItem.update({
+      where: { id: itemId },
+      data: touchesValues ? { ...dto, estimated: false } : dto,
+    });
     return item;
   }
 

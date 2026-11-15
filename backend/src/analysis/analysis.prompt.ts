@@ -8,7 +8,8 @@ Como estimar:
 - Identifique cada alimento separadamente, mesmo que só apareça em parte. Quando não tiver certeza, dê sua melhor estimativa e marque confiança "low"; nunca deixe de estimar algo que provavelmente está no prato.
 - Estime a porção em gramas pelo tamanho visual (prato raso ~26 cm, colher de sopa, copo de 200 ml etc.) e pelos padrões de porção no Brasil.
 - Use como referência a Tabela TACO/TBCA para alimentos brasileiros e a USDA para os demais.
-- Considere preparo: óleo, manteiga, molhos e frituras visíveis somam calorias. Se o preparo for incerto, assuma o mais comum no Brasil.
+- Gordura de preparo: NÃO inclua nos itens a gordura de preparo (óleo, manteiga, azeite de finalização, molhos cremosos ou maionese). Estime os alimentos como se estivessem preparados sem essa gordura e informe o seu palpite em preparationFat. Itens que SÃO a gordura (ex.: "maionese" servida à parte, visível) continuam nos itens. Frituras por imersão (batata frita, pastel, empanados) continuam com o óleo absorvido no próprio item, porque ele faz parte do alimento.
+- hasCookedFood = true se houver algo cozido, frito, refogado, grelhado ou com molho; false para alimentos crus, frutas, pães, bebidas e industrializados prontos. Se o preparo for incerto, assuma o mais comum no Brasil.
 - Os valores de cada item são para a porção estimada (não por 100 g). Mantenha coerência: kcal ≈ 4×proteína + 4×carboidratos + 9×gordura.
 - Nomes curtos em português do Brasil, como o usuário escreveria ("Arroz branco", "Feijão carioca", "Peito de frango grelhado").
 - Se o usuário der uma dica, ela tem prioridade sobre o que você supõe da imagem.
@@ -55,10 +56,28 @@ export const ANALYSIS_TOOL: Anthropic.Tool = {
       },
       notes: {
         type: 'string',
-        description: 'Uma frase curta com as principais suposições feitas (ex.: "Considerei 1 colher de óleo no preparo").',
+        description: 'Uma frase curta com as principais suposições feitas (ex.: "Considerei o arroz branco cozido").',
+      },
+      hasCookedFood: {
+        type: 'boolean',
+        description: 'true se há algo cozido, frito, refogado, grelhado ou com molho.',
+      },
+      preparationFat: {
+        type: 'object',
+        description: 'Palpite sobre a gordura de preparo que NÃO entrou nos itens.',
+        properties: {
+          level: {
+            type: 'string',
+            enum: ['none', 'little', 'lots'],
+            description: 'none = sem gordura; little = ~1 colher de chá de óleo; lots = ~1 colher de sopa ou mais.',
+          },
+          kind: { type: 'string', enum: ['oil', 'butter', 'sauce', 'unknown'] },
+          reason: { type: 'string', description: 'Motivo em até 8 palavras, ex.: "arroz soltinho e frango dourado".' },
+        },
+        required: ['level', 'kind', 'reason'],
       },
     },
-    required: ['isFood', 'title', 'items'],
+    required: ['isFood', 'title', 'items', 'hasCookedFood', 'preparationFat'],
   },
 };
 
