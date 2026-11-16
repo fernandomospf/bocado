@@ -21,6 +21,9 @@ export interface Suggestion extends Targets {
   tdee: number;
 }
 
+/** Piso de calorias das metas sugeridas. */
+export const calorieFloor = (sex: Sex) => (sex === Sex.MALE ? 1500 : 1200);
+
 export const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
   SEDENTARY: 1.2,
   LIGHT: 1.375,
@@ -67,8 +70,7 @@ export function suggestTargets(data: BodyData): Suggestion {
   const tdee = bmr * ACTIVITY_FACTORS[data.activityLevel];
 
   let kcal = tdee * GOAL_KCAL_FACTOR[data.goal];
-  const floor = data.sex === Sex.MALE ? 1500 : 1200;
-  kcal = Math.max(kcal, floor);
+  kcal = Math.max(kcal, calorieFloor(data.sex));
   kcal = Math.round(kcal / 10) * 10;
 
   const protein = Math.round(refWeight * PROTEIN_G_PER_KG[data.goal]);

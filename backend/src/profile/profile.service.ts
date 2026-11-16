@@ -103,7 +103,10 @@ export class ProfileService {
     if (!existing) throw new NotFoundException('Perfil ainda não criado');
     const profile = await this.prisma.profile.update({
       where: { userId },
-      data: { weekStartsOn: dto.weekStartsOn },
+      data: {
+        ...(dto.weekStartsOn !== undefined ? { weekStartsOn: dto.weekStartsOn } : {}),
+        ...(dto.hideWeightInReports !== undefined ? { hideWeightInReports: dto.hideWeightInReports } : {}),
+      },
     });
     return this.serialize(profile);
   }
@@ -126,6 +129,7 @@ export class ProfileService {
       customTargets: p.customTargets,
       suggestion: suggestTargets(p),
       weekStartsOn: p.weekStartsOn,
+      hideWeightInReports: p.hideWeightInReports,
       updatedAt: p.updatedAt,
     };
   }

@@ -15,6 +15,7 @@ import { HealthModule } from './health/health.module';
 import { MealsModule } from './meals/meals.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProfileModule } from './profile/profile.module';
+import { ReportsModule } from './reports/reports.module';
 import { RecipesModule } from './recipes/recipes.module';
 import { SuggestionsModule } from './suggestions/suggestions.module';
 import { WeightModule } from './weight/weight.module';
@@ -30,6 +31,7 @@ import { WeightModule } from './weight/weight.module';
     FavoritesModule,
     FoodsModule,
     RecipesModule,
+    ReportsModule,
     SuggestionsModule,
     WeightModule,
     ExportModule,

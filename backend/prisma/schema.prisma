@@ -101,6 +101,8 @@ model Profile {
   targetsWeightKg Float?
   /// Primeiro dia da semana na faixa da tela Hoje e nos agrupamentos por semana
   weekStartsOn    WeekStart     @default(MONDAY)
+  /// Relatórios semanais sem nenhuma informação de peso (média, variação e equivalente em kg)
+  hideWeightInReports Boolean   @default(false)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 

@@ -1,6 +1,7 @@
 import { ActivityLevel, GoalType, Sex, WeekStart } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsEnum,
   IsInt,
   IsNumber,
@@ -60,6 +61,11 @@ export class SaveProfileDto extends BodyDataDto {
 
 /** Preferências de exibição (não afetam o cálculo das metas). */
 export class PreferencesDto {
+  @IsOptional()
   @IsEnum(WeekStart, { message: 'Escolha segunda ou domingo' })
-  weekStartsOn: WeekStart;
+  weekStartsOn?: WeekStart;
+
+  @IsOptional()
+  @IsBoolean()
+  hideWeightInReports?: boolean;
 }
