@@ -2,6 +2,7 @@
 
 import useSWR from 'swr';
 import { todayISO } from './date';
+import type { AiQuota } from './aiQuota';
 import type { AdaptiveStatus, Household, SharedOffer, WeightSummary, Workout, DaySummary, Favorite, MealType, Me, Profile, RecentMeal, WeekStart } from './types';
 
 export function useMe() {
@@ -53,4 +54,9 @@ export function useHousehold() {
 /** Refeições que alguém da casa dividiu com você e esperam resposta. */
 export function useSharedOffers() {
   return useSWR<SharedOffer[]>('/shared-meals/offers');
+}
+
+/** Cotas de IA do próprio usuário (usado, limite e quando voltam). Revalide com mutate('/ai/quota') depois de cada chamada de IA. */
+export function useAiQuota() {
+  return useSWR<AiQuota>('/ai/quota', { revalidateOnFocus: true });
 }

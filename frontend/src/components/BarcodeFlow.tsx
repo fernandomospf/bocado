@@ -7,6 +7,7 @@ import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtInt, parseNum } from '@/lib/format';
 import { compressImage } from '@/lib/image';
 import type { BarcodeLookup, Confidence, FoodResult, Macros } from '@/lib/types';
+import { AiBlockedNotice, AiQuotaHint, useAiBlocked, useRefreshAiQuota } from './AiQuotaHint';
 import { BarcodeScanner } from './BarcodeScanner';
 import { FoodPortionSheet } from './FoodPortionSheet';
 import { BarcodeIcon, CameraIcon } from './Icons';
@@ -60,8 +61,9 @@ function sanity(p: Macros) {
  * Modo "Código": lê o código → produto do acervo (ou do Open Food Facts) → Sheet de porção.
  * Não encontrado: fotos da embalagem → leitura pela IA (uma vez por produto) → revisão → salva no acervo.
  */
-export function BarcodeFlow({ onAdd }: { onAdd: (item: DraftItem) => void }) {
+export function BarcodeFlow({ onAdd, onChooseMode }: { onAdd: (item: DraftItem) => void; onChooseMode?: (mode: 'search' | 'manual') => void }) {
   const toast = useToast();
+  const refreshQuota = useRefreshAiQuota();
   const [state, setState] = useState<Step>({ step: 'scan' });
   const [found, setFound] = useState<FoodResult | null>(null);
 
@@ -124,10 +126,14 @@ export function BarcodeFlow({ onAdd }: { onAdd: (item: DraftItem) => void }) {
               if (state.code) form.append('barcode', state.code);
               setState({ step: 'review', draft: await api<LabelDraft>('/analysis/label', { method: 'POST', body: form }) });
             } catch (err) {
+              // 429 de cota: a mensagem do servidor (em português) no lugar do erro genérico
               toast.show({ message: errorMessage(err), tone: 'error' });
               setState({ step: 'photos', code: state.code });
+            } finally {
+              refreshQuota();
             }
           }}
+          onChooseMode={onChooseMode}
           onBack={() => setState({ step: 'scan' })}
         />
       )}
@@ -165,12 +171,15 @@ function LabelCapture({
   reading,
   onRead,
   onBack,
+  onChooseMode,
 }: {
   code: string | null;
   reading: boolean;
   onRead: (front: Blob | null, table: Blob) => void;
   onBack: () => void;
+  onChooseMode?: (mode: 'search' | 'manual') => void;
 }) {
+  const aiBlocked = useAiBlocked('LABEL');
   const [front, setFront] = useState<{ blob: Blob; url: string } | null>(null);
   const [table, setTable] = useState<{ blob: Blob; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -252,7 +261,14 @@ function LabelCapture({
         </p>
       )}
 
-      <button type="button" className="btn btn-primary btn-block" disabled={!table || reading} onClick={() => table && onRead(front?.blob ?? null, table.blob)}>
+      <AiBlockedNotice
+        feature="LABEL"
+        alternatives={[
+          ...(onChooseMode ? [{ label: 'Buscar alimento', onClick: () => onChooseMode('search') }, { label: 'Digitar', onClick: () => onChooseMode('manual') }] : []),
+        ]}
+      />
+      <AiQuotaHint feature="LABEL" />
+      <button type="button" className="btn btn-primary btn-block" disabled={!table || reading || aiBlocked} onClick={() => table && onRead(front?.blob ?? null, table.blob)}>
         {reading ? <span className="spinner" aria-label="Lendo" /> : null}
         {reading ? 'Lendo a tabela' : 'Ler tabela nutricional'}
       </button>

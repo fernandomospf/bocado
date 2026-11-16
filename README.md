@@ -74,6 +74,33 @@ O Bocado pode abrir só para quem tem convite, com landing pública em `/`, list
 
 A lista de espera guarda só e-mail, nome opcional e o consentimento (sem IP nem user-agent) e nunca aparece fora do `/admin`.
 
+## Limites de uso de IA e custo
+
+As chamadas à API da Anthropic (foto, descrição, rótulo e sugestão com IA) passam por uma cota: o servidor reserva a
+chamada antes, fecha com os tokens do SDK (`usage`) e registra tudo em `ai_usage` (sem conteúdo). Falhas não consomem cota
+e acerto de cache de descrição nem chega a reservar. Os rate limits por minuto continuam valendo.
+
+| Variável | Padrão | Para quê |
+|---|---|---|
+| `AI_DAILY_LIMIT_PHOTO` / `_TEXT` / `_LABEL` / `_SUGGEST` | 8 / 15 / 4 / 3 | Limite diário por pessoa e funcionalidade |
+| `AI_MONTHLY_LIMIT_TOTAL` | 200 | Limite mensal por pessoa (soma de todas as funcionalidades) |
+| `AI_QUOTA_TZ` | `America/Sao_Paulo` | Fuso do "dia" e do "mês" da cota |
+| `AI_MONTHLY_BUDGET_USD` | (sem teto) | Teto global do mês; a 100% a IA entra em pausa para todos |
+| `AI_PRICES_JSON` | (vazio) | `{"<modelo>":{"inPerMTok":n,"outPerMTok":n}}`. **Sem preços padrão**: sem isso, o custo aparece como "não configurado" e o teto em dólares fica inativo |
+| `ANTHROPIC_MODEL_PHOTO` / `_TEXT` / `_LABEL` / `_SUGGEST` | `ANTHROPIC_MODEL` | Modelo por funcionalidade |
+
+Admins (`ADMIN_EMAILS`) ficam isentos dos limites por pessoa, mas contam no orçamento global. No painel, o fator de limite de
+cada pessoa multiplica os limites (0 bloqueia a IA para ela, 2 dobra).
+
+**Guia de calibração**
+
+1. Deixe os padrões e use o app por alguns dias.
+2. Abra **Admin > Uso de IA** e veja as chamadas, os tokens e o custo por usuário.
+3. Ajuste `AI_DAILY_LIMIT_*` e `AI_MONTHLY_LIMIT_TOTAL` conforme o uso real.
+4. Defina `AI_PRICES_JSON` com os preços oficiais dos modelos em uso e `AI_MONTHLY_BUDGET_USD`.
+5. Conclua o custo máximo possível do beta: `BETA_MAX_USERS` x limite mensal x custo médio por chamada.
+   Exemplo da conta, com números só ilustrativos: 50 pessoas x 200 chamadas x (custo médio por chamada que você viu no painel).
+
 ## Rodando localmente
 
 Tudo em Docker:

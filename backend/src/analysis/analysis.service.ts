@@ -10,6 +10,9 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import type { AiFeature } from '@prisma/client';
+import { AiQuotaService } from '../ai-usage/ai-quota.service';
+import { DEFAULT_MODEL } from '../ai-usage/ai-usage.config';
 import { AnalysisCacheService } from './analysis.cache';
 import { analysisCacheKey } from './analysis.normalize';
 import { extractItemObjects, parseLooseJson, toNumber } from './analysis.parse';
@@ -60,19 +63,30 @@ const clamp = (n: unknown, max: number) => {
 export class AnalysisService {
   private readonly logger = new Logger(AnalysisService.name);
   private readonly client: Anthropic | null;
-  private readonly model: string;
 
-  /** O cache é opcional: sem ele (testes, ou se o módulo não o fornecer) toda descrição vai para a IA. */
+  /**
+   * O cache e a cota são opcionais: sem eles (testes) toda descrição vai para a IA e nada é medido. Com a cota, TODA
+   * chamada ao SDK passa por reserve → settle/fail, e quem chama informa o userId.
+   */
   constructor(
-    config: ConfigService,
+    private readonly config: ConfigService,
     @Optional() private readonly cache?: AnalysisCacheService,
+    @Optional() private readonly quota?: AiQuotaService,
   ) {
     const apiKey = config.get<string>('ANTHROPIC_API_KEY')?.trim();
     this.client = apiKey ? new Anthropic({ apiKey, maxRetries: 2, timeout: 60_000 }) : null;
-    this.model = config.get<string>('ANTHROPIC_MODEL')?.trim() || 'claude-sonnet-5-5';
   }
 
-  async analyzePhoto(image: Buffer, mimeType: string, hint?: string): Promise<AnalysisResult> {
+  /** Modelo da funcionalidade: ANTHROPIC_MODEL_<FEATURE>, depois ANTHROPIC_MODEL, depois o padrão. */
+  modelFor(feature: AiFeature): string {
+    return (
+      this.config.get<string>(`ANTHROPIC_MODEL_${feature}`)?.trim() ||
+      this.config.get<string>('ANTHROPIC_MODEL')?.trim() ||
+      DEFAULT_MODEL
+    );
+  }
+
+  async analyzePhoto(image: Buffer, mimeType: string, hint?: string, userId?: string): Promise<AnalysisResult> {
     if (!SUPPORTED_MEDIA.includes(mimeType as SupportedMedia)) {
       throw new BadRequestException('Formato de imagem não suportado. Use JPG, PNG ou WebP.');
     }
@@ -80,13 +94,17 @@ export class AnalysisService {
       ? `Estime os nutrientes desta refeição. Dica do usuário: ${hint}`
       : 'Estime os nutrientes desta refeição.';
 
-    return this.run([
-      {
-        type: 'image',
-        source: { type: 'base64', media_type: mimeType as SupportedMedia, data: image.toString('base64') },
-      },
-      { type: 'text', text },
-    ]);
+    return this.run(
+      [
+        {
+          type: 'image',
+          source: { type: 'base64', media_type: mimeType as SupportedMedia, data: image.toString('base64') },
+        },
+        { type: 'text', text },
+      ],
+      'PHOTO',
+      userId,
+    );
   }
 
   /**
@@ -96,6 +114,7 @@ export class AnalysisService {
   async analyzeLabel(
     images: { buffer: Buffer; mimeType: string; role: 'front' | 'table' }[],
     barcode: string | null,
+    userId?: string,
   ): Promise<LabelDraft> {
     for (const img of images) {
       if (!SUPPORTED_MEDIA.includes(img.mimeType as SupportedMedia)) {
@@ -117,6 +136,8 @@ export class AnalysisService {
       content,
       maxTokens: 1500,
       truncatedMessage: 'A leitura da embalagem ficou incompleta. Tente de novo.',
+      feature: 'LABEL',
+      userId,
     });
     return coerceLabel(raw, barcode);
   }
@@ -125,18 +146,22 @@ export class AnalysisService {
    * Descrição em texto: consulta o cache (chave = descrição normalizada + modelo + versão do prompt) antes de chamar
    * o Claude e grava só resultados válidos. Fotos e rótulos nunca passam por aqui.
    */
-  async analyzeText(description: string): Promise<AnalysisResult> {
-    const key = analysisCacheKey(description, this.model);
+  async analyzeText(description: string, userId?: string): Promise<AnalysisResult> {
+    // O modelo de TEXT entra na chave do cache (junto com a versão do prompt)
+    const key = analysisCacheKey(description, this.modelFor('TEXT'));
     const cached = await this.cache?.get(key);
     if (cached) {
+      // Acerto de cache: nenhuma chamada ao SDK, então não reserva nem consome cota
       this.logger.log('analysis cache hit');
       return cached;
     }
     if (this.cache) this.logger.log('analysis cache miss');
 
-    const result = await this.run([
-      { type: 'text', text: `Estime os nutrientes desta refeição descrita pelo usuário: ${description}` },
-    ]);
+    const result = await this.run(
+      [{ type: 'text', text: `Estime os nutrientes desta refeição descrita pelo usuário: ${description}` }],
+      'TEXT',
+      userId,
+    );
     await this.cache?.set(key, result);
     return result;
   }
@@ -156,17 +181,21 @@ export class AnalysisService {
     content: Anthropic.ContentBlockParam[];
     maxTokens: number;
     truncatedMessage: string;
+    feature: AiFeature;
+    userId?: string;
   }): Promise<unknown> {
     return (await this.invoke(params)).raw;
   }
 
-  private async run(content: Anthropic.ContentBlockParam[]): Promise<AnalysisResult> {
+  private async run(content: Anthropic.ContentBlockParam[], feature: AiFeature, userId?: string): Promise<AnalysisResult> {
     const { raw, summary } = await this.invoke({
       system: SYSTEM_PROMPT,
       tool: ANALYSIS_TOOL,
       content,
       maxTokens: 2000,
       truncatedMessage: 'A análise ficou incompleta. Tente uma descrição mais curta.',
+      feature,
+      userId,
     });
 
     const stats: CoerceStats = { discarded: 0 };
@@ -191,15 +220,21 @@ export class AnalysisService {
     content: Anthropic.ContentBlockParam[];
     maxTokens: number;
     truncatedMessage: string;
+    feature: AiFeature;
+    userId?: string;
   }): Promise<{ raw: unknown; summary: string }> {
     if (!this.client) {
       throw new ServiceUnavailableException('Análise por IA não configurada no servidor');
     }
 
+    const model = this.modelFor(params.feature);
+    // Cota: reserva ANTES (pode recusar com 429 e código); depois settle com os tokens do SDK ou fail
+    const reservation = this.quota && params.userId ? await this.quota.reserve(params.userId, params.feature, model) : null;
+
     let message: Anthropic.Message;
     try {
       message = await this.client.messages.create({
-        model: this.model,
+        model,
         max_tokens: params.maxTokens,
         system: params.system,
         tools: [params.tool],
@@ -207,8 +242,11 @@ export class AnalysisService {
         messages: [{ role: 'user', content: params.content }],
       });
     } catch (err) {
-      throw this.toHttpError(err);
+      if (reservation) await this.quota?.fail(reservation).catch(() => undefined); // falha não consome cota
+      throw this.toHttpError(err, model);
     }
+    // A chamada voltou: os tokens foram gastos mesmo que a resposta não sirva, então a reserva fecha como OK
+    if (reservation) await this.quota?.settle(reservation, message.usage).catch((e) => this.logger.warn(`settle falhou: ${(e as Error).message}`));
 
     const block = message.content.find(
       (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use' && b.name === params.tool.name,
@@ -234,14 +272,14 @@ export class AnalysisService {
     return { raw, summary };
   }
 
-  private toHttpError(err: unknown): HttpException {
+  private toHttpError(err: unknown, model: string): HttpException {
     const generic = new ServiceUnavailableException('Não foi possível analisar agora. Tente de novo em instantes.');
 
     if (err instanceof Anthropic.APIError) {
       const status = err.status;
       const msg = err.message ?? '';
       const lower = msg.toLowerCase();
-      this.logger.error(`Falha na chamada ao Claude (modelo ${this.model}): ${status} ${msg}`);
+      this.logger.error(`Falha na chamada ao Claude (modelo ${model}): ${status} ${msg}`);
 
       if (status === 401 || status === 403) {
         return new ServiceUnavailableException('Chave da IA inválida no servidor.');

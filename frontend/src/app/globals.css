@@ -3722,3 +3722,47 @@ body:not(:has(.tabbar)) .toast-region {
     display: none;
   }
 }
+
+
+/* ---------- Cota de IA ---------- */
+.quota-row {
+  display: grid;
+  gap: 6px;
+}
+
+.quota-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--fill-strong);
+  overflow: hidden;
+}
+
+/* Sempre o azul do app: usar a cota não é um alerta */
+.quota-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--ring-protein-2), var(--ring-protein));
+  transition: width 500ms var(--ease);
+}
+
+.ai-hint {
+  text-align: center;
+}
+
+.ai-alternatives {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-alternatives .btn {
+  min-height: 44px;
+  flex: 1 1 auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quota-fill {
+    transition: none;
+  }
+}

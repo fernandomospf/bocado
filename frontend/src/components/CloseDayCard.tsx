@@ -4,7 +4,10 @@ import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
+import { aiBlockReason } from '@/lib/aiQuota';
 import { useDisplayPrefs } from '@/lib/display-prefs';
+import { useAiQuota } from '@/lib/hooks';
+import { AiBlockedNotice, AiQuotaHint, useRefreshAiQuota } from './AiQuotaHint';
 import { fmtInt } from '@/lib/format';
 import { success as hapticSuccess } from '@/lib/haptics';
 import type { CloseDayResponse, Macros, MealSuggestion, MealType, SuggestionOrigin } from '@/lib/types';
@@ -48,6 +51,8 @@ export function CloseDayCard({ date, isToday, eatenKcal, dinnerLogged }: CloseDa
   const router = useRouter();
   const toast = useToast();
   const { hideCalories: hide } = useDisplayPrefs();
+  const { data: quota } = useAiQuota();
+  const refreshQuota = useRefreshAiQuota();
   const { mutate: globalMutate } = useSWRConfig();
 
   // Horário, "dispensado" e despensa só no navegador: a página é pré-renderizada no build
@@ -68,6 +73,8 @@ export function CloseDayCard({ date, isToday, eatenKcal, dinnerLogged }: CloseDa
   const { data, mutate } = useSWR<CloseDayResponse>(visible ? `/suggestions/close-day?date=${date}&meal=${meal}` : null, {
     revalidateOnFocus: false,
   });
+  // Cota esgotada (diária, mensal ou pausa do beta): o botão fica desabilitado, com alternativas
+  const aiBlocked = aiBlockReason(quota, 'SUGGEST') !== null || (quota === undefined && (data?.aiRemaining ?? 1) <= 0);
 
   /** Resultado que sobrepõe o local: despensa ou IA. */
   const [override, setOverride] = useState<CloseDayResponse | null>(null);
@@ -176,9 +183,11 @@ export function CloseDayCard({ date, isToday, eatenKcal, dinnerLogged }: CloseDa
         setOverride(res);
       }
     } catch (err) {
+      // 429 de cota: a mensagem do servidor, em português, no lugar do erro genérico
       toast.show({ message: errorMessage(err), tone: 'error' });
     } finally {
       setBusy(null);
+      refreshQuota();
     }
   }
 
@@ -232,14 +241,28 @@ export function CloseDayCard({ date, isToday, eatenKcal, dinnerLogged }: CloseDa
   );
 
   const aiButton = view.canAskAi && (
-    <div className="stack" style={{ gap: 4 }}>
-      <button type="button" className="btn btn-glass btn-block" onClick={askAi} disabled={busy === 'ai'}>
+    <div className="stack" style={{ gap: 8 }}>
+      <button type="button" className="btn btn-glass btn-block" onClick={askAi} disabled={busy === 'ai' || aiBlocked}>
         {busy === 'ai' ? <span className="spinner" aria-label="Criando" /> : <SparkIcon width={20} height={20} />}
         {busy === 'ai' ? 'Criando' : pantryTerms.length ? 'Criar receita com IA (com o que tenho)' : 'Criar receita com IA'}
       </button>
-      <p className="caption" style={{ textAlign: 'center' }}>
-        {view.aiRemaining === 1 ? 'Resta 1 hoje' : `Restam ${view.aiRemaining} hoje`}
-      </p>
+      <AiBlockedNotice
+        feature="SUGGEST"
+        alternatives={[
+          { label: 'Buscar alimento', href: `/add?type=${meal}&date=${date}` },
+          { label: 'Das minhas receitas', href: '/recipes' },
+        ]}
+      />
+      {!aiBlocked && (
+        <>
+          <AiQuotaHint feature="SUGGEST" />
+          {quota === undefined && (
+            <p className="caption" style={{ textAlign: 'center' }}>
+              {view.aiRemaining === 1 ? 'Resta 1 hoje' : `Restam ${view.aiRemaining} hoje`}
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 

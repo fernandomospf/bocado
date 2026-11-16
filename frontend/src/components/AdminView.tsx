@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { ApiError, api, errorMessage } from '@/lib/api';
+import { AdminAiTab } from './AdminAiTab';
 import { Sheet } from './Sheet';
 import { useToast } from './Toast';
 
@@ -60,7 +61,7 @@ const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(
 /** Painel do beta (/admin). Quem não é admin vê a página 404 do app. */
 export function AdminView() {
   const { data: me, error } = useSWR<{ admin: true }>('/admin/me', { shouldRetryOnError: false, revalidateOnFocus: false });
-  const [tab, setTab] = useState<'waitlist' | 'invites'>('waitlist');
+  const [tab, setTab] = useState<'waitlist' | 'invites' | 'ai'>('waitlist');
 
   if (error instanceof ApiError && (error.status === 403 || error.status === 404)) notFound();
   if (error && !(error instanceof ApiError && error.status === 401)) {
@@ -95,9 +96,12 @@ export function AdminView() {
         <button type="button" aria-pressed={tab === 'invites'} onClick={() => setTab('invites')}>
           Convites
         </button>
+        <button type="button" aria-pressed={tab === 'ai'} onClick={() => setTab('ai')}>
+          Uso de IA
+        </button>
       </div>
 
-      {tab === 'waitlist' ? <WaitlistTab /> : <InvitesTab />}
+      {tab === 'waitlist' ? <WaitlistTab /> : tab === 'invites' ? <InvitesTab /> : <AdminAiTab />}
     </main>
   );
 }

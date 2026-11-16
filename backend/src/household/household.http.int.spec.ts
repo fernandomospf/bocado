@@ -315,6 +315,49 @@ describeDb('HTTP: privacidade entre membros da casa e rate limits', () => {
     expect((await call(ta, 'POST', '/admin/invites', { label: 'x', maxUses: 3 })).status).toBe(201);
   });
 
+  it('IA por HTTP: /ai/quota só do próprio usuário; /admin/ai/usage e PATCH do fator só para admin (com validação)', async () => {
+    const admin = await prisma.user.create({ data: { email: 'admin-http@teste.local', name: 'Admin' } });
+    const [u1, u2] = [await makeUser(prisma, 'Um'), await makeUser(prisma, 'Dois')];
+    const [ta, t1, t2] = [tokenOf(admin), tokenOf(u1), tokenOf(u2)];
+    await prisma.aiUsage.createMany({
+      data: [
+        { userId: u1.id, feature: 'PHOTO', model: 'm', status: 'OK', inputTokens: 100, outputTokens: 50 },
+        { userId: u1.id, feature: 'PHOTO', model: 'm', status: 'OK', inputTokens: 100, outputTokens: 50 },
+        { userId: u2.id, feature: 'TEXT', model: 'm', status: 'OK', inputTokens: 10, outputTokens: 5 },
+      ],
+    });
+
+    expect((await call(null, 'GET', '/ai/quota')).status).toBe(401);
+    const q1 = JSON.parse((await call(t1, 'GET', '/ai/quota')).text);
+    const q2 = JSON.parse((await call(t2, 'GET', '/ai/quota')).text);
+    expect(q1.features.PHOTO).toMatchObject({ used: 2, limit: 8 });
+    expect(q2.features.PHOTO.used).toBe(0);
+    expect(q2.features.TEXT.used).toBe(1);
+    expect(q1.monthly).toMatchObject({ used: 2, limit: 200 });
+    expect(Object.keys(q1).sort()).toEqual(['features', 'monthly', 'paused']);
+    expect(JSON.stringify(q2)).not.toContain(u1.id);
+
+    expect((await call(t1, 'GET', '/admin/ai/usage')).status).toBe(403);
+    expect((await call(null, 'GET', '/admin/ai/usage')).status).toBe(401);
+    const usage = JSON.parse((await call(ta, 'GET', '/admin/ai/usage?days=30')).text);
+    expect(usage.month.calls).toBe(3);
+    expect(usage.month.estimatedCostUsd).toBeNull(); // sem AI_PRICES_JSON: "não configurado"
+    expect(usage.byUser.map((x: any) => x.label).every((l: string) => /^[a-z]\*\*\*@/.test(l))).toBe(true);
+    expect(JSON.stringify(usage)).not.toContain(u1.email);
+    expect(JSON.stringify(usage)).not.toContain(u2.email);
+    expect((await call(ta, 'GET', '/admin/ai/usage?days=0')).status).toBe(400);
+
+    expect((await call(t1, 'PATCH', `/admin/users/${u1.id}/ai-limit`, { factor: 5 })).status).toBe(403);
+    expect((await call(ta, 'PATCH', `/admin/users/${u1.id}/ai-limit`, { factor: 11 })).status).toBe(400);
+    expect((await call(ta, 'PATCH', `/admin/users/${u1.id}/ai-limit`, { factor: -1 })).status).toBe(400);
+    expect((await call(ta, 'PATCH', `/admin/users/${u1.id}/ai-limit`, { factor: 'x' })).status).toBe(400);
+    expect((await call(ta, 'PATCH', `/admin/users/${u1.id}/ai-limit`, { factor: 2 })).status).toBe(200);
+    expect(JSON.parse((await call(t1, 'GET', '/ai/quota')).text).features.PHOTO.limit).toBe(16);
+    expect((await call(ta, 'PATCH', `/admin/users/${u1.id}/ai-limit`, { factor: 0 })).status).toBe(200);
+    expect(JSON.parse((await call(t1, 'GET', '/ai/quota')).text).features.PHOTO.limit).toBe(0);
+    await prisma.aiUsage.deleteMany();
+  });
+
   it('o preview devolve só nome da casa e primeiro nome; todo código ruim dá o mesmo 404', async () => {
     const { a, ta } = await scenario();
     const invite = JSON.parse((await call(ta, 'POST', '/household/invites')).text);

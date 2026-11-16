@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
+import type { AuthUser } from '../auth/auth.types';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AnalysisService } from './analysis.service';
 import { normalizeBarcode } from '../foods/barcode';
 import { AnalyzeLabelDto, AnalyzePhotoDto, AnalyzeTextDto } from './dto/analysis.dto';
@@ -42,15 +44,15 @@ export class AnalysisController {
       limits: { fileSize: MAX_IMAGE_BYTES, files: 1 },
     }),
   )
-  photo(@UploadedFile() file: Express.Multer.File | undefined, @Body() dto: AnalyzePhotoDto) {
+  photo(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File | undefined, @Body() dto: AnalyzePhotoDto) {
     if (!file) throw new BadRequestException('Envie uma foto da refeição');
-    return this.analysis.analyzePhoto(file.buffer, file.mimetype, dto.hint);
+    return this.analysis.analyzePhoto(file.buffer, file.mimetype, dto.hint, user.id);
   }
 
   @Post('text')
   @HttpCode(200)
-  text(@Body() dto: AnalyzeTextDto) {
-    return this.analysis.analyzeText(dto.description);
+  text(@CurrentUser() user: AuthUser, @Body() dto: AnalyzeTextDto) {
+    return this.analysis.analyzeText(dto.description, user.id);
   }
 
   /**
@@ -70,6 +72,7 @@ export class AnalysisController {
     ),
   )
   label(
+    @CurrentUser() user: AuthUser,
     @UploadedFiles() files: { front?: Express.Multer.File[]; table?: Express.Multer.File[] } | undefined,
     @Body() dto: AnalyzeLabelDto,
   ) {
@@ -85,6 +88,6 @@ export class AnalysisController {
       ...(front ? [{ buffer: front.buffer, mimeType: front.mimetype, role: 'front' as const }] : []),
       { buffer: table.buffer, mimeType: table.mimetype, role: 'table' as const },
     ];
-    return this.analysis.analyzeLabel(images, barcode);
+    return this.analysis.analyzeLabel(images, barcode, user.id);
   }
 }

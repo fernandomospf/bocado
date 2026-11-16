@@ -27,6 +27,7 @@ import { FatQuestion } from './FatQuestion';
 import { MacroDots } from './MacroLegend';
 import { BarcodeIcon, CameraIcon, ChevronLeft, ImageIcon, PlusIcon, SparkIcon } from './Icons';
 import { PREFILL_KEY } from './CloseDayCard';
+import { AiBlockedNotice, AiQuotaHint, useAiBlocked, useRefreshAiQuota } from './AiQuotaHint';
 import { useDisplayPrefs } from '@/lib/display-prefs';
 import { NO_SPLIT, SplitPicker, type SplitState, splitIncomplete, splitReady } from './SplitPicker';
 import { useSharedSave } from '@/lib/sharedMeals';
@@ -78,6 +79,15 @@ export function AddMealView() {
   const [busy, setBusy] = useState<'analyze' | 'save' | null>(null);
   const [split, setSplit] = useState<SplitState>(NO_SPLIT);
   const saveShared = useSharedSave();
+  const refreshQuota = useRefreshAiQuota();
+  const photoBlocked = useAiBlocked('PHOTO');
+  const textBlocked = useAiBlocked('TEXT');
+  // Atalhos quando a IA está indisponível (cota ou pausa): o que continua funcionando
+  const aiAlternatives = [
+    { label: 'Buscar alimento', onClick: () => chooseMode('search') },
+    { label: 'Ler código de barras', onClick: () => chooseMode('barcode') },
+    { label: 'Digitar', onClick: () => chooseMode('manual') },
+  ];
   const { hideCalories: hide } = useDisplayPrefs();
   const [dragging, setDragging] = useState(false);
   const [chipFood, setChipFood] = useState<FoodResult | null>(null);
@@ -143,6 +153,7 @@ export function AddMealView() {
   }
 
   async function loadPhoto(file: File) {
+    if (photoBlocked) return; // cota esgotada: nada de arrastar e soltar para a IA
     if (!file.type.startsWith('image/')) {
       setError('Solte uma imagem (JPG, PNG ou WebP).');
       return;
@@ -245,9 +256,11 @@ export function AddMealView() {
       if (hintText.trim()) form.append('hint', hintText.trim());
       applyAnalysis(await api<AnalysisResult>('/analysis/photo', { method: 'POST', body: form }), 'PHOTO');
     } catch (err) {
+      // 429 de cota traz a mensagem do servidor (em português), que já vem em errorMessage
       setError(errorMessage(err));
     } finally {
       setBusy(null);
+      refreshQuota();
     }
   }
 
@@ -264,6 +277,7 @@ export function AddMealView() {
       setError(errorMessage(err));
     } finally {
       setBusy(null);
+      refreshQuota();
     }
   }
 
@@ -344,7 +358,7 @@ export function AddMealView() {
 
         {mode === 'search' && <FoodSearch onAdd={addFromSearch} />}
 
-        {mode === 'barcode' && <BarcodeFlow onAdd={addFromSearch} />}
+        {mode === 'barcode' && <BarcodeFlow onAdd={addFromSearch} onChooseMode={chooseMode} />}
 
         {mode === 'photo' && (
           <section className="stack">
@@ -405,14 +419,14 @@ export function AddMealView() {
                   type="button"
                   className="btn btn-glass"
                   onClick={() => galleryInput.current?.click()}
-                  disabled={!!busy}
+                  disabled={!!busy || photoBlocked}
                 >
                   {analyzing ? <span className="spinner" aria-hidden /> : null}
                   {analyzing ? 'Analisando a foto' : 'Trocar foto'}
                 </button>
                 {/* A análise falhou: tentar de novo com a mesma foto */}
                 {!photoAnalyzed && !analyzing && (
-                  <button type="button" className="btn btn-primary" onClick={() => analyzePhoto(photo.blob, hint)}>
+                  <button type="button" className="btn btn-primary" onClick={() => analyzePhoto(photo.blob, hint)} disabled={photoBlocked}>
                     <SparkIcon width={20} height={20} />
                     Analisar de novo
                   </button>
@@ -421,11 +435,11 @@ export function AddMealView() {
             ) : (
               <>
                 <div className="grid-2 not-desktop">
-                  <button type="button" className="btn btn-primary" onClick={() => cameraInput.current?.click()} disabled={!!busy}>
+                  <button type="button" className="btn btn-primary" onClick={() => cameraInput.current?.click()} disabled={!!busy || photoBlocked}>
                     <CameraIcon width={20} height={20} />
                     Câmera
                   </button>
-                  <button type="button" className="btn btn-glass" onClick={() => galleryInput.current?.click()} disabled={!!busy}>
+                  <button type="button" className="btn btn-glass" onClick={() => galleryInput.current?.click()} disabled={!!busy || photoBlocked}>
                     <ImageIcon width={20} height={20} />
                     Galeria
                   </button>
@@ -434,13 +448,15 @@ export function AddMealView() {
                   type="button"
                   className="btn btn-primary btn-block desktop-only"
                   onClick={() => galleryInput.current?.click()}
-                  disabled={!!busy}
+                  disabled={!!busy || photoBlocked}
                 >
                   <ImageIcon width={20} height={20} />
                   Escolher foto
                 </button>
               </>
             )}
+            <AiBlockedNotice feature="PHOTO" alternatives={aiAlternatives} />
+            <AiQuotaHint feature="PHOTO" />
           </section>
         )}
 
@@ -459,15 +475,18 @@ export function AddMealView() {
             <button
               className="btn btn-primary btn-block"
               onClick={analyzeText}
-              disabled={!!busy || description.trim().length < 3}
+              disabled={!!busy || description.trim().length < 3 || textBlocked}
             >
               {busy === 'analyze' ? <span className="spinner" aria-hidden /> : <SparkIcon width={20} height={20} />}
               {busy === 'analyze' ? 'Estimando' : 'Estimar nutrientes'}
             </button>
+            <AiBlockedNotice feature="TEXT" alternatives={aiAlternatives} />
+            <AiQuotaHint feature="TEXT" />
           </section>
         )}
 
-        {error && (
+        {/* Cota esgotada: o aviso neutro com alternativas já aparece acima, então não repete o erro */}
+        {error && !(mode === 'photo' && photoBlocked) && !(mode === 'text' && textBlocked) && (
           <p className="alert" role="alert">
             {error}
           </p>

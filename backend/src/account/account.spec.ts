@@ -86,7 +86,9 @@ describe('cascata no schema', () => {
       // Refeição dividida: a cópia no diário de outra pessoa fica, sem o nome de quem a dividiu
       const keeps = (r.model === 'Food' && r.field === 'contributedBy') || (r.model === 'Meal' && r.field === 'sharedBy') ||
         // Convite do beta: criado por um admin; excluir o admin não apaga o convite
-        (r.model === 'BetaInvite' && r.field === 'createdBy');
+        (r.model === 'BetaInvite' && r.field === 'createdBy') ||
+        // Uso de IA: ao excluir a conta o registro fica anônimo (só serve ao custo total)
+        (r.model === 'AiUsage' && r.field === 'user');
       const expected = keeps ? 'SetNull' : 'Cascade';
       expect({ ...r, onDelete: r.onDelete }).toEqual({ ...r, onDelete: expected });
     }

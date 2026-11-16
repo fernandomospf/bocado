@@ -27,6 +27,7 @@ export async function makeUser(prisma: PrismaService, name = 'Pessoa') {
 
 /** Limpeza entre testes: apaga o que os testes criam, na ordem das dependências. */
 export async function cleanDb(prisma: PrismaService) {
+  await prisma.aiUsage.deleteMany();
   await prisma.waitlistEntry.deleteMany();
   await prisma.betaInvite.deleteMany();
   await prisma.householdInvite.deleteMany();

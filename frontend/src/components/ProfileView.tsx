@@ -12,6 +12,7 @@ import { useMe, useProfile } from '@/lib/hooks';
 import { ACTIVITY_OPTIONS, GOAL_OPTIONS } from '@/lib/labels';
 import type { Profile, WeekStart } from '@/lib/types';
 import { AdaptiveSection } from './AdaptiveSection';
+import { AiUsageSection } from './AiUsageSection';
 import { Avatar } from './Avatar';
 import { BodyForm } from './BodyForm';
 import { DeleteAccountSheet } from './DeleteAccountSheet';
@@ -270,6 +271,13 @@ export function ProfileView() {
           <div className="screen-group profile-o4">
             <h2 className="section-title">Meta adaptativa</h2>
             <AdaptiveSection />
+          </div>
+        )}
+
+        {profile && (
+          <div className="screen-group profile-o4">
+            <h2 className="section-title">Uso da IA</h2>
+            <AiUsageSection />
           </div>
         )}
 

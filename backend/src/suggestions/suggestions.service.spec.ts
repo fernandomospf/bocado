@@ -76,21 +76,18 @@ function setup({ templatesAvailable = true, historyMeals = [], usageCount = 0, s
     },
     $queryRaw: jest.fn().mockResolvedValue([]),
     suggestionCache: { findUnique: jest.fn().mockResolvedValue(null), update: jest.fn(), upsert: jest.fn() },
-    aiUsage: {
-      findUnique: jest.fn().mockResolvedValue(usageCount ? { count: usageCount } : null),
-      upsert: jest.fn().mockImplementation(() => Promise.resolve({ count: usageCount + 1 })),
-      update: jest.fn(),
-      updateMany: jest.fn(),
-    },
   };
+  // A reserva/fechamento da cota acontece dentro do AnalysisService; aqui só importa o que resta e que a IA seja chamada
+  const quota = { remaining: jest.fn().mockResolvedValue(Math.max(0, CLOSE_DAY_AI.dailyLimit - usageCount)) };
   const analysis = { isConfigured: true, callTool: jest.fn().mockResolvedValue(aiAnswer) };
   const foods = { search: search ?? jest.fn().mockResolvedValue([]) };
   const meals = { create: jest.fn() };
   return {
     prisma,
     analysis,
+    quota,
     foods,
-    service: new SuggestionsService(prisma as never, foods as never, analysis as never, meals as never),
+    service: new SuggestionsService(prisma as never, foods as never, analysis as never, meals as never, quota as never),
   };
 }
 
@@ -177,14 +174,15 @@ describe('closeDayFromPantry', () => {
 });
 
 describe('closeDayWithAi', () => {
-  it('cache miss: chama a IA uma vez, valida os totais, grava no cache e conta no limite', async () => {
+  it('cache miss: chama a IA uma vez, valida os totais, grava no cache e informa quem chamou (userId e funcionalidade)', async () => {
     const { prisma, analysis, service } = setup({ templatesAvailable: false });
     const out = await service.closeDayWithAi(USER, DATE, 'DINNER');
     expect(analysis.callTool).toHaveBeenCalledTimes(1);
     expect(out.source).toBe('ai');
     expect(out.suggestions[0].totals).toEqual({ kcal: 705, protein: 51, carbs: 71, fat: 22 });
     expect(out.suggestions[0].items[0].label).toBe('200 g Ovos');
-    expect(prisma.aiUsage.upsert).toHaveBeenCalledTimes(1);
+    // a reserva da cota é feita pelo AnalysisService com esses dados
+    expect(analysis.callTool.mock.calls[0][0]).toMatchObject({ feature: 'SUGGEST', userId: USER });
     expect(prisma.suggestionCache.upsert).toHaveBeenCalledTimes(1);
   });
 
@@ -210,24 +208,24 @@ describe('closeDayWithAi', () => {
     });
     const out = await service.closeDayWithAi(USER, DATE, 'DINNER');
     expect(analysis.callTool).not.toHaveBeenCalled();
-    expect(prisma.aiUsage.upsert).not.toHaveBeenCalled();
     expect(out.suggestions[0]).toMatchObject({ title: 'Do cache', good: true }); // recalculado para este alvo
   });
 
-  it('limite diário: a 4ª chamada é recusada (429) sem chamar a IA, e a reserva é desfeita', async () => {
-    const { prisma, analysis, service } = setup({ usageCount: CLOSE_DAY_AI.dailyLimit });
+  it('cota esgotada: o 429 do AnalysisService chega ao chamador com o código, sem gravar cache', async () => {
+    const { prisma, analysis, service } = setup();
+    const quotaError = new HttpException({ code: 'AI_QUOTA_DAILY', message: 'Você usou as 3 sugestões com IA de hoje.' }, HttpStatus.TOO_MANY_REQUESTS);
+    analysis.callTool.mockRejectedValue(quotaError);
     const err = await service.closeDayWithAi(USER, DATE, 'DINNER').catch((e) => e);
-    expect(err).toBeInstanceOf(HttpException);
     expect((err as HttpException).getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
-    expect(analysis.callTool).not.toHaveBeenCalled();
-    expect(prisma.aiUsage.update).toHaveBeenCalledWith(expect.objectContaining({ data: { count: { decrement: 1 } } }));
+    expect((err as HttpException).getResponse()).toMatchObject({ code: 'AI_QUOTA_DAILY' });
+    expect(prisma.suggestionCache.upsert).not.toHaveBeenCalled();
   });
 
-  it('falha da IA devolve a chamada ao limite', async () => {
-    const { prisma, analysis, service } = setup();
-    analysis.callTool.mockRejectedValue(new Error('rede'));
-    await expect(service.closeDayWithAi(USER, DATE, 'DINNER')).rejects.toThrow('rede');
-    expect(prisma.aiUsage.updateMany).toHaveBeenCalled();
+  it('sem cota restante, aiRemaining é 0 e canAskAi segue indicando que a IA ajudaria (o app desabilita o botão)', async () => {
+    const { service } = setup({ usageCount: CLOSE_DAY_AI.dailyLimit, templatesAvailable: false });
+    const out = await service.closeDay(USER, DATE, 'DINNER');
+    expect(out.aiRemaining).toBe(0);
+    expect(out.canAskAi).toBe(true);
   });
 });
 

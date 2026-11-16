@@ -5,6 +5,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { AdaptiveModule } from './adaptive/adaptive.module';
 import { AnalysisModule } from './analysis/analysis.module';
 import { AccountModule } from './account/account.module';
+import { AiUsageModule } from './ai-usage/ai-usage.module';
 import { AdminModule } from './admin/admin.module';
 import { BetaModule } from './beta/beta.module';
 import { AuthModule } from './auth/auth.module';
@@ -31,6 +32,7 @@ import { WorkoutsModule } from './workouts/workouts.module';
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),
     PrismaModule,
     BetaModule,
+    AiUsageModule,
     AuthModule,
     AdminModule,
     ProfileModule,

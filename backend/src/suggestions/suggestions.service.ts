@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
-import { BadRequestException, HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
 import { FoodSource, GoalType, MealSource, MealType, Prisma } from '@prisma/client';
+import { AiQuotaService } from '../ai-usage/ai-quota.service';
 import { SUGGEST_PROMPT_VERSION, SUGGEST_SYSTEM_PROMPT, SUGGEST_TOOL } from '../analysis/analysis.prompt';
 import { AnalysisService } from '../analysis/analysis.service';
 import { formatDay, parseDay } from '../common/dates';
@@ -37,7 +38,7 @@ import { MEAL_TEMPLATES, TEMPLATE_FOOD_NAMES } from './meal-templates';
  * (sem planos implementados agora): hoje só existe o limite diário.
  */
 export const CLOSE_DAY_AI = {
-  feature: 'close-day-ai',
+  /** Padrão quando não há serviço de cota (testes); o limite real é AI_DAILY_LIMIT_SUGGEST */
   dailyLimit: 3,
   isPremiumFeature: true,
   cacheTtlMs: 30 * 24 * 60 * 60 * 1000,
@@ -160,6 +161,7 @@ export class SuggestionsService {
     private readonly foods: FoodsService,
     private readonly analysis: AnalysisService,
     private readonly meals: MealsService,
+    @Optional() private readonly quota?: AiQuotaService,
   ) {}
 
   /** Sugestões locais (nunca chama a IA): histórico do mesmo tipo de refeição → modelos de pratos. */
@@ -241,21 +243,18 @@ export class SuggestionsService {
       return response(cached.result as unknown as Suggestion[], base.aiRemaining);
     }
 
-    const left = await this.reserveAiCall(userId);
-    let suggestions: Suggestion[];
-    try {
-      const raw = await this.analysis.callTool({
-        system: SUGGEST_SYSTEM_PROMPT,
-        tool: SUGGEST_TOOL,
-        content: [{ type: 'text', text: await this.promptText(userId, ctx.target, meal, ctx.goal, pantry) }],
-        maxTokens: 2500,
-        truncatedMessage: 'A sugestão ficou incompleta. Tente de novo.',
-      });
-      suggestions = coerceAiSuggestions(raw, ctx.target);
-    } catch (err) {
-      await this.refundAiCall(userId); // falhou antes de termos uma resposta: não conta no limite
-      throw err;
-    }
+    // A reserva da cota (e o fechamento com os tokens) acontece dentro de callTool; recusas viram 429 com código
+    const raw = await this.analysis.callTool({
+      system: SUGGEST_SYSTEM_PROMPT,
+      tool: SUGGEST_TOOL,
+      content: [{ type: 'text', text: await this.promptText(userId, ctx.target, meal, ctx.goal, pantry) }],
+      maxTokens: 2500,
+      truncatedMessage: 'A sugestão ficou incompleta. Tente de novo.',
+      feature: 'SUGGEST',
+      userId,
+    });
+    const suggestions: Suggestion[] = coerceAiSuggestions(raw, ctx.target);
+    const left = await this.aiRemaining(userId);
     this.logger.log(`close-day ai: cache miss (${suggestions.length} sugestão(ões) válidas)`);
 
     if (suggestions.length > 0) {
@@ -327,7 +326,8 @@ export class SuggestionsService {
       ...base,
       suggestions,
       source: suggestions.length ? 'local' : 'none',
-      canAskAi: !good && this.analysis.isConfigured && base.aiRemaining > 0,
+      // A IA pode ajudar? (a cota restante vem em aiRemaining: o app mostra o botão desabilitado quando ela acaba)
+      canAskAi: !good && this.analysis.isConfigured,
     };
   }
 
@@ -505,39 +505,12 @@ export class SuggestionsService {
   }
 
   // ---------------------------------------------------------------------------
-  // Limite diário de chamadas à IA (dia UTC)
+  // Cota de IA: o limite diário (e o mensal e o orçamento) agora vivem no AiQuotaService
   // ---------------------------------------------------------------------------
 
+  /** Quantas sugestões com IA ainda cabem hoje (0 se a cota, o bloqueio ou o orçamento do beta impedem). */
   async aiRemaining(userId: string): Promise<number> {
-    const row = await this.prisma.aiUsage.findUnique({
-      where: { userId_day_feature: { userId, day: todayUtc(), feature: CLOSE_DAY_AI.feature } },
-    });
-    return Math.max(0, CLOSE_DAY_AI.dailyLimit - (row?.count ?? 0));
-  }
-
-  /** Reserva antes de chamar (dois cliques simultâneos não estouram o limite). Devolve quantas restam. */
-  private async reserveAiCall(userId: string): Promise<number> {
-    const where = { userId_day_feature: { userId, day: todayUtc(), feature: CLOSE_DAY_AI.feature } };
-    const row = await this.prisma.aiUsage.upsert({
-      where,
-      create: { userId, day: todayUtc(), feature: CLOSE_DAY_AI.feature, count: 1 },
-      update: { count: { increment: 1 } },
-    });
-    if (row.count > CLOSE_DAY_AI.dailyLimit) {
-      await this.prisma.aiUsage.update({ where, data: { count: { decrement: 1 } } });
-      throw new HttpException(
-        `Você já usou as ${CLOSE_DAY_AI.dailyLimit} sugestões com IA de hoje. Amanhã tem mais.`,
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-    return CLOSE_DAY_AI.dailyLimit - row.count;
-  }
-
-  private async refundAiCall(userId: string) {
-    await this.prisma.aiUsage.updateMany({
-      where: { userId, day: todayUtc(), feature: CLOSE_DAY_AI.feature, count: { gt: 0 } },
-      data: { count: { decrement: 1 } },
-    });
+    return this.quota ? this.quota.remaining(userId, 'SUGGEST') : CLOSE_DAY_AI.dailyLimit;
   }
 }
 

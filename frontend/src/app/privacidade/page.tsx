@@ -88,8 +88,13 @@ export default function PrivacyPage() {
       </p>
       <h3>Uso da IA e denúncias</h3>
       <p>
-        Um contador diário de quantas vezes você usou cada recurso de IA, para aplicar o limite de uso. Se você denunciar
-        um produto do acervo com dados errados, guardamos a denúncia e o motivo que você escreveu.
+        Contadores de uso de IA: guardamos quando e qual recurso de IA foi usado (foto, descrição, leitura de rótulo ou
+        sugestão) e a quantidade de tokens da chamada, sem o conteúdo (nada de foto, texto digitado ou resposta). Isso serve
+        para aplicar os limites diários e mensais e para controlar os custos do beta. Os registros mais antigos que 13 meses
+        são apagados, e, ao excluir a conta, os registros ficam anônimos (sem ligação com você).
+      </p>
+      <p>
+        Se você denunciar um produto do acervo com dados errados, guardamos a denúncia e o motivo que você escreveu.
       </p>
       <p>
         Peso, altura e hábitos alimentares podem ser considerados dados de saúde pela LGPD. Eles são tratados com base
