@@ -3026,3 +3026,74 @@ body:not(:has(.tabbar)) .toast-region {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* --------------------------------------------------------------------------
+   Meta adaptativa
+   -------------------------------------------------------------------------- */
+
+.adaptive-compare {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 12px;
+}
+
+.adaptive-compare .stat strong {
+  font-size: 26px;
+}
+
+.adaptive-arrow {
+  font-size: 22px;
+  color: var(--text-3);
+}
+
+.adaptive-progress {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--fill-strong);
+  overflow: hidden;
+}
+
+.adaptive-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 400ms var(--ease);
+}
+
+.adaptive-how summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.adaptive-how ol {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.adaptive-history {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.adaptive-hint {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 14px;
+  text-align: left;
+  border-radius: var(--radius-lg);
+  background: var(--fill);
+  color: var(--text);
+}

@@ -44,6 +44,8 @@ export interface Profile extends BodyData {
   weekStartsOn: WeekStart;
   /** Relatórios semanais sem nenhuma informação de peso. */
   hideWeightInReports: boolean;
+  /** Meta adaptativa: sugerir ajustes da meta a partir do gasto estimado. */
+  adaptiveEnabled: boolean;
   updatedAt: string;
 }
 
@@ -320,4 +322,51 @@ export interface WeeklyListItem {
   weekStart: string;
   weekEnd: string;
   loggedDays: number;
+}
+
+// --- Meta adaptativa (GET /adaptive/status) ---
+
+export type AdaptiveState = 'disabled' | 'collecting' | 'no_change' | 'suggestion' | 'paused';
+export type AdaptiveNote = 'under18' | 'underweight_loss' | 'fast_loss' | 'low_intake';
+export type AdaptiveConfidence = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface AdaptiveStatus {
+  enabled: boolean;
+  state: AdaptiveState;
+  progress: {
+    usableDays: number;
+    weighIns: number;
+    daysSinceStart: number;
+    needed: { daysSinceStart: number; usableDays: number; weighIns: number; weighInsPerEnd: number };
+  };
+  estimate?: {
+    tdee: number;
+    usedTdee: number;
+    confidence: AdaptiveConfidence;
+    avgIntake: number;
+    weightStartKg: number;
+    weightEndKg: number;
+    windowStart: string;
+    windowEnd: string;
+  };
+  suggestion?: {
+    currentKcal: number;
+    newKcal: number;
+    macros: { protein: number; carbs: number; fat: number };
+    formulaTdee: number;
+  };
+  notes: AdaptiveNote[];
+  snoozedUntil?: string;
+}
+
+export interface AdaptiveHistoryItem {
+  id: string;
+  createdAt: string;
+  action: 'APPLIED' | 'DISMISSED' | 'SNOOZED';
+  previousKcal: number;
+  newKcal: number | null;
+  estimatedTdee: number;
+  confidence: AdaptiveConfidence;
+  windowStart: string;
+  windowEnd: string;
 }

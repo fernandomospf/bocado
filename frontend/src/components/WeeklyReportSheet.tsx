@@ -1,11 +1,14 @@
 'use client';
 
+import { useState } from 'react';
 import useSWR from 'swr';
 import { dayTitle } from '@/lib/date';
 import { fmtDec, fmtInt } from '@/lib/format';
+import { useAdaptiveStatus } from '@/lib/hooks';
 import { MEAL_LABEL } from '@/lib/labels';
 import { balanceText, periodLabel, signedKg, WEEKLY_DISCLAIMER } from '@/lib/reports';
 import type { WeeklyHighlight, WeeklyReport } from '@/lib/types';
+import { AdaptiveSheet } from './AdaptiveSheet';
 import { Sheet } from './Sheet';
 import { WeeklyBars } from './WeeklyBars';
 
@@ -41,6 +44,8 @@ export function WeeklyReportSheet({ weekStart, onClose }: { weekStart: string; o
         ) : (
           <ReportBody report={data} />
         )}
+
+        <AdaptiveHint />
 
         <p className="caption weekly-disclaimer">{WEEKLY_DISCLAIMER}</p>
       </div>
@@ -162,5 +167,26 @@ function Stat({ label, value, goal, color }: { label: string; value: string; goa
       <strong>{value}</strong>
       <span className="caption">meta {goal}</span>
     </div>
+  );
+}
+
+/** Bloco discreto: só aparece quando há uma sugestão de ajuste de meta. */
+function AdaptiveHint() {
+  const { data } = useAdaptiveStatus();
+  const [open, setOpen] = useState(false);
+  if (data?.state !== 'suggestion' || !data.suggestion) return null;
+  return (
+    <>
+      <button type="button" className="adaptive-hint" onClick={() => setOpen(true)}>
+        <span className="list-row-main">
+          <span className="list-row-title">Ajuste de meta sugerido</span>
+          <span className="list-row-sub">
+            {fmtInt(data.suggestion.currentKcal)} → {fmtInt(data.suggestion.newKcal)} kcal por dia
+          </span>
+        </span>
+        <span aria-hidden>›</span>
+      </button>
+      {open && <AdaptiveSheet onClose={() => setOpen(false)} />}
+    </>
   );
 }
