@@ -9,6 +9,7 @@ import {
   Matches,
   Max,
   Min,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { ISO_DATE } from '../../common/dates';
@@ -68,6 +69,11 @@ export class PreferencesDto {
   @IsOptional()
   @IsBoolean()
   hideWeightInReports?: boolean;
+
+  // Opcional, mas `null` NÃO vale (IsOptional deixaria passar e a coluna não aceita nulo)
+  @ValidateIf((o: PreferencesDto) => o.hideCalories !== undefined)
+  @IsBoolean()
+  hideCalories?: boolean;
 
   @IsOptional()
   @IsBoolean()

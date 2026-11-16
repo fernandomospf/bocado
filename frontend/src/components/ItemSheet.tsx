@@ -4,6 +4,7 @@ import { useId, useState } from 'react';
 import { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
 import { dayTitle, isValidISO, todayISO } from '@/lib/date';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtInt, parseNum, round1 } from '@/lib/format';
 import { success as hapticSuccess, tap } from '@/lib/haptics';
 import { MEAL_ORDER, MEAL_SHORT } from '@/lib/labels';
@@ -44,6 +45,7 @@ export function ItemSheet({ meal, item, ...props }: ItemSheetProps) {
 function ItemForm({ meal, item, onClose, onChanged }: ItemSheetProps & { meal: Meal; item: MealItem }) {
   const id = useId();
   const toast = useToast();
+  const { hideCalories: hide } = useDisplayPrefs();
   const { mutate } = useSWRConfig();
   const { remove } = useMealRemoval();
   const { saveFavorite } = useQuickMeals();
@@ -169,7 +171,7 @@ function ItemForm({ meal, item, onClose, onChanged }: ItemSheetProps & { meal: M
         <div className="stack" style={{ gap: 4 }}>
           <h2 className="title">{name.trim() || item.name}</h2>
           <div className="estimate-host">
-            <p className="body-2 num">{fmtInt(current.kcal)} kcal</p>
+            {hide ? <p className="body-2 num">{fmtInt(current.protein)} g de proteína</p> : <p className="body-2 num">{fmtInt(current.kcal)} kcal</p>}
             {/* Mexeu nos valores: deixam de ser a estimativa da IA (o servidor também desliga ao salvar) */}
             {item.estimated && !Object.keys(patch).some((k) => k !== 'name') && <EstimateBadge />}
           </div>
@@ -208,8 +210,8 @@ function ItemForm({ meal, item, onClose, onChanged }: ItemSheetProps & { meal: M
           )}
         </div>
 
-        <div className="grid-4">
-          {MACROS.map(({ field, label, color }) => (
+        {(() => {
+          const macroField = ({ field, label, color }: (typeof MACROS)[number]) => (
             <div key={field} className="mini-field">
               <label htmlFor={`${id}-${field}`} style={{ color }}>
                 {label}
@@ -222,8 +224,24 @@ function ItemForm({ meal, item, onClose, onChanged }: ItemSheetProps & { meal: M
                 onChange={(e) => changeMacro(field, e.target.value)}
               />
             </div>
-          ))}
-        </div>
+          );
+          // Sem calorias, o campo de kcal (entrada de dados) fica em "Mais detalhes"
+          return hide ? (
+            <>
+              <div className="grid-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                {MACROS.filter((m) => m.field !== 'kcal').map(macroField)}
+              </div>
+              <details className="adaptive-how">
+                <summary>Mais detalhes</summary>
+                <div className="grid-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginTop: 8 }}>
+                  {MACROS.filter((m) => m.field === 'kcal').map((m) => macroField({ ...m, color: 'var(--text-2)' }))}
+                </div>
+              </details>
+            </>
+          ) : (
+            <div className="grid-4">{MACROS.map(macroField)}</div>
+          );
+        })()}
 
         <div className="field">
           <span className="field-label" id={`${id}-meal`}>

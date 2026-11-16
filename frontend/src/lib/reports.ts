@@ -11,11 +11,11 @@ export function periodLabel(start: string, end: string) {
   return `${dayMonthShort(start, !sameMonth)} a ${dayMonthShort(end, true)}`;
 }
 
-/** Texto neutro do balanço versus uma referência: sem julgamento, só "abaixo" ou "acima". */
+/** Texto neutro do balanço versus uma referência: sem julgamento, só "abaixo" ou "além". */
 export function balanceText(kcal: number, reference: string) {
   const abs = Math.abs(Math.round(kcal)).toLocaleString('pt-BR');
   if (Math.abs(kcal) < 1) return `Igual ${reference}`;
-  return `${abs} kcal ${kcal > 0 ? 'abaixo' : 'acima'} ${reference}`;
+  return `${abs} kcal ${kcal > 0 ? 'abaixo' : 'além'} ${reference}`;
 }
 
 /** "+0,6 kg" / "−0,7 kg" (sinal tipográfico, uma casa). */

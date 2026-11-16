@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { tap } from '@/lib/haptics';
 import { useProfile } from '@/lib/hooks';
 import type { Profile } from '@/lib/types';
@@ -18,8 +19,10 @@ export function WorkoutPrefs() {
   const { data: profile, mutate } = useProfile();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  const { hideCalories: hide } = useDisplayPrefs();
 
-  if (!profile) return null;
+  // Estimativa de gasto e soma à meta são só de calorias: ficam ocultas e desligadas enquanto o modo estiver ativo
+  if (!profile || hide) return null;
 
   async function save(patch: Patch) {
     if (!profile) return false;

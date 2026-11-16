@@ -3,6 +3,7 @@
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { addDays, addMonths, fromISO, monthEnd, monthLabel, monthStart, weekStart } from '@/lib/date';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtInt } from '@/lib/format';
 import { tap } from '@/lib/haptics';
 import type { RangeSummary, WeekStart } from '@/lib/types';
@@ -42,6 +43,7 @@ export function CalendarSheet({ date, today, weekStartsOn, onClose, onSelect }: 
   const isCurrentMonth = first === monthStart(today);
   const to = last < today ? last : today;
   const { data } = useSWR<RangeSummary>(`/days?from=${first}&to=${to}`);
+  const { hideCalories: hide } = useDisplayPrefs();
   const target = data?.targets?.kcal ?? 0;
   const logged = new Map(data?.days.map((d) => [d.date, d.totals.kcal]) ?? []);
   const { data: workoutData } = useSWR<{ workouts: { date: string }[] }>(`/workouts?from=${first}&to=${to}`, { revalidateOnFocus: false });
@@ -143,11 +145,16 @@ export function CalendarSheet({ date, today, weekStartsOn, onClose, onSelect }: 
                 if (d < first || d > last) return <span key={d} role="gridcell" className="calendar-cell" />;
                 const future = d > today;
                 const kcal = logged.get(d);
-                const status = kcal !== undefined ? dayStatus(kcal, target) : null;
+                // Sem calorias, o ponto só diz "dia com registro"
+                const status = kcal !== undefined ? (hide ? 'on' : dayStatus(kcal, target)) : null;
                 const label = [
                   d === today ? 'Hoje, ' : '',
                   fullLabel.format(fromISO(d)),
-                  kcal !== undefined ? `: ${fmtInt(kcal)} kcal${status === 'on' ? ', dentro da meta' : ''}` : '',
+                  kcal !== undefined
+                    ? hide
+                      ? ': com registro'
+                      : `: ${fmtInt(kcal)} kcal${status === 'on' ? ', dentro da meta' : ''}`
+                    : '',
                   trainedDays.has(d) ? ', com treino' : '',
                 ].join('');
                 return (
@@ -177,12 +184,20 @@ export function CalendarSheet({ date, today, weekStartsOn, onClose, onSelect }: 
         </div>
 
         <div className="calendar-legend caption" aria-hidden>
-          <span>
-            <i data-status="on" /> Dentro da meta (±10%)
-          </span>
-          <span>
-            <i data-status="off" /> Com registro
-          </span>
+          {hide ? (
+            <span>
+              <i data-status="on" /> Dia com registro
+            </span>
+          ) : (
+            <>
+              <span>
+                <i data-status="on" /> Dentro da meta (±10%)
+              </span>
+              <span>
+                <i data-status="off" /> Com registro
+              </span>
+            </>
+          )}
           <span>
             <i className="workout-dot workout-dot-static" /> Com treino
           </span>

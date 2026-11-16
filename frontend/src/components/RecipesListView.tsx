@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import useSWR from 'swr';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtInt } from '@/lib/format';
 import { matchesName } from '@/lib/recipe';
 import type { RecipeSummary } from '@/lib/types';
@@ -12,6 +13,7 @@ import { ChevronRight, PlusIcon } from './Icons';
 export function RecipesListView() {
   const { data, error } = useSWR<RecipeSummary[]>('/recipes');
   const [query, setQuery] = useState('');
+  const { hideCalories: hide } = useDisplayPrefs();
   const [sort, setSort] = useState<'used' | 'recent' | 'az'>('used');
   const recipes = useMemo(() => {
     const list = (data ?? []).filter((r) => matchesName(r.name, query));
@@ -89,10 +91,19 @@ export function RecipesListView() {
                 <div className="list-row-main">
                   <div className="list-row-title">{r.name}</div>
                   <div className="list-row-sub">
-                    {r.portionGrams && (
-                      <span className="num">{fmtInt((r.per100.kcal * r.portionGrams) / 100)} kcal/porção · </span>
+                    {hide ? (
+                      <span className="num">
+                        {r.portionGrams && `${fmtInt((r.per100.protein * r.portionGrams) / 100)} g de proteína/porção · `}
+                        {fmtInt(r.per100.protein)} g de proteína/100 g
+                      </span>
+                    ) : (
+                      <>
+                        {r.portionGrams && (
+                          <span className="num">{fmtInt((r.per100.kcal * r.portionGrams) / 100)} kcal/porção · </span>
+                        )}
+                        <span className="num">{fmtInt(r.per100.kcal)} kcal/100 g</span>
+                      </>
                     )}
-                    <span className="num">{fmtInt(r.per100.kcal)} kcal/100 g</span>
                     {r.timesUsed > 0 && ` · usada ${r.timesUsed}x`}
                   </div>
                 </div>

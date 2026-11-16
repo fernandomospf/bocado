@@ -7,6 +7,7 @@ import { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
 import { fmtDec, fmtInt } from '@/lib/format';
 import { tap } from '@/lib/haptics';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { useMe, useProfile } from '@/lib/hooks';
 import { ACTIVITY_OPTIONS, GOAL_OPTIONS } from '@/lib/labels';
 import type { Profile, WeekStart } from '@/lib/types';
@@ -41,6 +42,7 @@ export function ProfileView() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const toast = useToast();
+  const { hideCalories: hide } = useDisplayPrefs();
 
   useEffect(() => {
     if (profile) setDraft(toDraft(profile.targets));
@@ -91,6 +93,24 @@ export function ProfileView() {
       .catch((err) => toast.show({ message: errorMessage(err), tone: 'error' }));
   }
 
+  async function setHideCalories(hideCalories: boolean) {
+    if (!profile || profile.hideCalories === hideCalories) return;
+    tap();
+    await mutate(
+      async () => api<Profile>('/profile/preferences', { method: 'PATCH', json: { hideCalories } }),
+      { optimisticData: { ...profile, hideCalories }, rollbackOnError: true, revalidate: false },
+    )
+      .then(() =>
+        // Tudo que mostra calorias muda de cara: dias, relatórios, meta adaptativa e treinos
+        globalMutate(
+          (key) =>
+            typeof key === 'string' &&
+            ['/days', '/reports', '/adaptive', '/workouts', '/suggestions'].some((p) => key.startsWith(p)),
+        ),
+      )
+      .catch((err) => toast.show({ message: errorMessage(err), tone: 'error' }));
+  }
+
   const goal = GOAL_OPTIONS.find((o) => o.value === profile?.goal)?.label;
   const activity = ACTIVITY_OPTIONS.find((o) => o.value === profile?.activityLevel)?.label;
 
@@ -122,10 +142,11 @@ export function ProfileView() {
           <div className="screen-group profile-o3">
             <h2 className="section-title">Metas diárias</h2>
             <section className="card glass stack-lg">
-              <TargetsEditor value={draft} onChange={setDraft} />
+              <TargetsEditor value={draft} onChange={setDraft} hideKcal={hide} />
               <p className="caption">
-                Sugestão para você: {fmtInt(profile.suggestion.kcal)} kcal · gasto estimado de{' '}
-                {fmtInt(profile.suggestion.tdee)} kcal por dia.
+                {hide
+                  ? `Sugestão para você: proteína ${fmtInt(profile.suggestion.protein)} g · carboidratos ${fmtInt(profile.suggestion.carbs)} g · gorduras ${fmtInt(profile.suggestion.fat)} g.`
+                  : `Sugestão para você: ${fmtInt(profile.suggestion.kcal)} kcal · gasto estimado de ${fmtInt(profile.suggestion.tdee)} kcal por dia.`}
               </p>
               {message && (
                 <p className={message.kind === 'error' ? 'alert' : 'note'} role="status">
@@ -191,6 +212,38 @@ export function ProfileView() {
 
         {profile && (
           <div className="screen-group profile-o4">
+            <h2 className="section-title">Foco</h2>
+            <section className="card glass stack">
+              <label className="switch-row">
+                <span>Esconder calorias</span>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  className="switch"
+                  checked={profile.hideCalories}
+                  onChange={(e) => void setHideCalories(e.target.checked)}
+                />
+              </label>
+              <p className="caption">
+                Para quem prefere não ver números de calorias. Você continua acompanhando proteína e constância, e pode voltar atrás
+                quando quiser. Seus dados continuam guardados.
+              </p>
+              <label className="switch-row">
+                <span>Mostrar peso nos relatórios</span>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  className="switch"
+                  checked={!profile.hideWeightInReports}
+                  onChange={(e) => void setHideWeight(!e.target.checked)}
+                />
+              </label>
+            </section>
+          </div>
+        )}
+
+        {profile && (
+          <div className="screen-group profile-o4">
             <h2 className="section-title">Preferências</h2>
             <section className="card glass stack">
               <p className="body-2" id="week-start-label">
@@ -208,16 +261,6 @@ export function ProfileView() {
                   </button>
                 ))}
               </div>
-              <label className="switch-row">
-                <span>Mostrar peso nos relatórios</span>
-                <input
-                  type="checkbox"
-                  role="switch"
-                  className="switch"
-                  checked={!profile.hideWeightInReports}
-                  onChange={(e) => void setHideWeight(!e.target.checked)}
-                />
-              </label>
               <WorkoutPrefs />
             </section>
           </div>

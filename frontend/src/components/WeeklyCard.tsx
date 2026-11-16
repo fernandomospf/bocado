@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import useSWR from 'swr';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtInt } from '@/lib/format';
 import { balanceText, periodLabel, weeklyDismissKey } from '@/lib/reports';
 import type { WeeklyListItem, WeeklyReport } from '@/lib/types';
@@ -16,6 +17,7 @@ export function WeeklyCard({ today, isToday }: { today: string; isToday: boolean
   const [hour, setHour] = useState<number | null>(null);
   const [dismissedWeek, setDismissedWeek] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  const { hideCalories: hide } = useDisplayPrefs();
 
   useEffect(() => setHour(new Date().getHours()), []);
 
@@ -61,7 +63,11 @@ export function WeeklyCard({ today, isToday }: { today: string; isToday: boolean
 
         {report ? (
           report.insufficientData ? (
-            <p className="body-2">Poucos dias registrados ({report.loggedDays} de 7).</p>
+            <p className="body-2">{report.loggedDays} de 7 dias registrados.</p>
+          ) : hide ? (
+            <p className="body-2">
+              {report.loggedDays} de 7 dias registrados · proteína em 90% ou mais da meta em {report.daysProteinHit} deles
+            </p>
           ) : (
             <p className="body-2">
               Média de {fmtInt(report.avg!.kcal)} kcal por dia · {balanceText(report.balanceVsTargetKcal!, 'da meta')}

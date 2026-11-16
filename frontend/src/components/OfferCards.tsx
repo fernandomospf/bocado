@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtDec, fmtInt } from '@/lib/format';
 import { useSharedOffers } from '@/lib/hooks';
 import { MEAL_LABEL } from '@/lib/labels';
@@ -15,6 +16,7 @@ const firstName = (name: string) => name.trim().split(/\s+/)[0] ?? name;
 export function OfferCards() {
   const { data } = useSharedOffers();
   const { accept, dismiss } = useOfferActions();
+  const { hideCalories: hide } = useDisplayPrefs();
   const [busyId, setBusyId] = useState<string | null>(null);
   if (!data || data.length === 0) return null;
 
@@ -42,7 +44,7 @@ export function OfferCards() {
                 {firstName(o.from.name)} dividiu {MEAL_LABEL[o.type].toLowerCase()} com você
               </p>
               <p className="caption num">
-                {fmtInt(o.totals.kcal)} kcal · P {fmtDec(o.totals.protein)}g · C {fmtDec(o.totals.carbs)}g · G{' '}
+                {hide ? '' : `${fmtInt(o.totals.kcal)} kcal · `}P {fmtDec(o.totals.protein)}g · C {fmtDec(o.totals.carbs)}g · G{' '}
                 {fmtDec(o.totals.fat)}g
               </p>
               {o.items.length > 0 && (

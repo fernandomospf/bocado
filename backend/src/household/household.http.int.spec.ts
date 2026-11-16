@@ -221,6 +221,56 @@ describeDb('HTTP: privacidade entre membros da casa e rate limits', () => {
     expect(dayB.meals[0].sharedBy).toBeUndefined();
   });
 
+  it('PATCH /profile/preferences com hideCalories: booleano válido, inválido rejeitado, só o próprio usuário', async () => {
+    const { a, b, ta, tb } = await scenario();
+    // inválido ou fora do contrato: 400, nada muda
+    expect((await call(tb, 'PATCH', '/profile/preferences', { hideCalories: 'sim' })).status).toBe(400);
+    expect((await call(tb, 'PATCH', '/profile/preferences', { hideCalories: 1 })).status).toBe(400);
+    expect((await call(tb, 'PATCH', '/profile/preferences', { hideCalories: true, userId: a.id })).status).toBe(400);
+    expect((await call(null, 'PATCH', '/profile/preferences', { hideCalories: true })).status).toBe(401);
+    expect((await prisma.profile.findUniqueOrThrow({ where: { userId: b.id } })).hideCalories).toBe(false);
+
+    // válido: liga e desliga, devolvido no GET /profile, e só o perfil de B muda
+    const on = await call(tb, 'PATCH', '/profile/preferences', { hideCalories: true });
+    expect(on.status).toBe(200);
+    expect(JSON.parse(on.text).hideCalories).toBe(true);
+    expect(JSON.parse((await call(tb, 'GET', '/profile')).text).hideCalories).toBe(true);
+    expect(JSON.parse((await call(ta, 'GET', '/profile')).text).hideCalories).toBe(false);
+    // outras preferências continuam independentes (peso e semana não são amarrados)
+    expect(JSON.parse((await call(tb, 'PATCH', '/profile/preferences', { hideWeightInReports: true })).text)).toMatchObject({ hideCalories: true, hideWeightInReports: true });
+    expect(JSON.parse((await call(tb, 'PATCH', '/profile/preferences', { hideCalories: false })).text)).toMatchObject({ hideCalories: false, hideWeightInReports: true });
+  });
+
+  it('com hideCalories: estimativa de treino desligada, meta adaptativa sem sugestão; os dados continuam guardados e a exportação traz kcal', async () => {
+    const { b, tb } = await scenario();
+    await prisma.workout.create({ data: { userId: b.id, date: new Date('2026-11-10T00:00:00Z'), type: 'RUN', durationMin: 40, intensity: 'MODERATE' } });
+    await prisma.meal.create({ data: { userId: b.id, date: new Date('2026-11-10T00:00:00Z'), type: 'LUNCH', items: { create: [{ name: 'Arroz', grams: 100, kcal: 130, protein: 3, carbs: 28, fat: 0.3 }] } } });
+    await call(tb, 'PATCH', '/profile/preferences', { workoutEstimateEnabled: true, workoutAddToGoal: true });
+
+    const before = JSON.parse((await call(tb, 'GET', '/days/2026-11-10')).text);
+    expect(before.workouts[0].estimateKcal).toBeGreaterThan(0);
+    expect(before.goalBonusKcal).toBeGreaterThan(0);
+
+    await call(tb, 'PATCH', '/profile/preferences', { hideCalories: true });
+    const hidden = JSON.parse((await call(tb, 'GET', '/days/2026-11-10')).text);
+    expect(hidden.workouts[0].estimateKcal).toBeUndefined();
+    expect(hidden.goalBonusKcal).toBeUndefined();
+    expect(hidden.totals.kcal).toBe(130); // o backend segue devolvendo as calorias
+    expect(JSON.parse((await call(tb, 'GET', '/adaptive/status?today=2026-11-16')).text).state).toBe('disabled');
+    const csv = await call(tb, 'GET', '/export/meals.csv?period=30d&to=2026-11-16');
+    expect(csv.status).toBe(200);
+    expect(csv.text.toLowerCase()).toContain('kcal');
+    // as preferências de treino guardadas não foram mexidas
+    const p = await prisma.profile.findUniqueOrThrow({ where: { userId: b.id } });
+    expect([p.workoutEstimateEnabled, p.workoutAddToGoal]).toEqual([true, true]);
+
+    // desligar o modo: tudo volta como estava
+    await call(tb, 'PATCH', '/profile/preferences', { hideCalories: false });
+    const back = JSON.parse((await call(tb, 'GET', '/days/2026-11-10')).text);
+    expect(back.workouts[0].estimateKcal).toBeGreaterThan(0);
+    expect(back.goalBonusKcal).toBeGreaterThan(0);
+  });
+
   it('o preview devolve só nome da casa e primeiro nome; todo código ruim dá o mesmo 404', async () => {
     const { a, ta } = await scenario();
     const invite = JSON.parse((await call(ta, 'POST', '/household/invites')).text);

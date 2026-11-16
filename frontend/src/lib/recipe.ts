@@ -20,8 +20,12 @@ export function matchesName(name: string, query: string) {
 }
 
 /** "1 porção (325 g) · 491 kcal" ou "100 g · 151 kcal". */
-export function recipeSubtitle(r: RecipeSummary) {
+export function recipeSubtitle(r: RecipeSummary, hideKcal = false) {
   const fmt = (n: number) => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(Math.round(n));
+  if (hideKcal) {
+    if (r.portionGrams) return `1 porção (${fmt(r.portionGrams)} g) · ${fmt((r.per100.protein * r.portionGrams) / 100)} g de proteína`;
+    return `100 g · ${fmt(r.per100.protein)} g de proteína`;
+  }
   if (r.portionGrams) return `1 porção (${fmt(r.portionGrams)} g) · ${fmt((r.per100.kcal * r.portionGrams) / 100)} kcal`;
   return `100 g · ${fmt(r.per100.kcal)} kcal`;
 }

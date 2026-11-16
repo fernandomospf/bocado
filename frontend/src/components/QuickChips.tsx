@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import useSWR from 'swr';
 import { fmtInt } from '@/lib/format';
 import { useFavorites, useRecentMeals } from '@/lib/hooks';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { quickKey, quickLabel } from '@/lib/quickMeals';
 import type { MealType, QuickItem, RecipeSummary } from '@/lib/types';
 import { CheckIcon, PlusIcon, PotIcon } from './Icons';
@@ -31,6 +32,9 @@ export function QuickChips({ type, onPickRecipe, onPickItems, onRegister, disabl
   const { data: recipes } = useSWR<RecipeSummary[]>('/recipes');
   const { data: favorites } = useFavorites();
   const { data: recent } = useRecentMeals(type);
+  const { hideCalories: hide } = useDisplayPrefs();
+  // Sem calorias, a proteína ocupa o lugar delas no chip
+  const stat = (t: { kcal: number; protein: number }) => (hide ? `${fmtInt(t.protein)} g de proteína` : `${fmtInt(t.kcal)} kcal`);
 
   // Recente que já é favorita não aparece duas vezes
   const recents = useMemo(() => {
@@ -49,7 +53,7 @@ export function QuickChips({ type, onPickRecipe, onPickItems, onRegister, disabl
             <MealChip
               key={f.id}
               label={f.name}
-              kcal={f.totals.kcal}
+              stat={stat(f.totals)}
               disabled={disabled}
               onPick={() => onPickItems(f.items)}
               onRegister={() => onRegister({ kind: 'favorite', id: f.id })}
@@ -70,7 +74,7 @@ export function QuickChips({ type, onPickRecipe, onPickItems, onRegister, disabl
             <MealChip
               key={r.mealId}
               label={quickLabel(r.items)}
-              kcal={r.totals.kcal}
+              stat={stat(r.totals)}
               times={r.times}
               disabled={disabled}
               onPick={() => onPickItems(r.items)}
@@ -112,14 +116,14 @@ export function QuickChips({ type, onPickRecipe, onPickItems, onRegister, disabl
 /** Chip de refeição: o corpo adiciona ao editor; o botão ✓ registra direto. Alvos de 44px. */
 function MealChip({
   label,
-  kcal,
+  stat,
   times,
   disabled,
   onPick,
   onRegister,
 }: {
   label: string;
-  kcal: number;
+  stat: string;
   times?: number;
   disabled?: boolean;
   onPick: () => void;
@@ -129,7 +133,7 @@ function MealChip({
     <span className="chip-meal">
       <button type="button" className="chip-meal-main" onClick={onPick} disabled={disabled}>
         <span className="chip-meal-label">{label}</span>
-        <span className="chip-meal-kcal num">{fmtInt(kcal)} kcal</span>
+        <span className="chip-meal-kcal num">{stat}</span>
         {times && times > 1 && <span className="chip-count num" aria-label={`${times} vezes`}>{times}x</span>}
       </button>
       <button

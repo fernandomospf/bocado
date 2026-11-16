@@ -115,6 +115,7 @@ export class ProfileService {
           : {}),
         ...(dto.weekStartsOn !== undefined ? { weekStartsOn: dto.weekStartsOn } : {}),
         ...(dto.hideWeightInReports !== undefined ? { hideWeightInReports: dto.hideWeightInReports } : {}),
+        ...(dto.hideCalories !== undefined ? { hideCalories: dto.hideCalories } : {}),
         ...(dto.adaptiveEnabled !== undefined ? { adaptiveEnabled: dto.adaptiveEnabled } : {}),
       },
     });
@@ -140,6 +141,7 @@ export class ProfileService {
       suggestion: suggestTargets(p),
       weekStartsOn: p.weekStartsOn,
       hideWeightInReports: p.hideWeightInReports,
+      hideCalories: p.hideCalories,
       adaptiveEnabled: p.adaptiveEnabled,
       workoutEstimateEnabled: p.workoutEstimateEnabled,
       workoutAddToGoal: p.workoutAddToGoal,

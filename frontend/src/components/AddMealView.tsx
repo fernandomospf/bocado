@@ -27,6 +27,7 @@ import { FatQuestion } from './FatQuestion';
 import { MacroDots } from './MacroLegend';
 import { BarcodeIcon, CameraIcon, ChevronLeft, ImageIcon, PlusIcon, SparkIcon } from './Icons';
 import { PREFILL_KEY } from './CloseDayCard';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { NO_SPLIT, SplitPicker, type SplitState, splitIncomplete, splitReady } from './SplitPicker';
 import { useSharedSave } from '@/lib/sharedMeals';
 import {
@@ -77,6 +78,7 @@ export function AddMealView() {
   const [busy, setBusy] = useState<'analyze' | 'save' | null>(null);
   const [split, setSplit] = useState<SplitState>(NO_SPLIT);
   const saveShared = useSharedSave();
+  const { hideCalories: hide } = useDisplayPrefs();
   const [dragging, setDragging] = useState(false);
   const [chipFood, setChipFood] = useState<FoodResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -532,12 +534,12 @@ export function AddMealView() {
           </button>
         )}
 
-        {items.length > 0 && <SplitPicker value={split} onChange={setSplit} totalKcal={totals.kcal} />}
+        {items.length > 0 && <SplitPicker value={split} onChange={setSplit} totalKcal={totals.kcal} totalProtein={totals.protein} />}
 
         {items.length > 0 && (
           <div className="totals-bar glass">
             <div>
-              <span className="headline num">{fmtInt(totals.kcal)} kcal</span>
+              {!hide && <span className="headline num">{fmtInt(totals.kcal)} kcal</span>}
               <p className="caption">
                 <MacroDots m={totals} />
               </p>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useId } from 'react';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtInt } from '@/lib/format';
 import { useHousehold, useMe } from '@/lib/hooks';
 import { adjustShare, equalShares, STEP_PCT, twoWay } from '@/lib/split';
@@ -27,10 +28,13 @@ interface SplitPickerProps {
   onChange: (next: SplitState) => void;
   /** kcal da refeição inteira, para a prévia "Você: 540 kcal · Ana: 360 kcal". */
   totalKcal: number;
+  /** Proteína da refeição inteira (a prévia usa gramas de proteína no modo sem calorias). */
+  totalProtein?: number;
 }
 
 /** "Dividir com a casa": escolha de pessoas e porções. Só aparece se a casa tiver mais de um membro. */
-export function SplitPicker({ value, onChange, totalKcal }: SplitPickerProps) {
+export function SplitPicker({ value, onChange, totalKcal, totalProtein = 0 }: SplitPickerProps) {
+  const { hideCalories: hide } = useDisplayPrefs();
   const { data: house } = useHousehold();
   const { data: me } = useMe();
   const id = useId();
@@ -144,7 +148,13 @@ export function SplitPicker({ value, onChange, totalKcal }: SplitPickerProps) {
               </div>
 
               <p className="body-2 num" aria-live="polite">
-                {orderedIds.map((uid) => `${nameOf(uid)}: ${fmtInt((totalKcal * value.shares[uid]) / 100)} kcal`).join(' · ')}
+                {orderedIds
+                  .map((uid) =>
+                    hide
+                      ? `${nameOf(uid)}: ${fmtInt((totalProtein * value.shares[uid]) / 100)} g de proteína`
+                      : `${nameOf(uid)}: ${fmtInt((totalKcal * value.shares[uid]) / 100)} kcal`,
+                  )
+                  .join(' · ')}
               </p>
             </>
           )}

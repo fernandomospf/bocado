@@ -8,10 +8,10 @@ const ROWS = [
   { key: 'fat', label: 'Gorduras', unit: 'g', color: 'var(--ring-fat)' },
 ] as const;
 
-export function MacroLegend({ totals, targets }: { totals: Macros; targets: Macros }) {
+export function MacroLegend({ totals, targets, hideKcal = false }: { totals: Macros; targets: Macros; hideKcal?: boolean }) {
   return (
     <div className="legend">
-      {ROWS.map((r) => (
+      {ROWS.filter((r) => !(hideKcal && r.key === 'kcal')).map((r) => (
         <div key={r.key} className="legend-item">
           <span className="legend-label" style={{ color: r.color }}>
             {r.label}

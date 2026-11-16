@@ -4,6 +4,7 @@ import { useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
 import { fmtInt } from '@/lib/format';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { tap } from '@/lib/haptics';
 import { useAdaptiveStatus, useProfile } from '@/lib/hooks';
 import type { AdaptiveConfidence, AdaptiveHistoryItem, AdaptiveNote, AdaptiveStatus, Profile } from '@/lib/types';
@@ -33,6 +34,7 @@ export function AdaptiveSection() {
   const { data: status } = useAdaptiveStatus(!!profile);
   const { data: history } = useSWR<AdaptiveHistoryItem[]>(profile ? '/adaptive/history?limit=10' : null, { revalidateOnFocus: false });
   const [open, setOpen] = useState(false);
+  const { hideCalories: hide } = useDisplayPrefs();
 
   if (!profile) return null;
 
@@ -48,6 +50,18 @@ export function AdaptiveSection() {
   }
 
   const under18 = status?.notes.includes('under18');
+
+  // Com "esconder calorias" a meta adaptativa fica em espera: nada é sugerido nem aplicado. Ao voltar, tudo continua como estava
+  if (hide) {
+    return (
+      <section className="card glass stack" aria-labelledby="adaptive-title">
+        <h3 className="headline" id="adaptive-title">
+          Meta adaptativa
+        </h3>
+        <p className="body-2">Disponível quando as calorias estão visíveis.</p>
+      </section>
+    );
+  }
 
   return (
     <section className="card glass stack" aria-labelledby="adaptive-title">

@@ -21,7 +21,7 @@ export class WorkoutsService {
 
   /** Peso e preferências: a estimativa só aparece com `workoutEstimateEnabled`. */
   private async estimator(userId: string) {
-    const p = await this.prisma.profile.findUnique({ where: { userId }, select: { weightKg: true, workoutEstimateEnabled: true } });
+    const p = await this.prisma.profile.findUnique({ where: { userId }, select: { weightKg: true, workoutEstimateEnabled: true, hideCalories: true } });
     return (w: Workout) => ({
       id: w.id,
       date: formatDay(w.date),
@@ -30,7 +30,7 @@ export class WorkoutsService {
       intensity: w.intensity,
       note: w.note,
       createdAt: w.createdAt,
-      ...(p?.workoutEstimateEnabled ? { estimateKcal: estimateKcal(w, p.weightKg) } : {}),
+      ...(p?.workoutEstimateEnabled && !p.hideCalories ? { estimateKcal: estimateKcal(w, p.weightKg) } : {}),
     });
   }
 

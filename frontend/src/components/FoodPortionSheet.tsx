@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { api, errorMessage } from '@/lib/api';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtDec, fmtInt, parseNum } from '@/lib/format';
 import type { FoodResult } from '@/lib/types';
 import { type DraftItem, draftFromPer100, scalePer100 } from './ItemsEditor';
@@ -45,6 +46,7 @@ export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
+  const { hideCalories: hide } = useDisplayPrefs();
   // "Informar erro": só produtos do acervo compartilhado (Open Food Facts e rótulos)
   const reportable = (food.origin === 'off' || food.origin === 'label') && !!food.id;
   const [reporting, setReporting] = useState<{ open: boolean; reason: string; busy: boolean }>({ open: false, reason: '', busy: false });
@@ -89,7 +91,7 @@ export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 
           <h2 className="title">{food.name}</h2>
           {food.brand && <p className="body-2">{food.brand}</p>}
           {context && <p className="caption">{context}</p>}
-          <p className="body-2 num">{fmtInt(m.kcal)} kcal</p>
+          {!hide && <p className="body-2 num">{fmtInt(m.kcal)} kcal</p>}
         </div>
 
         <div className="grid-4">
@@ -214,7 +216,7 @@ export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 
           </p>
         )}
 
-        {splittable && <SplitPicker value={split} onChange={setSplit} totalKcal={m.kcal} />}
+        {splittable && <SplitPicker value={split} onChange={setSplit} totalKcal={m.kcal} totalProtein={m.protein} />}
 
         <button
           className="btn btn-primary btn-block"

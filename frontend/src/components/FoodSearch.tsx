@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import useSWR from 'swr';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtInt } from '@/lib/format';
 import type { FoodResult } from '@/lib/types';
 import { FoodPortionSheet, ORIGIN_LABEL } from './FoodPortionSheet';
@@ -10,13 +11,15 @@ import { type DraftItem } from './ItemsEditor';
 const DEBOUNCE_MS = 250;
 
 /** "1 unidade · 73 kcal" quando há porção; senão "100 g · 146 kcal". */
-function portionSummary(food: FoodResult) {
+function portionSummary(food: FoodResult, hideKcal = false) {
+  // Sem calorias, a proteína ocupa o lugar delas
+  const stat = (per100Value: number, grams: number) =>
+    hideKcal ? `${fmtInt((per100Value * grams) / 100)} g de proteína` : `${fmtInt((per100Value * grams) / 100)} kcal`;
   if (food.portion) {
-    const kcal = (food.per100.kcal * food.portion.grams) / 100;
     const label = food.origin === 'history' ? `${fmtInt(food.portion.grams)} g da última vez` : food.portion.label;
-    return `${label} · ${fmtInt(kcal)} kcal`;
+    return `${label} · ${stat(hideKcal ? food.per100.protein : food.per100.kcal, food.portion.grams)}`;
   }
-  return `100 g · ${fmtInt(food.per100.kcal)} kcal`;
+  return `100 g · ${stat(hideKcal ? food.per100.protein : food.per100.kcal, 100)}`;
 }
 
 interface FoodSearchProps {
@@ -28,6 +31,7 @@ interface FoodSearchProps {
 
 /** Busca de alimentos (histórico, receitas, próprios e TACO) com escolha de porção. */
 export function FoodSearch({ onAdd, excludeRecipes = false, placeholder }: FoodSearchProps) {
+  const { hideCalories: hide } = useDisplayPrefs();
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [picked, setPicked] = useState<FoodResult | null>(null);
@@ -80,7 +84,7 @@ export function FoodSearch({ onAdd, excludeRecipes = false, placeholder }: FoodS
                   <div className="list-row-title">{food.name}</div>
                   <div className="list-row-sub">
                     {food.brand ? `${food.brand} · ` : ''}
-                    {portionSummary(food)}
+                    {portionSummary(food, hide)}
                   </div>
                 </div>
                 <span className={`badge badge-origin-${food.origin}`}>{ORIGIN_LABEL[food.origin]}</span>

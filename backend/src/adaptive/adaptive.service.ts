@@ -51,7 +51,8 @@ export class AdaptiveService {
 
     const input: AdaptiveInput = {
       today,
-      enabled: profile.adaptiveEnabled,
+      // Com "esconder calorias" nenhuma sugestão é calculada nem aplicada (a preferência guardada não muda)
+      enabled: profile.adaptiveEnabled && !profile.hideCalories,
       snoozedUntil: profile.adaptiveSnoozedUntil ? formatDay(profile.adaptiveSnoozedUntil) : null,
       lastDecisionDate: last ? formatDay(last.createdAt) : null,
       firstMealDate: first ? formatDay(first.date) : null,

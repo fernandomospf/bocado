@@ -36,6 +36,7 @@ export function OnboardingView() {
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
   const [targets, setTargets] = useState<TargetsDraft | null>(null);
   const [busy, setBusy] = useState(false);
+  const [hideCal, setHideCal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -83,6 +84,8 @@ export function OnboardingView() {
       setBusy(true);
       try {
         await api('/profile', { method: 'PUT', json: { ...body(), targets: fromDraft(targets!) } });
+        // "Prefiro não ver calorias": só a interface muda; os dados e as metas seguem completos
+        if (hideCal) await api('/profile/preferences', { method: 'PATCH', json: { hideCalories: true } });
         await mutate('/auth/me');
         router.replace('/');
       } catch (err) {
@@ -130,7 +133,7 @@ export function OnboardingView() {
 
         <div key={step} className="stack-lg fade-in">
           {step === 0 && (
-            <Step title={`Oi, ${me.name.split(' ')[0]}. Qual é o seu objetivo?`} lead="Usamos isso para calcular sua meta de calorias.">
+            <Step title={`Oi, ${me.name.split(' ')[0]}. Qual é o seu objetivo?`} lead="Usamos isso para calcular suas metas diárias.">
               {GOAL_OPTIONS.map((o) => (
                 <Choice key={o.value} selected={goal === o.value} onSelect={() => setGoal(o.value)} label={o.label} hint={o.hint} />
               ))}
@@ -193,11 +196,25 @@ export function OnboardingView() {
           {step === 4 && suggestion && targets && (
             <Step
               title="Sua meta diária"
-              lead={`Seu corpo gasta cerca de ${fmtInt(suggestion.tdee)} kcal por dia. Esta é a nossa sugestão; ajuste se quiser.`}
+              lead={
+                hideCal
+                  ? 'Esta é a nossa sugestão de metas em gramas; ajuste se quiser.'
+                  : `Seu corpo gasta cerca de ${fmtInt(suggestion.tdee)} kcal por dia. Esta é a nossa sugestão; ajuste se quiser.`
+              }
             >
               <div className="card glass">
-                <TargetsEditor value={targets} onChange={setTargets} />
+                <TargetsEditor value={targets} onChange={setTargets} hideKcal={hideCal} />
               </div>
+              <label className="switch-row">
+                <span>Prefiro não ver calorias, só proteína e constância</span>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  className="switch"
+                  checked={hideCal}
+                  onChange={(e) => setHideCal(e.target.checked)}
+                />
+              </label>
               <p className="caption">
                 Cálculo pela fórmula de Mifflin-St Jeor. É uma estimativa: acompanhe seu peso por algumas semanas e ajuste.
               </p>

@@ -7,6 +7,7 @@ import { api, errorMessage } from '@/lib/api';
 import { fmtDec, fmtInt, parseNum } from '@/lib/format';
 import { computeRecipe } from '@/lib/recipe';
 import type { RecipeDetail } from '@/lib/types';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { useHousehold } from '@/lib/hooks';
 import { FoodSearch } from './FoodSearch';
 import { ChevronLeft, PlusIcon } from './Icons';
@@ -32,6 +33,7 @@ export function RecipeEditorView({ id }: { id: string }) {
   const [items, setItems] = useState<DraftItem[]>([]);
   const [loaded, setLoaded] = useState(isNew);
   const { data: household } = useHousehold();
+  const { hideCalories: hide } = useDisplayPrefs();
   const [share, setShare] = useState(false);
 
   const [busy, setBusy] = useState<'save' | 'delete' | 'copy' | null>(null);
@@ -257,7 +259,7 @@ export function RecipeEditorView({ id }: { id: string }) {
             <section className="card glass stack" aria-live="polite">
               <div className="spread">
                 <span className="body-2">Por 100 g</span>
-                <span className="headline num">{fmtInt(preview.per100.kcal)} kcal</span>
+                <span className="headline num">{hide ? `${fmtInt(preview.per100.protein)} g de proteína` : `${fmtInt(preview.per100.kcal)} kcal`}</span>
               </div>
               <p className="caption">
                 <MacroDots m={preview.per100} />
@@ -266,7 +268,7 @@ export function RecipeEditorView({ id }: { id: string }) {
                 <>
                   <div className="spread">
                     <span className="body-2">Por porção ({fmtDec(preview.portionGrams)} g)</span>
-                    <span className="headline num">{fmtInt(portion.kcal)} kcal</span>
+                    <span className="headline num">{hide ? `${fmtInt(portion.protein)} g de proteína` : `${fmtInt(portion.kcal)} kcal`}</span>
                   </div>
                   <p className="caption">
                     <MacroDots m={portion} />
@@ -274,7 +276,7 @@ export function RecipeEditorView({ id }: { id: string }) {
                 </>
               )}
               <p className="caption">
-                Receita inteira: {fmtInt(preview.totals.kcal)} kcal em {fmtInt(preview.baseGrams)} g
+                Receita inteira: {hide ? `${fmtInt(preview.totals.protein)} g de proteína` : `${fmtInt(preview.totals.kcal)} kcal`} em {fmtInt(preview.baseGrams)} g
               </p>
             </section>
           )}

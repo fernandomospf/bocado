@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtInt } from '@/lib/format';
 import { success as hapticSuccess } from '@/lib/haptics';
 import type { CloseDayResponse, Macros, MealSuggestion, MealType, SuggestionOrigin } from '@/lib/types';
@@ -46,6 +47,7 @@ interface CloseDayCardProps {
 export function CloseDayCard({ date, isToday, eatenKcal, dinnerLogged }: CloseDayCardProps) {
   const router = useRouter();
   const toast = useToast();
+  const { hideCalories: hide } = useDisplayPrefs();
   const { mutate: globalMutate } = useSWRConfig();
 
   // Horário, "dispensado" e despensa só no navegador: a página é pré-renderizada no build
@@ -106,7 +108,7 @@ export function CloseDayCard({ date, isToday, eatenKcal, dinnerLogged }: CloseDa
           <div className="spread">
             <div>
               <h2 className="headline">Dia fechado</h2>
-              <p className="caption">Você chegou perto da meta de hoje.</p>
+              <p className="caption">Sem mais sugestões para hoje.</p>
             </div>
             {dismissButton}
           </div>
@@ -132,7 +134,7 @@ export function CloseDayCard({ date, isToday, eatenKcal, dinnerLogged }: CloseDa
     try {
       await api('/suggestions/log', { method: 'POST', json: { date, type: meal, items: toMealItems(s) } });
       hapticSuccess();
-      toast.show({ message: `${meal === 'SNACK' ? 'Lanche' : 'Jantar'} registrado · +${fmtInt(s.totals.kcal)} kcal` });
+      toast.show({ message: `${meal === 'SNACK' ? 'Lanche' : 'Jantar'} registrado · ${hide ? `+${fmtInt(s.totals.protein)} g de proteína` : `+${fmtInt(s.totals.kcal)} kcal`}` });
       setShowAll(false);
       await globalMutate(`/days/${date}`);
     } catch (err) {
@@ -190,8 +192,18 @@ export function CloseDayCard({ date, isToday, eatenKcal, dinnerLogged }: CloseDa
 
   const remainingLine = (
     <p className="body-2 num">
-      Faltam {fmtInt(data.remaining.kcal)} kcal
-      {data.remaining.protein >= 5 && <> · {fmtInt(data.remaining.protein)} g de proteína</>}
+      {hide ? (
+        data.remaining.protein >= 5 ? (
+          <>Faltam {fmtInt(data.remaining.protein)} g de proteína</>
+        ) : (
+          <>Proteína: meta batida</>
+        )
+      ) : (
+        <>
+          Restam {fmtInt(data.remaining.kcal)} kcal
+          {data.remaining.protein >= 5 && <> · faltam {fmtInt(data.remaining.protein)} g de proteína</>}
+        </>
+      )}
     </p>
   );
 
@@ -329,6 +341,7 @@ interface SuggestionCardProps {
 
 /** Sugestão compacta: selo, título, itens com quantidade amigável, encaixe e ações discretas. */
 function SuggestionCard({ suggestion: s, target, busy, logLabel, onUse, onLog }: SuggestionCardProps) {
+  const { hideCalories: hide } = useDisplayPrefs();
   const badge = ORIGIN_BADGE[s.mainOrigin];
   const pct = (value: number, of: number) => (of > 0 ? Math.round((value / of) * 100) : 0);
   const kcalPct = pct(s.totals.kcal, target.kcal);
@@ -347,19 +360,26 @@ function SuggestionCard({ suggestion: s, target, busy, logLabel, onUse, onLog }:
         {s.items.map((item, i) => (
           <li key={`${item.name}-${i}`}>
             <span>{item.label}</span>
-            <span className="caption num">{fmtInt(item.kcal)} kcal</span>
+            <span className="caption num">{hide ? `${fmtInt(item.protein)} g de proteína` : `${fmtInt(item.kcal)} kcal`}</span>
           </li>
         ))}
       </ul>
 
-      <div className="fit-bars" aria-label={`Cobre ${kcalPct}% das calorias e ${proteinPct}% da proteína que faltam`}>
-        <span aria-hidden>Kcal</span>
-        <span className="fit-track" aria-hidden>
-          <span className="fit-fill" style={{ display: 'block', width: `${Math.min(kcalPct, 100)}%`, background: 'var(--ring-kcal)' }} />
-        </span>
-        <span className="num" aria-hidden>
-          {kcalPct}%
-        </span>
+      <div
+        className="fit-bars"
+        aria-label={hide ? `Cobre ${proteinPct}% da proteína que falta` : `Cobre ${kcalPct}% das calorias e ${proteinPct}% da proteína que faltam`}
+      >
+        {!hide && (
+          <>
+            <span aria-hidden>Kcal</span>
+            <span className="fit-track" aria-hidden>
+              <span className="fit-fill" style={{ display: 'block', width: `${Math.min(kcalPct, 100)}%`, background: 'var(--ring-kcal)' }} />
+            </span>
+            <span className="num" aria-hidden>
+              {kcalPct}%
+            </span>
+          </>
+        )}
         <span aria-hidden>Proteína</span>
         <span className="fit-track" aria-hidden>
           <span className="fit-fill" style={{ display: 'block', width: `${Math.min(proteinPct, 100)}%`, background: 'var(--ring-protein)' }} />

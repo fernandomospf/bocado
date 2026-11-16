@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import { addDays, fromISO, pillLabel } from '@/lib/date';
 import { fmtInt } from '@/lib/format';
 import { tap } from '@/lib/haptics';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { useDay } from '@/lib/hooks';
 import type { RangeSummary, WeekStart } from '@/lib/types';
 import { CalendarSheet } from './CalendarSheet';
@@ -22,11 +23,12 @@ interface DayPillsProps {
 const longLabel = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 
 /**
- * Anteontem, ontem e hoje como pílulas (com mini anel de calorias) + calendário para os demais dias.
+ * Anteontem, ontem e hoje como pílulas (com mini anel de calorias ou, sem calorias, de proteína) + calendário para os demais dias.
  * Se o dia aberto for mais antigo, ele aparece numa quarta pílula à esquerda, para a pessoa saber onde está.
  */
 export function DayPills({ date, today, weekStartsOn, onSelect }: DayPillsProps) {
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const { hideCalories: hide } = useDisplayPrefs();
   const from = addDays(today, -2);
   const recent = [from, addDays(today, -1), today];
   const older = date < from;
@@ -35,9 +37,11 @@ export function DayPills({ date, today, weekStartsOn, onSelect }: DayPillsProps)
   // Dia antigo: mesmo cache da TodayView (sem requisição extra)
   const { data: olderDay } = useDay(older ? date : today);
 
-  const target = range?.targets?.kcal ?? 0;
+  // Sem calorias, o mini anel de cada dia acompanha a proteína
+  const metric = hide ? 'protein' : 'kcal';
+  const target = range?.targets?.[metric] ?? 0;
   const kcalOf = (iso: string) =>
-    older && iso === date ? (olderDay?.totals.kcal ?? 0) : (range?.days.find((d) => d.date === iso)?.totals.kcal ?? 0);
+    older && iso === date ? (olderDay?.totals[metric] ?? 0) : (range?.days.find((d) => d.date === iso)?.totals[metric] ?? 0);
 
   const select = (iso: string) => {
     if (iso === date) return;
@@ -47,7 +51,8 @@ export function DayPills({ date, today, weekStartsOn, onSelect }: DayPillsProps)
 
   const pill = (iso: string, isOlder = false) => {
     const kcal = kcalOf(iso);
-    const detail = target ? `${fmtInt(kcal)} de ${fmtInt(target)} kcal` : `${fmtInt(kcal)} kcal`;
+    const unit = hide ? 'g de proteína' : 'kcal';
+    const detail = target ? `${fmtInt(kcal)} de ${fmtInt(target)} ${unit}` : `${fmtInt(kcal)} ${unit}`;
     return (
       <button
         key={iso}
@@ -69,7 +74,7 @@ export function DayPills({ date, today, weekStartsOn, onSelect }: DayPillsProps)
             pillLabel(iso, today)
           )}
         </span>
-        <MiniRing value={kcal} target={target} />
+        <MiniRing value={kcal} target={target} tone={hide ? 'protein' : 'kcal'} />
       </button>
     );
   };

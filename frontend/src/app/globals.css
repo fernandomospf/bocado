@@ -1,4 +1,13 @@
 /* ==========================================================================
+   Tom do app (sem culpa): ver também src/lib/tone.md
+   - A meta é uma referência, não uma prova. Passar dela é um dado, não uma falha.
+   - Exceder a meta nunca usa vermelho nem laranja de alerta: o texto fica na cor normal e as barras ganham só um
+     tom mais escuro do próprio azul. --danger e vermelho valem para ERROS técnicos (rede, validação) e ações
+     destrutivas (excluir), nunca para julgar comida ou a pessoa.
+   - --ring-kcal é a cor de IDENTIDADE do anel de Energia, não um sinal de "passou da meta".
+   ========================================================================== */
+
+/* ==========================================================================
    Bocado — sistema visual "liquid glass"
    Vidro translúcido sobre um fundo de luz colorida; os anéis são o destaque.
    ========================================================================== */
@@ -1497,7 +1506,7 @@ img {
   max-width: 28px;
   min-height: 4px;
   border-radius: 10px;
-  background: linear-gradient(180deg, var(--ring-kcal-2), var(--ring-kcal));
+  background: linear-gradient(180deg, var(--ring-protein-2), var(--ring-protein));
   transition: height 700ms var(--ease);
 }
 
@@ -1505,8 +1514,9 @@ img {
   background: var(--fill-strong);
 }
 
+/* Acima da meta: só um tom mais escuro do mesmo azul (não é alerta) */
 .bar-fill.over {
-  background: linear-gradient(180deg, var(--ring-kcal), color-mix(in srgb, var(--ring-kcal) 70%, #000));
+  background: linear-gradient(180deg, var(--ring-protein), color-mix(in srgb, var(--ring-protein) 68%, #000));
 }
 
 .bar-label {
@@ -2046,6 +2056,17 @@ button.badge-estimate::before {
 
 .mini-ring-fill {
   stroke: var(--ring-kcal);
+}
+
+/* Modo "esconder calorias": o mini anel do dia acompanha a proteína */
+.mini-ring-protein .mini-ring-track,
+.mini-ring-protein .mini-ring-fill {
+  stroke: var(--ring-protein);
+}
+
+/* Rede de segurança do modo "esconder calorias": elementos que só existem para mostrar kcal */
+[data-hide-calories] .kcal-only {
+  display: none !important;
 }
 
 /* Calendário */

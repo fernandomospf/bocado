@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError, errorMessage } from '@/lib/api';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtInt, parseNum } from '@/lib/format';
 import { compressImage } from '@/lib/image';
 import type { BarcodeLookup, Confidence, FoodResult, Macros } from '@/lib/types';
@@ -273,6 +274,7 @@ function LabelReview({
   onCancel: () => void;
   onSaved: (food: FoodResult, existed: boolean) => void;
 }) {
+  const { hideCalories: hide } = useDisplayPrefs();
   const [name, setName] = useState(draft.name);
   const [brand, setBrand] = useState(draft.brand ?? '');
   const [values, setValues] = useState({
@@ -364,12 +366,29 @@ function LabelReview({
 
         <div className="stack" style={{ gap: 6 }}>
           <span className="field-label">Por 100 g (ou 100 ml)</span>
-          <div className="grid-4">
-            {field('kcal', 'kcal', 'var(--ring-kcal)')}
-            {field('protein', 'Prot.', 'var(--ring-protein)')}
-            {field('carbs', 'Carb.', 'var(--ring-carbs)')}
-            {field('fat', 'Gord.', 'var(--ring-fat)')}
-          </div>
+          {hide ? (
+            <>
+              <div className="grid-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                {field('protein', 'Prot.', 'var(--ring-protein)')}
+                {field('carbs', 'Carb.', 'var(--ring-carbs)')}
+                {field('fat', 'Gord.', 'var(--ring-fat)')}
+              </div>
+              {/* kcal é ENTRADA de dados (rótulo do produto): continua aqui, sem destaque */}
+              <details className="adaptive-how">
+                <summary>Mais detalhes</summary>
+                <div className="grid-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginTop: 8 }}>
+                  {field('kcal', 'kcal', 'var(--text-2)')}
+                </div>
+              </details>
+            </>
+          ) : (
+            <div className="grid-4">
+              {field('kcal', 'kcal', 'var(--ring-kcal)')}
+              {field('protein', 'Prot.', 'var(--ring-protein)')}
+              {field('carbs', 'Carb.', 'var(--ring-carbs)')}
+              {field('fat', 'Gord.', 'var(--ring-fat)')}
+            </div>
+          )}
         </div>
 
         <div className="grid-2">

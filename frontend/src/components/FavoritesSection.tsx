@@ -3,6 +3,7 @@
 import { useId, useState } from 'react';
 import { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtInt } from '@/lib/format';
 import { tap } from '@/lib/haptics';
 import { useFavorites } from '@/lib/hooks';
@@ -14,6 +15,7 @@ import { useToast } from './Toast';
 
 /** Perfil: lista das refeições favoritas, com renomear e excluir. */
 export function FavoritesSection() {
+  const { hideCalories: hide } = useDisplayPrefs();
   const { data: favorites, error } = useFavorites();
   const { mutate } = useSWRConfig();
   const toast = useToast();
@@ -60,7 +62,7 @@ export function FavoritesSection() {
               <div className="list-row-main">
                 <div className="list-row-title">{f.name}</div>
                 <div className="list-row-sub">
-                  {quickLabel(f.items)} · {fmtInt(f.totals.kcal)} kcal{f.type ? ` · ${MEAL_SHORT[f.type]}` : ''}
+                  {quickLabel(f.items)} · {hide ? `${fmtInt(f.totals.protein)} g de proteína` : `${fmtInt(f.totals.kcal)} kcal`}{f.type ? ` · ${MEAL_SHORT[f.type]}` : ''}
                 </div>
               </div>
               <button type="button" className="btn btn-plain fav-action" onClick={() => setRenaming(f)}>

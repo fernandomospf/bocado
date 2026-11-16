@@ -73,6 +73,8 @@ export function rebalance(kcal: number, anchor: Anchor): Pick<Macros, MacroKey> 
 interface TargetsEditorProps {
   value: TargetsDraft;
   onChange: (v: TargetsDraft) => void;
+  /** Modo "esconder calorias": só os macros em gramas (as calorias seguem recalculadas por dentro). */
+  hideKcal?: boolean;
 }
 
 /**
@@ -80,7 +82,7 @@ interface TargetsEditorProps {
  * - mudar as calorias redistribui os macros;
  * - mudar um macro recalcula as calorias (4/4/9).
  */
-export function TargetsEditor({ value, onChange }: TargetsEditorProps) {
+export function TargetsEditor({ value, onChange, hideKcal = false }: TargetsEditorProps) {
   const anchor = useRef<Anchor>(anchorFrom(fromDraft(value)));
   const editingKcal = useRef(false);
 
@@ -110,6 +112,7 @@ export function TargetsEditor({ value, onChange }: TargetsEditorProps) {
 
   return (
     <div className="stack">
+      {!hideKcal && (
       <label className="field">
         <span className="field-label" style={{ color: 'var(--ring-kcal)' }}>
           Calorias por dia
@@ -127,6 +130,7 @@ export function TargetsEditor({ value, onChange }: TargetsEditorProps) {
           <span>kcal</span>
         </div>
       </label>
+      )}
 
       <div className="grid-2" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
         {FIELDS.map((f) => {
@@ -145,17 +149,20 @@ export function TargetsEditor({ value, onChange }: TargetsEditorProps) {
                 />
                 <span>g</span>
               </div>
-              <span className="caption num" style={{ paddingLeft: 4 }}>
-                {pct}% das kcal
-              </span>
+              {!hideKcal && (
+                <span className="caption num" style={{ paddingLeft: 4 }}>
+                  {pct}% das kcal
+                </span>
+              )}
             </label>
           );
         })}
       </div>
 
       <p className="caption">
-        Ao mudar as calorias, a proteína é mantida e gorduras e carboidratos se ajustam. Ao mudar um macro, as
-        calorias são recalculadas.
+        {hideKcal
+          ? 'Ajuste cada meta em gramas.'
+          : 'Ao mudar as calorias, a proteína é mantida e gorduras e carboidratos se ajustam. Ao mudar um macro, as calorias são recalculadas.'}
       </p>
     </div>
   );

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import useSWR from 'swr';
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { matchesName, recipeSubtitle } from '@/lib/recipe';
 import type { RecipeSummary } from '@/lib/types';
 import { ChevronRight } from './Icons';
@@ -18,6 +19,7 @@ interface RecipePickerSheetProps {
 /** Escolha de uma receita (as mais usadas primeiro, como vêm da API). */
 export function RecipePickerSheet({ context, onClose, onPick }: RecipePickerSheetProps) {
   const { data, error, isLoading } = useSWR<RecipeSummary[]>('/recipes');
+  const { hideCalories: hide } = useDisplayPrefs();
   const [query, setQuery] = useState('');
   const recipes = (data ?? []).filter((r) => matchesName(r.name, query));
 
@@ -66,7 +68,7 @@ export function RecipePickerSheet({ context, onClose, onPick }: RecipePickerShee
                     {r.name}
                   </span>
                   <span className="list-row-sub">
-                    {recipeSubtitle(r)}
+                    {recipeSubtitle(r, hide)}
                     {r.timesUsed > 0 && ` · usada ${r.timesUsed}x`}
                   </span>
                 </span>

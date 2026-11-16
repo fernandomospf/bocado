@@ -15,6 +15,9 @@ import { useSharedSave } from '@/lib/sharedMeals';
 import { recipeToFood } from '@/lib/recipe';
 import type { FoodResult, Meal, MealItem, MealType } from '@/lib/types';
 import { useShortcuts } from '@/lib/useShortcuts';
+import { useDisplayPrefs } from '@/lib/display-prefs';
+import { Kcal } from './Kcal';
+import { ConsistencyCard } from './ConsistencyCard';
 import { FoodPortionSheet } from './FoodPortionSheet';
 import { CloseDayCard } from './CloseDayCard';
 import { PlusIcon, PotIcon, RepeatIcon } from './Icons';
@@ -51,6 +54,7 @@ export function TodayView() {
   const param = params.get('date');
   const date = isValidISO(param) && param <= today ? param : today;
   const weekStartsOn = useWeekStartsOn();
+  const { hideCalories: hide } = useDisplayPrefs();
   // Direção da última troca de dia: define de que lado o conteúdo entra (null = sem animação)
   const [slide, setSlide] = useState<'prev' | 'next' | null>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
@@ -134,6 +138,7 @@ export function TodayView() {
   const targets = data?.targets;
   const totals = data?.totals ?? { kcal: 0, protein: 0, carbs: 0, fat: 0 };
   const remaining = targets ? targets.kcal - totals.kcal : 0;
+  const proteinLeft = targets ? Math.round(targets.protein - totals.protein) : 0;
 
   return (
     <main
@@ -165,21 +170,27 @@ export function TodayView() {
           {targets ? (
             <>
               <div className="rings-card">
-                <Rings rings={ringSpecs(totals, targets)} size={212} stroke={20} gap={5} />
-                <MacroLegend totals={totals} targets={targets} />
+                <Rings rings={ringSpecs(totals, targets, hide)} size={212} stroke={20} gap={5} />
+                <MacroLegend totals={totals} targets={targets} hideKcal={hide} />
               </div>
-              <div className="remaining">
-                <span className="body-2">{remaining >= 0 ? 'Ainda cabem' : 'Acima da meta'}</span>
-                <span className="title num" style={{ color: remaining < 0 ? 'var(--ring-kcal)' : undefined }}>
-                  {fmtInt(Math.abs(remaining))} kcal
-                </span>
-                {/* Soma do treino ligada: a meta base e o bônus aparecem separados */}
-                {data?.goalBonusKcal ? (
-                  <span className="caption num">
-                    Meta do dia: {fmtInt(data.baseTargetKcal ?? 0)} + {fmtInt(data.goalBonusKcal)} do treino
-                  </span>
-                ) : null}
-              </div>
+              {hide ? (
+                <div className="remaining">
+                  <span className="body-2">Proteína</span>
+                  <span className="title num">{proteinLeft > 0 ? `faltam ${fmtInt(proteinLeft)} g` : 'meta batida'}</span>
+                </div>
+              ) : (
+                <div className="remaining">
+                  {/* Meta é referência, não prova: passar dela é um dado (mesma cor do resto, sem alerta) */}
+                  <span className="body-2">{remaining >= 0 ? 'Restam' : 'Além da meta'}</span>
+                  <span className="title num">{fmtInt(Math.abs(remaining))} kcal</span>
+                  {/* Soma do treino ligada: a meta base e o bônus aparecem separados */}
+                  {data?.goalBonusKcal ? (
+                    <span className="caption num">
+                      Meta do dia: {fmtInt(data.baseTargetKcal ?? 0)} + {fmtInt(data.goalBonusKcal)} do treino
+                    </span>
+                  ) : null}
+                </div>
+              )}
             </>
           ) : (
             <div className="rings-card">
@@ -198,6 +209,8 @@ export function TodayView() {
 
         <OfferCards />
 
+        {hide && <ConsistencyCard today={today} />}
+
         <WorkoutLine date={date} workouts={data?.workouts ?? []} />
 
         <WeeklyCard today={today} isToday={date === today} />
@@ -205,16 +218,25 @@ export function TodayView() {
 
       <div className="today-main">
         <h2 className="section-title">Refeições</h2>
+        {data && data.meals.length === 0 && <p className="caption">Nada registrado neste dia</p>}
 
         <div className="meal-grid">
           {MEAL_ORDER.map((type) => {
             const meals = data?.meals.filter((m) => m.type === type) ?? [];
             const kcal = meals.reduce((s, m) => s + m.totals.kcal, 0);
+            const protein = meals.reduce((s, m) => s + m.totals.protein, 0);
             return (
               <section key={`${type}-${date}`} className="card glass day-slide" aria-label={MEAL_LABEL[type]}>
                 <div className="meal-head">
                   <h3 className="headline">{MEAL_LABEL[type]}</h3>
-                  {meals.length > 0 && <span className="list-row-end">{fmtInt(kcal)} kcal</span>}
+                  {meals.length > 0 &&
+                    (hide ? (
+                      <span className="list-row-end num">{fmtInt(protein)} g de proteína</span>
+                    ) : (
+                      <span className="list-row-end">
+                        <Kcal value={kcal} />
+                      </span>
+                    ))}
                 </div>
 
                 {isLoading && !data ? (
@@ -231,7 +253,7 @@ export function TodayView() {
                           disabled={repeating !== null}
                         >
                           <RepeatIcon width={18} height={18} />
-                          Repetir ontem · {fmtInt(prev.totals.kcal)} kcal
+                          Repetir ontem{hide ? ` · ${fmtInt(prev.totals.protein)} g de proteína` : ` · ${fmtInt(prev.totals.kcal)} kcal`}
                         </button>
                       ) : null;
                     })()}
@@ -265,7 +287,7 @@ export function TodayView() {
                               {item.estimated && <span className="badge badge-estimate badge-inline">estimativa</span>}
                             </span>
                           </span>
-                          <span className="list-row-end">{fmtInt(item.kcal)}</span>
+                          <span className="list-row-end">{hide ? `${fmtInt(item.protein)} g` : fmtInt(item.kcal)}</span>
                         </button>
                       )),
                     )}

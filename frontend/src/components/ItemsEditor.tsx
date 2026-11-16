@@ -1,5 +1,6 @@
 'use client';
 
+import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtInt, parseNum, round1 } from '@/lib/format';
 import type { Confidence, Macros } from '@/lib/types';
 import { EstimateBadge } from './EstimateBadge';
@@ -151,6 +152,7 @@ interface ItemsEditorProps {
 }
 
 export function ItemsEditor({ items, onChange }: ItemsEditorProps) {
+  const { hideCalories: hide } = useDisplayPrefs();
   const update = (key: string, patch: Partial<DraftItem>) =>
     onChange(items.map((it) => (it.key === key ? { ...it, ...patch } : it)));
 
@@ -219,15 +221,9 @@ export function ItemsEditor({ items, onChange }: ItemsEditorProps) {
               </div>
             </div>
 
-            <div className="grid-4">
-              {(
-                [
-                  ['kcal', 'kcal', 'var(--ring-kcal)'],
-                  ['protein', 'Prot.', 'var(--ring-protein)'],
-                  ['carbs', 'Carb.', 'var(--ring-carbs)'],
-                  ['fat', 'Gord.', 'var(--ring-fat)'],
-                ] as const
-              ).map(([field, label, color]) => (
+            {(() => {
+              // Campo de macro; o de kcal continua sendo ENTRADA de dados, mas no modo sem calorias fica em "Mais detalhes"
+              const macroField = (field: 'kcal' | 'protein' | 'carbs' | 'fat', label: string, color: string) => (
                 <div key={field} className="mini-field">
                   <label htmlFor={`${field}-${item.key}`} style={{ color }}>
                     {label}
@@ -241,8 +237,30 @@ export function ItemsEditor({ items, onChange }: ItemsEditorProps) {
                     onChange={(e) => setMacro(item, field, e.target.value)}
                   />
                 </div>
-              ))}
-            </div>
+              );
+              return hide ? (
+                <>
+                  <div className="grid-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                    {macroField('protein', 'Prot.', 'var(--ring-protein)')}
+                    {macroField('carbs', 'Carb.', 'var(--ring-carbs)')}
+                    {macroField('fat', 'Gord.', 'var(--ring-fat)')}
+                  </div>
+                  <details className="adaptive-how">
+                    <summary>Mais detalhes</summary>
+                    <div className="grid-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginTop: 8 }}>
+                      {macroField('kcal', 'kcal', 'var(--text-2)')}
+                    </div>
+                  </details>
+                </>
+              ) : (
+                <div className="grid-4">
+                  {macroField('kcal', 'kcal', 'var(--ring-kcal)')}
+                  {macroField('protein', 'Prot.', 'var(--ring-protein)')}
+                  {macroField('carbs', 'Carb.', 'var(--ring-carbs)')}
+                  {macroField('fat', 'Gord.', 'var(--ring-fat)')}
+                </div>
+              );
+            })()}
 
             <div className="item-meta estimate-host">
               {item.estimated && <EstimateBadge />}
@@ -250,7 +268,7 @@ export function ItemsEditor({ items, onChange }: ItemsEditorProps) {
                 <span className={`badge badge-${item.confidence}`}>{CONFIDENCE_LABEL[item.confidence]}</span>
               ) : item.kind === 'preparationFat' ? (
                 <span className="caption">Valores de referência (TACO)</span>
-              ) : (
+              ) : hide ? null : (
                 <span className="caption">kcal em branco é calculada pelos macros</span>
               )}
               <button

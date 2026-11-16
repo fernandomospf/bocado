@@ -44,6 +44,8 @@ export interface Profile extends BodyData {
   weekStartsOn: WeekStart;
   /** Relatórios semanais sem nenhuma informação de peso. */
   hideWeightInReports: boolean;
+  /** Modo "esconder calorias": a interface mostra só proteína e constância. */
+  hideCalories: boolean;
   /** Meta adaptativa: sugerir ajustes da meta a partir do gasto estimado. */
   adaptiveEnabled: boolean;
   /** Treino: mostrar a estimativa de gasto (desligada por padrão) e somar metade à meta do dia (desligada). */

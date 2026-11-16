@@ -136,6 +136,8 @@ model Profile {
   weekStartsOn    WeekStart     @default(MONDAY)
   /// Relatórios semanais sem nenhuma informação de peso (média, variação e equivalente em kg)
   hideWeightInReports Boolean   @default(false)
+  /// Modo "esconder calorias": só a interface muda (proteína e constância). O backend guarda e devolve tudo
+  hideCalories        Boolean   @default(false)
   /// Meta adaptativa: sugerir ajustes da meta a partir do gasto estimado (nunca aplica sozinha)
   adaptiveEnabled     Boolean   @default(true)
   /// Sem novas sugestões até esta data (depois de "manter" ou "lembrar depois")

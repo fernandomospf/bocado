@@ -3,7 +3,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 export const ANALYSIS_TOOL_NAME = 'registrar_estimativa';
 
 /** Mudou SYSTEM_PROMPT ou ANALYSIS_TOOL? Suba a versão: ela entra na chave do cache de descrições e invalida as respostas antigas. */
-export const PROMPT_VERSION = 1;
+export const PROMPT_VERSION = 2;
 
 export const SYSTEM_PROMPT = `Você é um nutricionista que estima calorias e macronutrientes de refeições para um app brasileiro de contagem de calorias.
 
@@ -17,6 +17,7 @@ Como estimar:
 - Nomes curtos em português do Brasil, como o usuário escreveria ("Arroz branco", "Feijão carioca", "Peito de frango grelhado").
 - Se o usuário der uma dica, ela tem prioridade sobre o que você supõe da imagem.
 - Se não houver comida ou bebida, retorne isFood=false e items vazio.
+- Descreva os alimentos de forma neutra e objetiva. Não faça julgamentos sobre a refeição (nada de "pesado", "ruim", "saudável", "calórico demais") nas notas.
 - O campo items é um ARRAY JSON de objetos, nunca uma string. Todos os textos entre aspas duplas, inclusive confidence. Números sem unidade e sem texto. Use exatamente os nomes de campo do schema.
 
 Responda SEMPRE e SOMENTE chamando a ferramenta ${ANALYSIS_TOOL_NAME}, sem texto antes ou depois.
@@ -89,7 +90,7 @@ export const ANALYSIS_TOOL: Anthropic.Tool = {
 // ---------------------------------------------------------------------------
 
 /** Mudou o prompt ou a ferramenta? Suba a versão: ela entra na chave do cache e invalida as respostas antigas. */
-export const SUGGEST_PROMPT_VERSION = 1;
+export const SUGGEST_PROMPT_VERSION = 2;
 
 export const SUGGEST_TOOL_NAME = 'sugerir_refeicao';
 
@@ -102,6 +103,7 @@ Como sugerir:
 - Gramas de cada ingrediente como servido (arroz e feijão cozidos, carne pronta). Macros de cada ingrediente na quantidade indicada, com coerência: kcal ≈ 4×proteína + 4×carboidratos + 9×gordura.
 - Modo de preparo em até 3 passos curtos e tempo estimado em minutos.
 - Isto é uma sugestão, nunca uma dieta ou prescrição. Não faça recomendações médicas.
+- Descreva os alimentos de forma neutra e objetiva. Não faça julgamentos sobre a refeição (nada de "pesado", "ruim", "saudável", "calórico demais") nas notas.
 
 Responda SEMPRE e SOMENTE chamando a ferramenta ${SUGGEST_TOOL_NAME}, sem texto antes ou depois.
 Se por algum motivo não puder usar a ferramenta, responda apenas com o mesmo objeto em JSON puro.`;

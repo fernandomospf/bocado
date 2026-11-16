@@ -318,7 +318,7 @@ export class MealsService {
       this.prisma.workout.findMany({ where: { userId, date: parseDay(date) }, orderBy: { createdAt: 'asc' } }),
       this.prisma.profile.findUnique({
         where: { userId },
-        select: { weightKg: true, workoutEstimateEnabled: true, workoutAddToGoal: true },
+        select: { weightKg: true, workoutEstimateEnabled: true, workoutAddToGoal: true, hideCalories: true },
       }),
     ]);
     const sorted = [...meals].sort(
@@ -329,7 +329,8 @@ export class MealsService {
     const w = summarizeDayWorkouts(
       workoutRows,
       prefs?.weightKg ?? 0,
-      prefs ?? { workoutEstimateEnabled: false, workoutAddToGoal: false },
+      // Com "esconder calorias" a estimativa e a soma à meta ficam desligadas (a preferência guardada não muda)
+      prefs && !prefs.hideCalories ? prefs : { workoutEstimateEnabled: false, workoutAddToGoal: false },
     );
     const bonus = w.goalBonusKcal;
     const sharing = await this.sharingInfo(userId, meals);
