@@ -70,6 +70,7 @@ function setup() {
     meal: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
     mealItem: { count: jest.fn().mockResolvedValue(0) },
     weightEntry: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
+    workout: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
     profile: { findUnique: jest.fn().mockResolvedValue({ kcalTarget: 2000 }) },
   };
   return { prisma, service: new ExportService(prisma as never) };
@@ -152,5 +153,45 @@ describe('ExportService.summary', () => {
     expect(prisma.meal.count).toHaveBeenCalledWith({ where: { userId: 'user-1', date: range } });
     expect(prisma.mealItem.count).toHaveBeenCalledWith({ where: { meal: { userId: 'user-1', date: range } } });
     expect(prisma.weightEntry.count).toHaveBeenCalledWith({ where: { userId: 'user-1', date: range } });
+  });
+});
+
+describe('treinos em CSV', () => {
+  const w = (over: object = {}) => ({
+    date: day('2026-11-10'),
+    type: 'STRENGTH',
+    intensity: 'MODERATE',
+    durationMin: 60,
+    note: '=cmd',
+    createdAt: new Date(),
+    ...over,
+  });
+
+  it('sem a estimativa ligada: sem a coluna de gasto', async () => {
+    const { service, prisma } = setup();
+    prisma.profile.findUnique.mockResolvedValue({ weightKg: 70, workoutEstimateEnabled: false });
+    prisma.workout.findMany.mockResolvedValue([w()]);
+    const out = await collect(service.workoutsCsv('user-1', '2026-11-01', '2026-11-15'));
+    expect(out).toContain('Data;Tipo;Duração (min);Intensidade;Nota\r\n');
+    expect(out).not.toContain('Gasto estimado');
+    expect(out).toContain("10/11/2026;Musculação;60;Moderada;'=cmd\r\n"); // injeção de fórmula neutralizada
+  });
+
+  it('com a estimativa ligada: coluna extra, líquida e arredondada', async () => {
+    const { service, prisma } = setup();
+    prisma.profile.findUnique.mockResolvedValue({ weightKg: 70, workoutEstimateEnabled: true });
+    prisma.workout.findMany.mockResolvedValue([w({ note: null })]);
+    const out = await collect(service.workoutsCsv('user-1', '2026-11-01', '2026-11-15'));
+    expect(out).toContain('Gasto estimado (kcal)');
+    expect(out).toContain('10/11/2026;Musculação;60;Moderada;;280');
+  });
+
+  it('só os treinos do usuário da sessão, no período, e o resumo conta os treinos', async () => {
+    const { service, prisma } = setup();
+    await collect(service.workoutsCsv('user-1', '2026-11-01', '2026-11-15'));
+    expect(prisma.workout.findMany.mock.calls[0][0].where.userId).toBe('user-1');
+    prisma.workout.count.mockResolvedValue(4);
+    expect(await service.summary('user-1', '2026-11-01', '2026-11-15')).toMatchObject({ workouts: 4 });
+    expect(prisma.workout.count.mock.calls[0][0].where.userId).toBe('user-1');
   });
 });

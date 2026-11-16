@@ -6,6 +6,9 @@ import { addDays, dayNumber, type WeightPoint } from '../weight/weight.math';
 /**
  * Meta adaptativa: estima o gasto REAL a partir das calorias registradas e da variação do peso, e SUGERE um ajuste.
  * Tudo aqui é determinístico e sem banco. Datas locais "YYYY-MM-DD" enviadas pelo cliente (o servidor não usa fuso).
+ *
+ * Treinos registrados NÃO entram neste cálculo: o gasto real estimado aqui já os inclui, porque nasce da ingestão e
+ * da variação de peso. Somar o treino de novo contaria duas vezes (ver backend/src/workouts).
  */
 
 export const WINDOW_DAYS = 28;

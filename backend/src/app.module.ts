@@ -20,6 +20,7 @@ import { ReportsModule } from './reports/reports.module';
 import { RecipesModule } from './recipes/recipes.module';
 import { SuggestionsModule } from './suggestions/suggestions.module';
 import { WeightModule } from './weight/weight.module';
+import { WorkoutsModule } from './workouts/workouts.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { WeightModule } from './weight/weight.module';
     RecipesModule,
     ReportsModule,
     AdaptiveModule,
+    WorkoutsModule,
     SuggestionsModule,
     WeightModule,
     ExportModule,

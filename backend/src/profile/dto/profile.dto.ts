@@ -72,4 +72,12 @@ export class PreferencesDto {
   @IsOptional()
   @IsBoolean()
   adaptiveEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  workoutEstimateEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  workoutAddToGoal?: boolean;
 }

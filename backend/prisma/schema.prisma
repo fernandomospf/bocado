@@ -43,6 +43,20 @@ enum AdaptiveConfidence {
   HIGH
 }
 
+enum WorkoutType {
+  STRENGTH
+  RUN
+  BIKE
+  WALK
+  OTHER
+}
+
+enum WorkoutIntensity {
+  LIGHT
+  MODERATE
+  HARD
+}
+
 enum MealType {
   BREAKFAST
   LUNCH
@@ -92,6 +106,7 @@ model User {
   foodReports  FoodReport[]
   favoriteMeals FavoriteMeal[]
   adaptiveAdjustments AdaptiveAdjustment[]
+  workouts     Workout[]
 
   @@map("users")
 }
@@ -120,6 +135,10 @@ model Profile {
   adaptiveEnabled     Boolean   @default(true)
   /// Sem novas sugestões até esta data (depois de "manter" ou "lembrar depois")
   adaptiveSnoozedUntil DateTime? @db.Date
+  /// Treino como contexto: mostra a estimativa de gasto (desligada por padrão; é aproximada)
+  workoutEstimateEnabled Boolean @default(false)
+  /// Soma 50% do gasto estimado (líquido) à meta do dia. Só pode ficar ligada com a estimativa ligada
+  workoutAddToGoal       Boolean @default(false)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -321,6 +340,22 @@ model AdaptiveAdjustment {
 
   @@index([userId, createdAt])
   @@map("adaptive_adjustments")
+}
+
+/// Treino registrado: contexto do dia, não "calorias para comer". Não entra na meta salva nem na meta adaptativa.
+model Workout {
+  id          String           @id @default(uuid()) @db.Uuid
+  userId      String           @db.Uuid
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime         @db.Date
+  type        WorkoutType
+  durationMin Int
+  intensity   WorkoutIntensity
+  note        String?
+  createdAt   DateTime         @default(now())
+
+  @@index([userId, date])
+  @@map("workouts")
 }
 
 /// Contador diário de chamadas à IA por usuário e recurso (limite de uso)

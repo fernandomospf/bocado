@@ -28,6 +28,7 @@ function setup({ hasProfile = true, meals = [] as object[], logged = [] as strin
     profile: { findUnique: jest.fn().mockResolvedValue(hasProfile ? { ...profile, ...over } : null) },
     meal: { findMany: jest.fn().mockResolvedValue(meals) },
     weightEntry: { findMany: jest.fn().mockResolvedValue([]) },
+    workout: { findMany: jest.fn().mockResolvedValue([]) },
     $queryRaw: jest.fn().mockResolvedValue(logged.map((date) => ({ date }))),
   };
   return { prisma, service: new ReportsService(prisma as never) };
@@ -63,6 +64,35 @@ describe('ReportsService (posse e regras)', () => {
     expect(r.weight).toBeNull();
     expect(r.weightNote).toBe('hidden');
     expect(r.balanceVsExpenditure!.kg).toBeNull();
+  });
+});
+
+describe('ReportsService: treinos no relatório', () => {
+  it('traz contagem, minutos e por tipo, só do usuário, sem mudar o balanço', async () => {
+    const meals = ['09', '10', '11', '12'].map((d) => mealRow(`2026-11-${d}`, 1800));
+    const without = await setup({ meals }).service.weekly('user-1', '2026-11-09');
+    const { service, prisma } = setup({ meals });
+    prisma.workout.findMany.mockResolvedValue([
+      { type: 'STRENGTH', durationMin: 60 },
+      { type: 'STRENGTH', durationMin: 50 },
+      { type: 'RUN', durationMin: 40 },
+    ]);
+    const r = await service.weekly('user-1', '2026-11-09');
+    expect(r.workouts).toEqual({ count: 3, totalMinutes: 150, byType: { STRENGTH: { count: 2, minutes: 110 }, RUN: { count: 1, minutes: 40 } } });
+    expect(prisma.workout.findMany.mock.calls[0][0].where.userId).toBe('user-1');
+    // O treino é só contexto: o balanço e as médias são idênticos aos de uma semana sem treino
+    expect({ ...r, workouts: undefined }).toEqual({ ...without, workouts: undefined });
+  });
+
+  it('semana sem treino: zeros', async () => {
+    const r = await setup({ meals: ['09', '10', '11', '12'].map((d) => mealRow(`2026-11-${d}`, 1800)) }).service.weekly('user-1', '2026-11-09');
+    expect(r.workouts).toEqual({ count: 0, totalMinutes: 0, byType: {} });
+  });
+
+  it('também vem na semana com poucos dias registrados', async () => {
+    const r = await setup({ meals: [mealRow('2026-11-09', 1800)] }).service.weekly('user-1', '2026-11-09');
+    expect(r.insufficientData).toBe(true);
+    expect(r.workouts).toBeDefined();
   });
 });
 

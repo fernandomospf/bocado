@@ -101,9 +101,18 @@ export class ProfileService {
   async updatePreferences(userId: string, dto: PreferencesDto) {
     const existing = await this.prisma.profile.findUnique({ where: { userId } });
     if (!existing) throw new NotFoundException('Perfil ainda não criado');
+    // A soma à meta só existe com a estimativa ligada: desligar a estimativa desliga a soma junto
+    const estimate = dto.workoutEstimateEnabled ?? existing.workoutEstimateEnabled;
+    const addToGoal = estimate ? (dto.workoutAddToGoal ?? existing.workoutAddToGoal) : false;
+    if (dto.workoutAddToGoal === true && !estimate) {
+      throw new BadRequestException('Ligue a estimativa de gasto dos treinos antes de somar à meta');
+    }
     const profile = await this.prisma.profile.update({
       where: { userId },
       data: {
+        ...(dto.workoutEstimateEnabled !== undefined || dto.workoutAddToGoal !== undefined
+          ? { workoutEstimateEnabled: estimate, workoutAddToGoal: addToGoal }
+          : {}),
         ...(dto.weekStartsOn !== undefined ? { weekStartsOn: dto.weekStartsOn } : {}),
         ...(dto.hideWeightInReports !== undefined ? { hideWeightInReports: dto.hideWeightInReports } : {}),
         ...(dto.adaptiveEnabled !== undefined ? { adaptiveEnabled: dto.adaptiveEnabled } : {}),
@@ -132,6 +141,8 @@ export class ProfileService {
       weekStartsOn: p.weekStartsOn,
       hideWeightInReports: p.hideWeightInReports,
       adaptiveEnabled: p.adaptiveEnabled,
+      workoutEstimateEnabled: p.workoutEstimateEnabled,
+      workoutAddToGoal: p.workoutAddToGoal,
       updatedAt: p.updatedAt,
     };
   }

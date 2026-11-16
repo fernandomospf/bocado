@@ -3,6 +3,7 @@ import { MealSource, MealType } from '@prisma/client';
 import { formatDay, parseDay } from '../common/dates';
 import { PrismaService } from '../prisma/prisma.service';
 import { movingAverages, TREND_WINDOW_DAYS } from '../weight/weight.math';
+import { estimateKcal } from '../workouts/workout.math';
 import { BOM, dateCell, numCell, row, textCell } from './csv';
 import { dayBatches, shiftDay } from './period';
 
@@ -35,6 +36,16 @@ export const MEALS_HEADER = [
   'Estimativa',
 ];
 export const DAY_TOTALS_HEADER = ['Data', 'Kcal', 'Proteína (g)', 'Carboidratos (g)', 'Gorduras (g)', 'Meta de kcal'];
+export const WORKOUT_HEADER = ['Data', 'Tipo', 'Duração (min)', 'Intensidade', 'Nota'];
+export const WORKOUT_ESTIMATE_HEADER = 'Gasto estimado (kcal)';
+export const WORKOUT_TYPE_LABEL: Record<string, string> = {
+  STRENGTH: 'Musculação',
+  RUN: 'Corrida',
+  BIKE: 'Bike',
+  WALK: 'Caminhada',
+  OTHER: 'Outro',
+};
+export const WORKOUT_INTENSITY_LABEL: Record<string, string> = { LIGHT: 'Leve', MODERATE: 'Moderada', HARD: 'Forte' };
 export const WEIGHT_HEADER = ['Data', 'Peso (kg)', 'Média de 7 dias (kg)', 'Nota'];
 
 interface DayTotals {
@@ -56,12 +67,13 @@ export class ExportService {
   /** Quantos registros o período tem (o app avisa antes de baixar um arquivo vazio). */
   async summary(userId: string, from: string, to: string) {
     const range = { gte: parseDay(from), lte: parseDay(to) };
-    const [meals, items, weights] = await Promise.all([
+    const [meals, items, weights, workouts] = await Promise.all([
       this.prisma.meal.count({ where: { userId, date: range } }),
       this.prisma.mealItem.count({ where: { meal: { userId, date: range } } }),
       this.prisma.weightEntry.count({ where: { userId, date: range } }),
+      this.prisma.workout.count({ where: { userId, date: range } }),
     ]);
-    return { from, to, meals, items, weights };
+    return { from, to, meals, items, weights, workouts };
   }
 
   async *mealsCsv(userId: string, from: string, to: string): AsyncGenerator<string> {
@@ -146,5 +158,34 @@ export class ExportService {
       body += row([]) + row([textCell('Variação no período (kg)'), numCell(change, 2)]);
     }
     if (body) yield body;
+  }
+
+  /** Treinos do período. A coluna de estimativa só existe se a pessoa ligou a estimativa (nunca por padrão). */
+  async *workoutsCsv(userId: string, from: string, to: string): AsyncGenerator<string> {
+    const profile = await this.prisma.profile.findUnique({
+      where: { userId },
+      select: { weightKg: true, workoutEstimateEnabled: true },
+    });
+    const withEstimate = !!profile?.workoutEstimateEnabled;
+    yield BOM + row([...WORKOUT_HEADER, ...(withEstimate ? [WORKOUT_ESTIMATE_HEADER] : [])].map(textCell));
+
+    for (const [start, end] of dayBatches(from, to)) {
+      const rows = await this.prisma.workout.findMany({
+        where: { userId, date: { gte: parseDay(start), lte: parseDay(end) } },
+        orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
+      });
+      let chunk = '';
+      for (const w of rows) {
+        chunk += row([
+          dateCell(formatDay(w.date)),
+          textCell(WORKOUT_TYPE_LABEL[w.type]),
+          numCell(w.durationMin, 0),
+          textCell(WORKOUT_INTENSITY_LABEL[w.intensity]),
+          textCell(w.note),
+          ...(withEstimate ? [numCell(estimateKcal(w, profile!.weightKg), 0)] : []),
+        ]);
+      }
+      if (chunk) yield chunk;
+    }
   }
 }

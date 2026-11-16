@@ -89,7 +89,7 @@ describe('cascata no schema', () => {
 
   it('cobre perfil, refeições, peso, receitas, alimentos próprios, uso de IA e denúncias', () => {
     const models = new Set(relations.map((r) => r.model));
-    for (const m of ['Profile', 'Meal', 'WeightEntry', 'Recipe', 'Food', 'AiUsage', 'FoodReport']) expect(models.has(m)).toBe(true);
+    for (const m of ['Profile', 'Meal', 'WeightEntry', 'Workout', 'Recipe', 'Food', 'AiUsage', 'FoodReport']) expect(models.has(m)).toBe(true);
     // Itens e ingredientes caem em cascata a partir da refeição e da receita
     const child = (model: string, type: string) =>
       Prisma.dmmf.datamodel.models.find((m) => m.name === model)?.fields.find((f) => f.type === type)?.relationOnDelete;

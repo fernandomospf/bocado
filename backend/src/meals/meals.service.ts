@@ -10,6 +10,7 @@ import { formatDay, parseDay } from '../common/dates';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfileService } from '../profile/profile.service';
 import { CreateMealDto, MealSnapshotDto, MoveMealItemDto, RepeatMealDto, UpdateMealItemDto } from './dto/meal.dto';
+import { summarizeDayWorkouts } from '../workouts/workout.math';
 import { groupRecentMeals } from './recent';
 
 export interface Totals {
@@ -287,20 +288,35 @@ export class MealsService {
   }
 
   async day(userId: string, date: string) {
-    const [meals, targets] = await Promise.all([
+    const [meals, targets, workoutRows, prefs] = await Promise.all([
       this.prisma.meal.findMany({
         where: { userId, date: parseDay(date) },
         include: { items: { orderBy: { name: 'asc' } } },
         orderBy: { createdAt: 'asc' },
       }),
       this.profiles.targetsFor(userId),
+      this.prisma.workout.findMany({ where: { userId, date: parseDay(date) }, orderBy: { createdAt: 'asc' } }),
+      this.prisma.profile.findUnique({
+        where: { userId },
+        select: { weightKg: true, workoutEstimateEnabled: true, workoutAddToGoal: true },
+      }),
     ]);
     const sorted = [...meals].sort(
       (a, b) => MEAL_ORDER.indexOf(a.type) - MEAL_ORDER.indexOf(b.type),
     );
+    // Treino é contexto: a estimativa só vem com a preferência ligada, e o bônus só vale para o cálculo DESTE dia.
+    // A meta salva no perfil nunca muda; `baseTargetKcal` deixa clara a meta base quando há bônus.
+    const w = summarizeDayWorkouts(
+      workoutRows,
+      prefs?.weightKg ?? 0,
+      prefs ?? { workoutEstimateEnabled: false, workoutAddToGoal: false },
+    );
+    const bonus = w.goalBonusKcal;
     return {
       date,
-      targets,
+      targets: targets && bonus ? { ...targets, kcal: targets.kcal + bonus } : targets,
+      ...(targets && bonus ? { baseTargetKcal: targets.kcal, goalBonusKcal: bonus } : {}),
+      workouts: w.workouts,
       totals: sumItems(meals.flatMap((m) => m.items)),
       meals: sorted.map((m) => this.serializeMeal(m)),
     };

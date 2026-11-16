@@ -5,6 +5,7 @@ import { latestAllowedDay } from '../meals/meals.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { suggestTargets } from '../profile/nutrition';
 import { addDays } from '../weight/weight.math';
+import { summarizeWeek } from '../workouts/workout.math';
 import { buildWeeklyReport, type DayInput, pendingWeekStart, weekEndOf, weekStartOf } from './weekly.math';
 
 const LIST_SCAN_DAYS = 400;
@@ -29,7 +30,7 @@ export class ReportsService {
 
   private async build(userId: string, profile: Awaited<ReturnType<ReportsService['profile']>>, weekStart: string) {
     const weekEnd = weekEndOf(weekStart);
-    const [meals, weights] = await Promise.all([
+    const [meals, weights, workoutRows] = await Promise.all([
       this.prisma.meal.findMany({
         where: { userId, date: { gte: parseDay(weekStart), lte: parseDay(weekEnd) } },
         select: { date: true, type: true, items: { select: { kcal: true, protein: true, carbs: true, fat: true } } },
@@ -38,6 +39,10 @@ export class ReportsService {
         where: { userId, date: { gte: parseDay(addDays(weekStart, -14)), lte: parseDay(weekEnd) } },
         select: { date: true, weightKg: true },
         orderBy: { date: 'asc' },
+      }),
+      this.prisma.workout.findMany({
+        where: { userId, date: { gte: parseDay(weekStart), lte: parseDay(weekEnd) } },
+        select: { type: true, durationMin: true },
       }),
     ]);
 
@@ -57,7 +62,11 @@ export class ReportsService {
       byDay.set(date, day);
     }
 
-    return buildWeeklyReport({
+    // Treinos: só contexto (contagem e minutos). Não entram no balanço, que usa a meta BASE do perfil (sem o bônus
+    // do treino do dia) e o gasto por fórmula; também não alteram a meta adaptativa.
+    const workouts = summarizeWeek(workoutRows);
+
+    const report = buildWeeklyReport({
       weekStart,
       days: [...byDay.values()],
       targets: {
@@ -71,6 +80,7 @@ export class ReportsService {
       hideWeight: profile.hideWeightInReports,
       weights: weights.map((w) => ({ date: formatDay(w.date), weightKg: w.weightKg })),
     });
+    return { ...report, workouts };
   }
 
   /** Dias com ao menos uma refeição com alimentos, do mais recente para o mais antigo. */
