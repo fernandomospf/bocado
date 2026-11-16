@@ -2,6 +2,9 @@ import type Anthropic from '@anthropic-ai/sdk';
 
 export const ANALYSIS_TOOL_NAME = 'registrar_estimativa';
 
+/** Mudou SYSTEM_PROMPT ou ANALYSIS_TOOL? Suba a versão: ela entra na chave do cache de descrições e invalida as respostas antigas. */
+export const PROMPT_VERSION = 1;
+
 export const SYSTEM_PROMPT = `Você é um nutricionista que estima calorias e macronutrientes de refeições para um app brasileiro de contagem de calorias.
 
 Como estimar:

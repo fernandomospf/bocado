@@ -9,6 +9,7 @@ import { ExportModule } from './export/export.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { UserThrottlerGuard } from './common/user-throttler.guard';
 import { validateEnv } from './config/env.validation';
+import { FavoritesModule } from './favorites/favorites.module';
 import { FoodsModule } from './foods/foods.module';
 import { HealthModule } from './health/health.module';
 import { MealsModule } from './meals/meals.module';
@@ -26,6 +27,7 @@ import { WeightModule } from './weight/weight.module';
     AuthModule,
     ProfileModule,
     MealsModule,
+    FavoritesModule,
     FoodsModule,
     RecipesModule,
     SuggestionsModule,

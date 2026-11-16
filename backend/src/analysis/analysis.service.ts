@@ -5,10 +5,13 @@ import {
   HttpStatus,
   Injectable,
   Logger,
+  Optional,
   ServiceUnavailableException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { AnalysisCacheService } from './analysis.cache';
+import { analysisCacheKey } from './analysis.normalize';
 import { extractItemObjects, parseLooseJson, toNumber } from './analysis.parse';
 import { ANALYSIS_TOOL, ANALYSIS_TOOL_NAME, LABEL_SYSTEM_PROMPT, LABEL_TOOL, SYSTEM_PROMPT } from './analysis.prompt';
 import { coerceLabel, LabelDraft } from './label';
@@ -59,7 +62,11 @@ export class AnalysisService {
   private readonly client: Anthropic | null;
   private readonly model: string;
 
-  constructor(config: ConfigService) {
+  /** O cache é opcional: sem ele (testes, ou se o módulo não o fornecer) toda descrição vai para a IA. */
+  constructor(
+    config: ConfigService,
+    @Optional() private readonly cache?: AnalysisCacheService,
+  ) {
     const apiKey = config.get<string>('ANTHROPIC_API_KEY')?.trim();
     this.client = apiKey ? new Anthropic({ apiKey, maxRetries: 2, timeout: 60_000 }) : null;
     this.model = config.get<string>('ANTHROPIC_MODEL')?.trim() || 'claude-sonnet-5-5';
@@ -114,10 +121,24 @@ export class AnalysisService {
     return coerceLabel(raw, barcode);
   }
 
+  /**
+   * Descrição em texto: consulta o cache (chave = descrição normalizada + modelo + versão do prompt) antes de chamar
+   * o Claude e grava só resultados válidos. Fotos e rótulos nunca passam por aqui.
+   */
   async analyzeText(description: string): Promise<AnalysisResult> {
-    return this.run([
+    const key = analysisCacheKey(description, this.model);
+    const cached = await this.cache?.get(key);
+    if (cached) {
+      this.logger.log('analysis cache hit');
+      return cached;
+    }
+    if (this.cache) this.logger.log('analysis cache miss');
+
+    const result = await this.run([
       { type: 'text', text: `Estime os nutrientes desta refeição descrita pelo usuário: ${description}` },
     ]);
+    await this.cache?.set(key, result);
+    return result;
   }
 
   /** Há chave da IA configurada no servidor? */
