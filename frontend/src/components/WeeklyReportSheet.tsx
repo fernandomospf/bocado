@@ -7,7 +7,8 @@ import { fmtDec, fmtInt } from '@/lib/format';
 import { useAdaptiveStatus } from '@/lib/hooks';
 import { MEAL_LABEL } from '@/lib/labels';
 import { balanceText, periodLabel, signedKg, WEEKLY_DISCLAIMER } from '@/lib/reports';
-import type { WeeklyHighlight, WeeklyReport } from '@/lib/types';
+import type { WeeklyHighlight, WeeklyReport, WorkoutType } from '@/lib/types';
+import { WORKOUT_LABEL } from '@/lib/workouts';
 import { AdaptiveSheet } from './AdaptiveSheet';
 import { Sheet } from './Sheet';
 import { WeeklyBars } from './WeeklyBars';
@@ -71,6 +72,7 @@ function ReportBody({ report: r }: { report: WeeklyReport }) {
             O relatório aparece com pelo menos 4 dias registrados na semana. Dias sem registro não entram nas médias.
           </p>
         </section>
+        <WorkoutsSection workouts={r.workouts} />
       </>
     );
   }
@@ -135,6 +137,8 @@ function ReportBody({ report: r }: { report: WeeklyReport }) {
         </section>
       )}
 
+      <WorkoutsSection workouts={r.workouts} />
+
       {r.highlights && r.highlights.length > 0 && (
         <section className="card glass stack-sm" aria-label="Destaques">
           <h3 className="headline">Destaques</h3>
@@ -188,5 +192,35 @@ function AdaptiveHint() {
       </button>
       {open && <AdaptiveSheet onClose={() => setOpen(false)} />}
     </>
+  );
+}
+
+/** "3 treinos, 160 min", com o detalhamento por tipo ao abrir. Semana sem treino: tom neutro. */
+function WorkoutsSection({ workouts }: { workouts: WeeklyReport['workouts'] }) {
+  if (!workouts) return null;
+  const types = Object.entries(workouts.byType) as [WorkoutType, { count: number; minutes: number }][];
+  return (
+    <section className="card glass stack-sm" aria-label="Treinos">
+      <h3 className="headline">Treinos</h3>
+      {workouts.count === 0 ? (
+        <p className="body-2">Nenhum treino registrado</p>
+      ) : (
+        <>
+          <p className="body-2">
+            {workouts.count} {workouts.count === 1 ? 'treino' : 'treinos'}, {workouts.totalMinutes} min
+          </p>
+          <details className="adaptive-how">
+            <summary>Ver por tipo</summary>
+            <ul className="weekly-highlights">
+              {types.map(([type, v]) => (
+                <li key={type} className="body-2">
+                  {WORKOUT_LABEL[type]}: {v.count} {v.count === 1 ? 'treino' : 'treinos'}, {v.minutes} min
+                </li>
+              ))}
+            </ul>
+          </details>
+        </>
+      )}
+    </section>
   );
 }

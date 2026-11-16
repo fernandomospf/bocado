@@ -44,6 +44,8 @@ export function CalendarSheet({ date, today, weekStartsOn, onClose, onSelect }: 
   const { data } = useSWR<RangeSummary>(`/days?from=${first}&to=${to}`);
   const target = data?.targets?.kcal ?? 0;
   const logged = new Map(data?.days.map((d) => [d.date, d.totals.kcal]) ?? []);
+  const { data: workoutData } = useSWR<{ workouts: { date: string }[] }>(`/workouts?from=${first}&to=${to}`, { revalidateOnFocus: false });
+  const trainedDays = new Set(workoutData?.workouts.map((w) => w.date));
 
   // Semanas do mês, começando conforme a preferência; dias de outros meses ficam vazios
   const gridStart = weekStart(first, weekStartsOn);
@@ -146,6 +148,7 @@ export function CalendarSheet({ date, today, weekStartsOn, onClose, onSelect }: 
                   d === today ? 'Hoje, ' : '',
                   fullLabel.format(fromISO(d)),
                   kcal !== undefined ? `: ${fmtInt(kcal)} kcal${status === 'on' ? ', dentro da meta' : ''}` : '',
+                  trainedDays.has(d) ? ', com treino' : '',
                 ].join('');
                 return (
                   <span key={d} role="gridcell" className="calendar-cell" aria-selected={d === date}>
@@ -164,6 +167,7 @@ export function CalendarSheet({ date, today, weekStartsOn, onClose, onSelect }: 
                       onClick={() => choose(d)}
                     >
                       <span aria-hidden>{fromISO(d).getDate()}</span>
+                      {trainedDays.has(d) && <i className="workout-dot" aria-hidden />}
                     </button>
                   </span>
                 );
@@ -178,6 +182,9 @@ export function CalendarSheet({ date, today, weekStartsOn, onClose, onSelect }: 
           </span>
           <span>
             <i data-status="off" /> Com registro
+          </span>
+          <span>
+            <i className="workout-dot workout-dot-static" /> Com treino
           </span>
         </div>
       </div>

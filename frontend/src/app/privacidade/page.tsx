@@ -26,7 +26,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="Política de Privacidade"
-      updatedAt="15 de novembro de 2026"
+      updatedAt="16 de novembro de 2026"
       toc={TOC}
       otherPage={{ href: '/termos', label: 'Termos de Uso' }}
     >
@@ -71,6 +71,12 @@ export default function PrivacyPage() {
       </p>
       <h3>Peso</h3>
       <p>Os registros de peso que você faz: data, valor e uma observação opcional, no máximo um por dia.</p>
+      <h3>Treinos</h3>
+      <p>
+        Os treinos que você registrar: data, tipo, duração, intensidade e uma nota opcional. Eles servem só de contexto
+        para o seu dia e para o relatório semanal, e são apagados junto com a conta. A estimativa de gasto dos treinos,
+        se você ligá-la, é calculada na hora e não fica guardada.
+      </p>
       <h3>Uso da IA e denúncias</h3>
       <p>
         Um contador diário de quantas vezes você usou cada recurso de IA, para aplicar o limite de uso. Se você denunciar
@@ -169,7 +175,7 @@ export default function PrivacyPage() {
         <li>exporte suas refeições e seu peso em CSV, para abrir no Excel;</li>
         <li>
           exclua sua conta em &ldquo;Excluir conta&rdquo;. Isso apaga de forma definitiva seu perfil, refeições, pesos,
-          receitas, alimentos cadastrados por você, contadores de uso e denúncias. Os produtos que você cadastrou no
+          treinos, receitas, alimentos cadastrados por você, contadores de uso e denúncias. Os produtos que você cadastrou no
           acervo compartilhado continuam, sem ligação com você.
         </li>
       </ul>

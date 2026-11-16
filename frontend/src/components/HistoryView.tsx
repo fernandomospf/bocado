@@ -23,6 +23,8 @@ export function HistoryView() {
   const today = todayISO();
   const from = addDays(today, -(period - 1));
   const { data, error, isLoading } = useSWR<RangeSummary>(`/days?from=${from}&to=${today}`);
+  const { data: workoutData } = useSWR<{ workouts: { date: string }[] }>(`/workouts?from=${from}&to=${today}`, { revalidateOnFocus: false });
+  const trainedDays = new Set(workoutData?.workouts.map((w) => w.date));
 
   const byDate = new Map(data?.days.map((d) => [d.date, d]) ?? []);
   const series = Array.from({ length: period }, (_, i) => {
@@ -129,6 +131,9 @@ export function HistoryView() {
                     <span className="list-row-main">
                       <span className="list-row-title" style={{ display: 'block' }}>
                         {dayTitle(d.date)}
+                        {trainedDays.has(d.date) && (
+                          <span className="workout-dot workout-dot-inline" role="img" aria-label="Com treino" />
+                        )}
                       </span>
                       <span className="list-row-sub">
                         <MacroDots m={d.totals} />
