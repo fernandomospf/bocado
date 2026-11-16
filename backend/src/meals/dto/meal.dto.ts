@@ -49,6 +49,11 @@ export class MealItemDto {
   @IsOptional()
   @IsBoolean()
   estimated?: boolean;
+
+  /** Receita de origem (conta o uso). Ignorada se a receita não for visível ao usuário. */
+  @IsOptional()
+  @IsUUID()
+  recipeId?: string;
 }
 
 export class CreateMealDto {

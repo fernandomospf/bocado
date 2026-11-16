@@ -16,6 +16,8 @@ export interface DraftItem {
   confidence?: Confidence;
   /** Alimento de origem (TACO ou próprio), quando o item veio da busca. Usado nos ingredientes de receitas. */
   foodId?: string;
+  /** Receita de origem (conta o uso da receita ao salvar a refeição). */
+  recipeId?: string;
   /** Referência para escalar macros quando a porção muda. */
   base?: { grams: number; kcal: number; protein: number; carbs: number; fat: number };
   /** Veio da IA e ainda não teve porção ou macros editados (selo "estimativa"). */
@@ -140,7 +142,7 @@ export function toPayload(d: DraftItem) {
 
 /** Item de refeição: inclui a marca de estimativa (receitas não têm esse campo). */
 export function toMealPayload(d: DraftItem) {
-  return { ...toPayload(d), ...(d.estimated ? { estimated: true } : {}) };
+  return { ...toPayload(d), ...(d.estimated ? { estimated: true } : {}), ...(d.recipeId ? { recipeId: d.recipeId } : {}) };
 }
 
 interface ItemsEditorProps {

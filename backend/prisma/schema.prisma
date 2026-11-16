@@ -172,8 +172,12 @@ model MealItem {
   fat       Float
   /// Valores estimados pela IA (foto ou descrição) e não editados pelo usuário
   estimated Boolean @default(false)
+  /// Receita de origem (para contar o uso). Nula em itens antigos ou se a receita for apagada
+  recipeId  String? @db.Uuid
+  recipe    Recipe? @relation(fields: [recipeId], references: [id], onDelete: SetNull)
 
   @@index([mealId])
+  @@index([recipeId])
   @@map("meal_items")
 }
 
@@ -258,6 +262,7 @@ model Recipe {
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   ingredients      RecipeIngredient[]
+  usedIn           MealItem[]
 
   @@index([ownerId])
   @@index([householdId])

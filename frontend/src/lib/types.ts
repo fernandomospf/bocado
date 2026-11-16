@@ -58,6 +58,8 @@ export interface MealItem extends Macros {
   grams: number;
   /** Valores estimados pela IA e não editados (selo "estimativa"). */
   estimated: boolean;
+  /** Receita de origem, quando o item foi registrado a partir de uma. */
+  recipeId?: string | null;
 }
 
 export interface Meal {

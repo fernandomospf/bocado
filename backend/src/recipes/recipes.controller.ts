@@ -24,6 +24,12 @@ export class RecipesController {
     return this.recipes.create(user.id, dto);
   }
 
+  /** Cópia própria da receita (para editar uma receita da casa). */
+  @Post(':id/duplicate')
+  duplicate(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.recipes.duplicate(user.id, id);
+  }
+
   @Put(':id')
   update(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: SaveRecipeDto) {
     return this.recipes.update(user.id, id, dto);

@@ -8,9 +8,6 @@ import type { RecipeSummary } from '@/lib/types';
 import { ChevronRight } from './Icons';
 import { Sheet } from './Sheet';
 
-/** Acima disso a lista ganha um campo de filtro. */
-const FILTER_FROM = 7;
-
 interface RecipePickerSheetProps {
   /** Onde a receita vai entrar, ex.: "Almoço · Hoje". */
   context: string;
@@ -32,7 +29,7 @@ export function RecipePickerSheet({ context, onClose, onPick }: RecipePickerShee
           <p className="caption">{context}</p>
         </div>
 
-        {(data?.length ?? 0) >= FILTER_FROM && (
+        {(data?.length ?? 0) > 0 && (
           <input
             className="input"
             type="search"
@@ -55,7 +52,7 @@ export function RecipePickerSheet({ context, onClose, onPick }: RecipePickerShee
           <div className="stack" style={{ textAlign: 'center' }}>
             <p className="body-2">Você ainda não tem receitas. Cadastre uma vez e registre sem precisar da IA.</p>
             <Link href="/recipes/new" className="btn btn-primary btn-block" onClick={onClose}>
-              Nova receita
+              Criar receita
             </Link>
           </div>
         )}
@@ -70,7 +67,7 @@ export function RecipePickerSheet({ context, onClose, onPick }: RecipePickerShee
                   </span>
                   <span className="list-row-sub">
                     {recipeSubtitle(r)}
-                    {r.timesUsed > 0 && ` · ${r.timesUsed}×`}
+                    {r.timesUsed > 0 && ` · usada ${r.timesUsed}x`}
                   </span>
                 </span>
                 <ChevronRight width={16} height={16} aria-hidden />

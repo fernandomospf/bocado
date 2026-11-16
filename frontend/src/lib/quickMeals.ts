@@ -98,5 +98,5 @@ export function useQuickMeals() {
     [mutate, toast],
   );
 
-  return { repeat, logFavorite, saveFavorite };
+  return { repeat, logFavorite, saveFavorite, announce };
 }

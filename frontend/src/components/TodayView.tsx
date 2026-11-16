@@ -17,7 +17,7 @@ import { useShortcuts } from '@/lib/useShortcuts';
 import { FoodPortionSheet } from './FoodPortionSheet';
 import { CloseDayCard } from './CloseDayCard';
 import { PlusIcon, PotIcon, RepeatIcon } from './Icons';
-import { type DraftItem, toPayload } from './ItemsEditor';
+import { type DraftItem, toMealPayload } from './ItemsEditor';
 import { ItemSheet } from './ItemSheet';
 import { MacroDots, MacroLegend } from './MacroLegend';
 import { RecipePickerSheet } from './RecipePickerSheet';
@@ -65,10 +65,14 @@ export function TodayView() {
   const cardContext = (type: MealType) => `${MEAL_LABEL[type]} · ${dayTitle(date)}`;
 
   async function logRecipe(type: MealType, item: DraftItem) {
-    await api('/meals', { method: 'POST', json: { date, type, source: 'SEARCH', items: [toPayload(item)] } });
+    const meal = await api<Meal>('/meals', {
+      method: 'POST',
+      json: { date, type, source: 'SEARCH', items: [toMealPayload(item)] },
+    });
     await mutate();
     void globalMutate('/recipes'); // a contagem de uso ("mais usadas") mudou
     setPortion(null);
+    await quick.announce(meal, `${item.name} adicionado em ${MEAL_LABEL[type]}`);
   }
 
   /** A refeição do mesmo tipo no dia anterior, se tiver alimentos. */
@@ -251,10 +255,16 @@ export function TodayView() {
                         </button>
                       )),
                     )}
-                    <Link href={`/add?type=${type}&date=${date}`} className="empty-add" style={{ marginTop: 6 }}>
-                      <PlusIcon width={18} height={18} />
-                      Adicionar mais
-                    </Link>
+                    <div className="empty-actions" style={{ marginTop: 6 }}>
+                      <Link href={`/add?type=${type}&date=${date}`} className="empty-add">
+                        <PlusIcon width={18} height={18} />
+                        Adicionar mais
+                      </Link>
+                      <button type="button" className="empty-add" onClick={() => setRecipeFor(type)}>
+                        <PotIcon width={18} height={18} />
+                        Da receita
+                      </button>
+                    </div>
                   </div>
                 )}
               </section>
@@ -289,7 +299,6 @@ export function TodayView() {
           key={portion.food.id}
           food={portion.food}
           context={cardContext(portion.type)}
-          actionLabel="Registrar"
           onClose={() => setPortion(null)}
           onAdd={(item) => logRecipe(portion.type, item)}
         />

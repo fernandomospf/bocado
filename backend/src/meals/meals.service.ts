@@ -83,7 +83,20 @@ export class MealsService {
     private readonly profiles: ProfileService,
   ) {}
 
+  /** Mantém só os recipeId de receitas que o usuário pode ver (o resto vira item avulso, sem erro). */
+  private async keepVisibleRecipeIds<T extends { recipeId?: string | null }>(userId: string, items: T[]): Promise<T[]> {
+    const ids = [...new Set(items.map((i) => i.recipeId).filter((v): v is string => !!v))];
+    if (ids.length === 0) return items;
+    const visible = await this.prisma.recipe.findMany({
+      where: { id: { in: ids }, ownerId: userId },
+      select: { id: true },
+    });
+    const ok = new Set(visible.map((r) => r.id));
+    return items.map((i) => (i.recipeId && !ok.has(i.recipeId) ? { ...i, recipeId: undefined } : i));
+  }
+
   async create(userId: string, dto: CreateMealDto) {
+    const items = await this.keepVisibleRecipeIds(userId, dto.items);
     const meal = await this.prisma.meal.create({
       data: {
         userId,
@@ -91,7 +104,7 @@ export class MealsService {
         type: dto.type,
         source: dto.source ?? MealSource.MANUAL,
         note: dto.note || null,
-        items: { create: dto.items },
+        items: { create: items },
       },
       include: { items: true },
     });
@@ -145,7 +158,7 @@ export class MealsService {
         type: dto.type ?? source.type,
         source: source.source,
         items: {
-          create: source.items.map(({ name, grams, kcal, protein, carbs, fat, estimated }) => ({
+          create: source.items.map(({ name, grams, kcal, protein, carbs, fat, estimated, recipeId }) => ({
             name,
             grams,
             kcal,
@@ -153,6 +166,7 @@ export class MealsService {
             carbs,
             fat,
             estimated,
+            recipeId,
           })),
         },
       },
@@ -265,8 +279,9 @@ export class MealsService {
             },
           });
         }
+        const restorable = await this.keepVisibleRecipeIds(userId, s.items);
         await tx.mealItem.createMany({
-          data: s.items.map((i) => ({
+          data: restorable.map((i) => ({
             id: i.id,
             mealId: s.meal.id,
             name: i.name,
@@ -276,6 +291,7 @@ export class MealsService {
             carbs: i.carbs,
             fat: i.fat,
             estimated: i.estimated ?? false,
+            recipeId: i.recipeId ?? null,
           })),
         });
         return { mealId: s.meal.id, date };

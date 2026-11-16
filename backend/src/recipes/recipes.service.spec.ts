@@ -113,10 +113,10 @@ describe('RecipesService.list (mais usadas primeiro)', () => {
       { ...stored, id: 'arroz', name: 'Arroz da casa', updatedAt: at('2026-09-01'), ingredients: [{ grams: 520 }] },
       { ...stored, id: 'velha', name: 'Sopa', updatedAt: at('2026-01-01'), ingredients: [{ grams: 800 }] },
     ]);
-    // A contagem vem por nome normalizado (sem acento e minúsculo)
+    // A contagem vem por id (itens com recipeId + itens antigos casados pelo nome, resolvido no SQL)
     prisma.$queryRaw.mockResolvedValue([
-      { norm: 'feijao da vo', times: BigInt(7) },
-      { norm: 'arroz da casa', times: BigInt(2) },
+      { id: 'feijao', times: BigInt(7) },
+      { id: 'arroz', times: BigInt(2) },
     ]);
 
     const out = await service.list(OWNER);
@@ -134,6 +134,32 @@ describe('RecipesService.list (mais usadas primeiro)', () => {
     prisma.recipe.findMany.mockResolvedValue([]);
     await service.list(OWNER);
     expect(prisma.$queryRaw).not.toHaveBeenCalled();
+  });
+});
+
+describe('RecipesService.duplicate', () => {
+  it('cria uma cópia privada do usuário, sem casa e sem foodId', async () => {
+    const { prisma, service } = setup();
+    prisma.recipe.findFirst.mockResolvedValue({
+      ...stored,
+      householdId: 'h1',
+      ingredients: [{ name: 'Arroz', grams: 500, kcal: 1, protein: 1, carbs: 1, fat: 1, position: 0, foodId: 'f1' }],
+    });
+    prisma.recipe.create.mockResolvedValue({ ...stored, ingredients: [] });
+
+    await service.duplicate('member-1', 'recipe-1');
+
+    const data = prisma.recipe.create.mock.calls[0][0].data;
+    expect(data.ownerId).toBe('member-1');
+    expect(data.householdId).toBeUndefined();
+    expect(data.name).toBe('Arroz da casa (cópia)');
+    expect(data.ingredients.create[0].foodId).toBeNull();
+  });
+
+  it('receita invisível: 404', async () => {
+    const { prisma, service } = setup();
+    prisma.recipe.findFirst.mockResolvedValue(null);
+    await expect(service.duplicate(STRANGER, 'recipe-1')).rejects.toBeInstanceOf(NotFoundException);
   });
 });
 

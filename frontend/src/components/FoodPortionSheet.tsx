@@ -66,7 +66,8 @@ export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 
     try {
       // foodId só para registros da base de alimentos; receitas e histórico não são um Food
       const foodId = ['taco', 'custom', 'off', 'label'].includes(food.origin) ? food.id : undefined;
-      await onAdd(draftFromPer100(food.name, food.per100, value, foodId));
+      const draft = draftFromPer100(food.name, food.per100, value, foodId);
+      await onAdd(food.origin === 'recipe' ? { ...draft, recipeId: food.id } : draft);
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);

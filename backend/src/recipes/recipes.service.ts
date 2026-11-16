@@ -44,7 +44,7 @@ export class RecipesService {
       include: { ingredients: { select: { grams: true } } },
       orderBy: { updatedAt: 'desc' },
     });
-    const usage = await this.usageByName(userId, recipes.map((r) => r.name));
+    const usage = await this.usageById(userId, recipes);
 
     return recipes
       .map((r) => {
@@ -59,7 +59,7 @@ export class RecipesService {
           ingredientCount: r.ingredients.length,
           isOwner: r.ownerId === userId,
           shared: r.householdId !== null,
-          timesUsed: usage.get(normalizeName(r.name)) ?? 0,
+          timesUsed: usage.get(r.id) ?? 0,
           updatedAt: r.updatedAt,
         };
       })
@@ -67,21 +67,24 @@ export class RecipesService {
   }
 
   /**
-   * Quantas vezes o usuário registrou cada receita. Um item registrado a partir de uma receita leva o nome
-   * dela, então a contagem é por nome normalizado nas refeições do próprio usuário (nunca de outra pessoa).
+   * Quantas vezes o usuário registrou cada receita, só nas refeições dele (nunca de outra pessoa).
+   * Conta os itens com recipeId e, apenas quando recipeId é nulo (itens antigos), pelo nome normalizado.
    */
-  private async usageByName(userId: string, names: string[]): Promise<Map<string, number>> {
-    const normalized = [...new Set(names.map(normalizeName).filter(Boolean))];
-    if (normalized.length === 0) return new Map();
-    const norm = Prisma.raw(NORMALIZED_NAME_SQL('i.name'));
-    const rows = await this.prisma.$queryRaw<{ norm: string; times: bigint }[]>`
-      SELECT ${norm} AS norm, COUNT(*) AS times
-        FROM meal_items i
+  private async usageById(userId: string, recipes: { id: string; name: string }[]): Promise<Map<string, number>> {
+    if (recipes.length === 0) return new Map();
+    const rname = Prisma.raw(NORMALIZED_NAME_SQL('r.name'));
+    const iname = Prisma.raw(NORMALIZED_NAME_SQL('i.name'));
+    const ids = recipes.map((r) => r.id);
+    const rows = await this.prisma.$queryRaw<{ id: string; times: bigint }[]>`
+      SELECT r.id::text AS id, COUNT(i.id) AS times
+        FROM recipes r
+        JOIN meal_items i
+          ON i."recipeId" = r.id OR (i."recipeId" IS NULL AND ${iname} = ${rname})
         JOIN meals m ON m.id = i."mealId"
        WHERE m."userId" = ${userId}::uuid
-         AND ${norm} = ANY(${normalized}::text[])
-       GROUP BY 1`;
-    return new Map(rows.map((r) => [r.norm, Number(r.times)]));
+         AND r.id = ANY(${ids}::uuid[])
+       GROUP BY r.id`;
+    return new Map(rows.map((r) => [r.id, Number(r.times)]));
   }
 
   async get(userId: string, id: string) {
@@ -112,6 +115,43 @@ export class RecipesService {
         data: { ...data.fields, ingredients: { create: data.ingredients } },
         include: { ingredients: { orderBy: { position: 'asc' } } },
       });
+    });
+    return this.serialize(recipe, userId);
+  }
+
+  /** Cópia própria (privada) de uma receita visível, ex.: a de outro membro da casa. */
+  async duplicate(userId: string, id: string) {
+    const src = await this.prisma.recipe.findFirst({
+      where: { AND: [{ id }, await this.visibleWhere(userId)] },
+      include: { ingredients: { orderBy: { position: 'asc' } } },
+    });
+    if (!src) throw new NotFoundException('Receita não encontrada');
+    const recipe = await this.prisma.recipe.create({
+      data: {
+        ownerId: userId,
+        name: `${src.name} (cópia)`.slice(0, 120),
+        notes: src.notes,
+        totalCookedGrams: src.totalCookedGrams,
+        servings: src.servings,
+        kcal100: src.kcal100,
+        protein100: src.protein100,
+        carbs100: src.carbs100,
+        fat100: src.fat100,
+        ingredients: {
+          create: src.ingredients.map((i) => ({
+            // foodId só se for da base pública ou do próprio usuário; o resto vira snapshot
+            foodId: null,
+            name: i.name,
+            grams: i.grams,
+            kcal: i.kcal,
+            protein: i.protein,
+            carbs: i.carbs,
+            fat: i.fat,
+            position: i.position,
+          })),
+        },
+      },
+      include: { ingredients: { orderBy: { position: 'asc' } } },
     });
     return this.serialize(recipe, userId);
   }

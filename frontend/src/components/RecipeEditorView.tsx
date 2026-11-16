@@ -31,7 +31,7 @@ export function RecipeEditorView({ id }: { id: string }) {
   const [items, setItems] = useState<DraftItem[]>([]);
   const [loaded, setLoaded] = useState(isNew);
 
-  const [busy, setBusy] = useState<'save' | 'delete' | null>(null);
+  const [busy, setBusy] = useState<'save' | 'delete' | 'copy' | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -86,6 +86,19 @@ export function RecipeEditorView({ id }: { id: string }) {
       await api(isNew ? '/recipes' : `/recipes/${id}`, { method: isNew ? 'POST' : 'PUT', json: body });
       await mutate(isRecipeKey);
       router.replace('/recipes');
+    } catch (err) {
+      setError(errorMessage(err));
+      setBusy(null);
+    }
+  }
+
+  async function duplicate() {
+    setBusy('copy');
+    setError(null);
+    try {
+      const copy = await api<RecipeDetail>(`/recipes/${id}/duplicate`, { method: 'POST' });
+      await mutate(isRecipeKey);
+      router.replace(`/recipes/${copy.id}`);
     } catch (err) {
       setError(errorMessage(err));
       setBusy(null);
@@ -259,6 +272,12 @@ export function RecipeEditorView({ id }: { id: string }) {
             <p className="alert" role="alert">
               {error}
             </p>
+          )}
+
+          {readOnly && (
+            <button className="btn btn-primary btn-block" onClick={duplicate} disabled={!!busy}>
+              {busy === 'copy' ? <span className="spinner" aria-label="Duplicando" /> : 'Duplicar para editar'}
+            </button>
           )}
 
           {!readOnly && (
