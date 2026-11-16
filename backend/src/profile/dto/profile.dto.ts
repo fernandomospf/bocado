@@ -68,4 +68,8 @@ export class PreferencesDto {
   @IsOptional()
   @IsBoolean()
   hideWeightInReports?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  adaptiveEnabled?: boolean;
 }

@@ -32,7 +32,7 @@ export const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
   VERY_ACTIVE: 1.9,
 };
 
-const GOAL_KCAL_FACTOR: Record<GoalType, number> = {
+export const GOAL_KCAL_FACTOR: Record<GoalType, number> = {
   LOSE: 0.8, // déficit de ~20%
   MAINTAIN: 1,
   GAIN: 1.1, // superávit de ~10%
@@ -78,4 +78,48 @@ export function suggestTargets(data: BodyData): Suggestion {
   const carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
 
   return { bmr: Math.round(bmr), tdee: Math.round(tdee), kcal, protein, carbs, fat };
+}
+
+// ---------------------------------------------------------------------------
+// Redistribuição de macros para uma nova meta de calorias
+// ---------------------------------------------------------------------------
+
+const DEFAULT_FAT_SHARE = 0.25;
+
+const macroKcal = (m: Pick<Targets, 'protein' | 'carbs' | 'fat'>) => m.protein * 4 + m.carbs * 4 + m.fat * 9;
+
+/**
+ * Referência usada ao mudar as calorias: proteína em gramas (vem do peso corporal, não das calorias) e a fatia de
+ * gordura em % das kcal. É a mesma regra de rebalance() em frontend/src/components/TargetsEditor.tsx (o editor
+ * manual). São pacotes separados, sem código compartilhado: se uma mudar, mude a outra (os specs têm os mesmos casos).
+ */
+export interface MacroAnchor {
+  protein: number;
+  fatShare: number;
+}
+
+export function macroAnchor(m: Targets): MacroAnchor {
+  const total = macroKcal(m);
+  const fatShare = total > 0 ? (m.fat * 9) / total : DEFAULT_FAT_SHARE;
+  return { protein: m.protein, fatShare: Number.isFinite(fatShare) ? fatShare : DEFAULT_FAT_SHARE };
+}
+
+/**
+ * Proteína mantida, gordura no mesmo percentual, carboidratos completam.
+ * Se a proteína sozinha não couber, proteína e gordura são reduzidas na mesma proporção.
+ */
+export function rebalanceMacros(kcal: number, anchor: MacroAnchor): Pick<Targets, 'protein' | 'carbs' | 'fat'> {
+  if (kcal <= 0) return { protein: 0, carbs: 0, fat: 0 };
+
+  let protein = anchor.protein;
+  let fat = Math.round((kcal * anchor.fatShare) / 9);
+  let carbs = Math.round((kcal - protein * 4 - fat * 9) / 4);
+
+  if (carbs < 0) {
+    const ratio = kcal / (protein * 4 + fat * 9);
+    protein = Math.floor(protein * ratio);
+    fat = Math.floor(fat * ratio);
+    carbs = Math.max(0, Math.floor((kcal - protein * 4 - fat * 9) / 4));
+  }
+  return { protein, carbs, fat };
 }

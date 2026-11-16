@@ -31,6 +31,18 @@ enum WeekStart {
   SUNDAY
 }
 
+enum AdaptiveAction {
+  APPLIED
+  DISMISSED
+  SNOOZED
+}
+
+enum AdaptiveConfidence {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 enum MealType {
   BREAKFAST
   LUNCH
@@ -79,6 +91,7 @@ model User {
   aiUsage      AiUsage[]
   foodReports  FoodReport[]
   favoriteMeals FavoriteMeal[]
+  adaptiveAdjustments AdaptiveAdjustment[]
 
   @@map("users")
 }
@@ -103,6 +116,10 @@ model Profile {
   weekStartsOn    WeekStart     @default(MONDAY)
   /// Relatórios semanais sem nenhuma informação de peso (média, variação e equivalente em kg)
   hideWeightInReports Boolean   @default(false)
+  /// Meta adaptativa: sugerir ajustes da meta a partir do gasto estimado (nunca aplica sozinha)
+  adaptiveEnabled     Boolean   @default(true)
+  /// Sem novas sugestões até esta data (depois de "manter" ou "lembrar depois")
+  adaptiveSnoozedUntil DateTime? @db.Date
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -283,6 +300,27 @@ model FavoriteMeal {
 
   @@index([userId])
   @@map("favorite_meals")
+}
+
+/// Decisões da pessoa sobre a meta adaptativa (não cada cálculo): aplicou, manteve ou adiou
+model AdaptiveAdjustment {
+  id             String             @id @default(uuid()) @db.Uuid
+  userId         String             @db.Uuid
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime           @default(now())
+  action         AdaptiveAction
+  windowStart    DateTime           @db.Date
+  windowEnd      DateTime           @db.Date
+  avgIntake      Float
+  weightStartKg  Float
+  weightEndKg    Float
+  estimatedTdee  Float
+  confidence     AdaptiveConfidence
+  previousKcal   Int
+  newKcal        Int?
+
+  @@index([userId, createdAt])
+  @@map("adaptive_adjustments")
 }
 
 /// Contador diário de chamadas à IA por usuário e recurso (limite de uso)

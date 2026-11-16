@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { AdaptiveModule } from './adaptive/adaptive.module';
 import { AnalysisModule } from './analysis/analysis.module';
 import { AccountModule } from './account/account.module';
 import { AuthModule } from './auth/auth.module';
@@ -32,6 +33,7 @@ import { WeightModule } from './weight/weight.module';
     FoodsModule,
     RecipesModule,
     ReportsModule,
+    AdaptiveModule,
     SuggestionsModule,
     WeightModule,
     ExportModule,

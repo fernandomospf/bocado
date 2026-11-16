@@ -106,6 +106,7 @@ export class ProfileService {
       data: {
         ...(dto.weekStartsOn !== undefined ? { weekStartsOn: dto.weekStartsOn } : {}),
         ...(dto.hideWeightInReports !== undefined ? { hideWeightInReports: dto.hideWeightInReports } : {}),
+        ...(dto.adaptiveEnabled !== undefined ? { adaptiveEnabled: dto.adaptiveEnabled } : {}),
       },
     });
     return this.serialize(profile);
@@ -130,6 +131,7 @@ export class ProfileService {
       suggestion: suggestTargets(p),
       weekStartsOn: p.weekStartsOn,
       hideWeightInReports: p.hideWeightInReports,
+      adaptiveEnabled: p.adaptiveEnabled,
       updatedAt: p.updatedAt,
     };
   }
