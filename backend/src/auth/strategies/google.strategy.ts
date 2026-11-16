@@ -22,7 +22,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     const primary = profile.emails?.[0];
     if (!primary?.value) throw new UnauthorizedException('Conta Google sem e-mail');
 
-    return this.auth.findOrCreateGoogleUser({
+    // Não cria conta aqui: conta nova passa pelo convite e pelas vagas do beta no callback
+    return this.auth.resolveGoogleLogin({
       googleId: profile.id,
       email: primary.value,
       emailVerified: profile._json?.email_verified === true,

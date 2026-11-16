@@ -66,20 +66,26 @@ export default function TermsPage() {
         qualquer cobrança.
       </p>
 
-      <h2>7. Encerramento</h2>
+      <h2>7. Beta</h2>
+      <p>
+        O Bocado está em beta e o acesso é por convite. Durante o beta o serviço pode mudar ou ser interrompido, e convites
+        podem ser revogados. Entrar na lista de espera não garante vaga.
+      </p>
+
+      <h2>8. Encerramento</h2>
       <p>
         Você pode excluir sua conta a qualquer momento, em Perfil &gt; Excluir conta, ou pedindo por e-mail para{' '}
         <a href={`mailto:${CONTACT}`}>{CONTACT}</a>. Os dados são apagados conforme a Política de Privacidade. Contas que
         violarem estes termos podem ser suspensas ou encerradas.
       </p>
 
-      <h2>8. Limitação de responsabilidade</h2>
+      <h2>9. Limitação de responsabilidade</h2>
       <p>
         Nos limites da lei, o Bocado não responde por decisões de saúde ou de alimentação tomadas com base nas
         estimativas e metas exibidas no app.
       </p>
 
-      <h2>9. Lei aplicável e contato</h2>
+      <h2>10. Lei aplicável e contato</h2>
       <p>
         Estes termos são regidos pelas leis da República Federativa do Brasil, e qualquer disputa será resolvida no foro
         brasileiro competente. Contato: <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.

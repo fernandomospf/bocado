@@ -110,6 +110,8 @@ model User {
   householdMember HouseholdMember?
   householdInvites HouseholdInvite[] @relation("InviteCreator")
   mealsSharedByMe Meal[] @relation("MealSharedBy")
+  betaInvitesCreated BetaInvite[] @relation("BetaInviteCreator")
+  betaInviteUse  BetaInviteUse?
   offersSent     SharedMealOffer[] @relation("OfferFrom")
   offersReceived SharedMealOffer[] @relation("OfferTo")
 
@@ -477,4 +479,64 @@ model SharedMealOffer {
   @@index([toUserId])
   @@index([groupId])
   @@map("shared_meal_offers")
+}
+
+// ---------------------------------------------------------------------------
+// Acesso por convite do beta (NÃO é o convite da casa: HouseholdInvite)
+// ---------------------------------------------------------------------------
+
+enum WaitlistStatus {
+  PENDING
+  INVITED
+  JOINED
+}
+
+/// Convite do beta fechado. O uso é consumido com um UPDATE atômico (uses < maxUses), nunca por leitura + escrita
+model BetaInvite {
+  id          String          @id @default(uuid()) @db.Uuid
+  /// 8 caracteres, sem 0/O/1/I/L
+  code        String          @unique
+  /// Para quem é (e-mail da lista de espera ou um rótulo livre)
+  label       String
+  maxUses     Int             @default(1)
+  uses        Int             @default(0)
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime        @default(now())
+  createdById String?         @db.Uuid
+  createdBy   User?           @relation("BetaInviteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  usesList    BetaInviteUse[]
+  waitlist    WaitlistEntry[]
+
+  @@map("beta_invites")
+}
+
+/// Quem entrou por qual convite. Cai junto com a conta (Cascade)
+model BetaInviteUse {
+  id       String     @id @default(uuid()) @db.Uuid
+  inviteId String     @db.Uuid
+  invite   BetaInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  userId   String     @unique @db.Uuid
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  usedAt   DateTime   @default(now())
+
+  @@index([inviteId])
+  @@map("beta_invite_uses")
+}
+
+/// Lista de espera do beta. Guarda só e-mail, nome opcional e o consentimento: sem IP e sem user-agent
+model WaitlistEntry {
+  id        String         @id @default(uuid()) @db.Uuid
+  /// Minúsculo e sem espaços nas pontas
+  email     String         @unique
+  name      String?
+  status    WaitlistStatus @default(PENDING)
+  inviteId  String?        @db.Uuid
+  invite    BetaInvite?    @relation(fields: [inviteId], references: [id], onDelete: SetNull)
+  consentAt DateTime
+  createdAt DateTime       @default(now())
+  invitedAt DateTime?
+
+  @@index([status, createdAt])
+  @@map("waitlist_entries")
 }

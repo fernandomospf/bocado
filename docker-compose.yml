@@ -35,6 +35,10 @@ services:
       OFF_CONTACT: ${OFF_CONTACT:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      REGISTRATION_MODE: ${REGISTRATION_MODE:-open}
+      BETA_MAX_USERS: ${BETA_MAX_USERS:-}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      TURNSTILE_SECRET: ${TURNSTILE_SECRET:-}
     expose:
       - "3001"
 
@@ -43,6 +47,8 @@ services:
       context: ./frontend
       args:
         INTERNAL_API_URL: http://backend:3001
+        NEXT_PUBLIC_TURNSTILE_SITEKEY: ${NEXT_PUBLIC_TURNSTILE_SITEKEY:-}
+        NEXT_PUBLIC_APP_URL: ${APP_URL:-}
     restart: unless-stopped
     depends_on:
       backend:

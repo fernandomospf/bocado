@@ -48,6 +48,32 @@ Sem essas variáveis o botão do Google simplesmente não aparece.
 > abrindo `/api/auth/google` no navegador do sistema (Custom Tabs / SFSafariViewController).
 > E-mail e senha funcionam em qualquer WebView.
 
+## Beta por convite
+
+O Bocado pode abrir só para quem tem convite, com landing pública em `/`, lista de espera e um painel em `/admin`.
+(Não confundir com o convite da **casa**, que é outro sistema: `/convite/CODIGO`.)
+
+| Variável | Onde | Para quê |
+|---|---|---|
+| `REGISTRATION_MODE` | backend | `open` (padrão) ou `invite`. Em `invite`, criar conta exige um código de convite do beta. Login e contas existentes não são afetados. |
+| `BETA_MAX_USERS` | backend | Limite de usuários (opcional). Ao chegar nele, bloqueia NOVOS cadastros mesmo com convite válido. |
+| `ADMIN_EMAILS` | backend | E-mails (vírgula) que acessam `/admin`. Só vale para contas que já existem. |
+| `TURNSTILE_SECRET` | backend | Opcional. Com ele, a lista de espera exige o token do Cloudflare Turnstile. |
+| `NEXT_PUBLIC_TURNSTILE_SITEKEY` | build do frontend | Chave pública do Turnstile (build arg do Dockerfile; o compose já repassa). |
+| `NEXT_PUBLIC_APP_URL` | build do frontend | URL pública, para links canônicos e Open Graph (o compose usa `APP_URL`). |
+
+**Passo a passo para ativar**
+
+1. Crie a sua conta normalmente (com `REGISTRATION_MODE=open`) e defina `ADMIN_EMAILS` com o seu e-mail.
+2. (Opcional) Crie o site no Cloudflare Turnstile e preencha `TURNSTILE_SECRET` e `NEXT_PUBLIC_TURNSTILE_SITEKEY`.
+3. Defina `REGISTRATION_MODE=invite` (e, se quiser, `BETA_MAX_USERS`) e faça o deploy. As migrations rodam sozinhas.
+4. Acesse `/admin`: gere convites pela lista de espera ("Gerar convite" devolve o link e uma mensagem pronta para copiar ou
+   abrir no WhatsApp) ou crie convites manuais (usos e validade). Cada convite do painel da lista vale 14 dias e um uso.
+5. Quem não tem a sessão vê a landing em `/`; quem tem, vê a Hoje. A resposta de `/` é `private, no-cache` com
+   `Vary: Cookie`, então o Cloudflare não mistura as duas versões.
+
+A lista de espera guarda só e-mail, nome opcional e o consentimento (sem IP nem user-agent) e nunca aparece fora do `/admin`.
+
 ## Rodando localmente
 
 Tudo em Docker:

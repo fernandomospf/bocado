@@ -23,6 +23,7 @@ describeDb('HTTP: privacidade entre membros da casa e rate limits', () => {
     process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
     process.env.JWT_SECRET = 'x'.repeat(40);
     process.env.APP_URL = 'https://bocado.test';
+    process.env.ADMIN_EMAILS = 'admin-http@teste.local';
     const { AppModule } = await import('../app.module');
     app = await NestFactory.create(AppModule, { logger: false });
     (app as any).set('trust proxy', true); // cada teste de rate limit usa o seu próprio IP via X-Forwarded-For
@@ -269,6 +270,49 @@ describeDb('HTTP: privacidade entre membros da casa e rate limits', () => {
     const back = JSON.parse((await call(tb, 'GET', '/days/2026-11-10')).text);
     expect(back.workouts[0].estimateKcal).toBeGreaterThan(0);
     expect(back.goalBonusKcal).toBeGreaterThan(0);
+  });
+
+  it('beta por HTTP: lista de espera pública (validação, rate limit por IP), sem listagem pública, e /admin só para admin', async () => {
+    const admin = await prisma.user.create({ data: { email: 'admin-http@teste.local', name: 'Admin' } });
+    const other = await makeUser(prisma, 'Comum');
+    const ta = tokenOf(admin);
+    const to = tokenOf(other);
+    const ip = '10.8.8.8';
+    const good = { email: 'Fila@Teste.Local ', name: 'Fila', consent: true };
+
+    expect((await call(null, 'POST', '/waitlist', { ...good, consent: false }, ip)).status).toBe(400);
+    expect((await call(null, 'POST', '/waitlist', { ...good, email: 'nao-e-email' }, ip)).status).toBe(400);
+    expect((await call(null, 'POST', '/waitlist', { ...good, extra: 1 }, ip)).status).toBe(400);
+    const ok = await call(null, 'POST', '/waitlist', good, ip);
+    expect({ status: ok.status, body: JSON.parse(ok.text) }).toEqual({ status: 200, body: { ok: true } });
+    expect(await prisma.waitlistEntry.count({ where: { email: 'fila@teste.local' } })).toBe(1);
+    // nenhuma listagem pública
+    expect((await call(null, 'GET', '/waitlist', undefined, ip)).status).toBe(404);
+
+    // 5 por minuto por IP (já foram 4 chamadas que passaram pelo guard)
+    const statuses: number[] = [];
+    for (let i = 0; i < 3; i++) statuses.push((await call(null, 'POST', '/waitlist', { ...good, email: `x${i}@teste.local` }, ip)).status);
+    expect(statuses).toEqual([200, 429, 429]);
+
+    // /admin: 401 sem sessão, 403 para não admin, ok para admin; a lista só aparece lá
+    for (const path of ['/admin/me', '/admin/stats', '/admin/waitlist', '/admin/invites']) {
+      expect((await call(null, 'GET', path)).status).toBe(401);
+      expect((await call(to, 'GET', path)).status).toBe(403);
+      expect((await call(ta, 'GET', path)).status).toBe(200);
+    }
+    expect((await call(to, 'POST', '/admin/invites', { label: 'x', maxUses: 1 })).status).toBe(403);
+    expect(JSON.parse((await call(ta, 'GET', '/admin/me')).text)).toEqual({ admin: true });
+    const list = JSON.parse((await call(ta, 'GET', '/admin/waitlist')).text);
+    expect(list.items.map((i: any) => i.email)).toContain('fila@teste.local');
+    expect(JSON.stringify(list)).not.toContain('consentAt');
+    // convite via painel + providers públicos
+    const inv = JSON.parse((await call(ta, 'POST', '/admin/waitlist/' + list.items[0].id + '/invite')).text);
+    expect(inv.link).toBe(`https://bocado.test/register?invite=${inv.code}`);
+    const providers = JSON.parse((await call(null, 'GET', '/auth/providers')).text);
+    expect(providers).toMatchObject({ registration: 'open', seatsOpen: true });
+    expect((await call(to, 'POST', '/admin/invites', { label: 'x', maxUses: 99 })).status).toBe(403);
+    expect((await call(ta, 'POST', '/admin/invites', { label: 'x', maxUses: 99 })).status).toBe(400);
+    expect((await call(ta, 'POST', '/admin/invites', { label: 'x', maxUses: 3 })).status).toBe(201);
   });
 
   it('o preview devolve só nome da casa e primeiro nome; todo código ruim dá o mesmo 404', async () => {

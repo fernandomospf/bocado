@@ -16,12 +16,25 @@ export function validateEnv(config: Record<string, unknown>) {
     throw new Error('APP_URL precisa ser uma URL completa, ex.: https://bocado.seudominio.com');
   }
 
+  // Acesso por convite do beta (tudo opcional; o padrão é cadastro aberto)
+  const mode = config.REGISTRATION_MODE;
+  if (mode !== undefined && mode !== '' && mode !== 'open' && mode !== 'invite') {
+    throw new Error('REGISTRATION_MODE precisa ser "open" ou "invite"');
+  }
+  const max = config.BETA_MAX_USERS;
+  if (max !== undefined && max !== '' && !/^[1-9]\d*$/.test(String(max))) {
+    throw new Error('BETA_MAX_USERS precisa ser um inteiro positivo');
+  }
+
   const logger = new Logger('Config');
   if (!config.ANTHROPIC_API_KEY) {
     logger.warn('ANTHROPIC_API_KEY não definida: análise por foto e por descrição ficará desativada');
   }
   if (!config.GOOGLE_CLIENT_ID || !config.GOOGLE_CLIENT_SECRET) {
     logger.warn('GOOGLE_CLIENT_ID/SECRET não definidos: login com Google ficará desativado');
+  }
+  if (mode === 'invite' && !String(config.ADMIN_EMAILS ?? '').trim()) {
+    logger.warn('REGISTRATION_MODE=invite sem ADMIN_EMAILS: ninguém conseguirá gerar convites pelo painel');
   }
   return config;
 }

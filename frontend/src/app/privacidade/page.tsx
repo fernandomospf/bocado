@@ -70,6 +70,14 @@ export default function PrivacyPage() {
         escrever uma) e se os valores foram estimados pela IA. Também ficam guardados os alimentos que você cadastra e as
         receitas que você cria, com seus ingredientes.
       </p>
+      <h3>Lista de espera e convite do beta</h3>
+      <p>
+        O Bocado está em beta fechado. Quem entra na lista de espera informa o e-mail e, se quiser, o nome, e marca o
+        consentimento. Esses dados são usados só para enviar o convite. Não guardamos IP nem user-agent, e não usamos
+        rastreadores. Ao criar a conta com um convite, o app registra qual convite foi usado (e por qual conta) e marca a
+        pessoa como tendo entrado. O código de convite é um código de acesso, não identifica ninguém por si só.
+      </p>
+
       <h3>Peso</h3>
       <p>Os registros de peso que você faz: data, valor e uma observação opcional, no máximo um por dia.</p>
       <h3>Treinos</h3>
@@ -183,6 +191,11 @@ export default function PrivacyPage() {
       <h2 id="retencao">9. Por quanto tempo guardamos</h2>
       <p>
         Seus dados ficam enquanto a conta existir e são apagados quando você a exclui.
+      </p>
+      <p>
+        Lista de espera: o e-mail e o nome ficam guardados até o convite ser enviado e a conta ser criada, ou até você pedir a
+        remoção por e-mail para <a href={`mailto:${CONTACT}`}>{CONTACT}</a>. O registro de qual convite uma conta usou é
+        apagado junto com a conta.
       </p>
 
       <h2 id="direitos">10. Seus direitos</h2>

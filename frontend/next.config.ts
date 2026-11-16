@@ -17,6 +17,14 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      // "/" muda conforme o cookie de sessão (landing x Hoje): nunca cacheável de forma compartilhada
+      {
+        source: '/',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-cache' },
+          { key: 'Vary', value: 'Cookie' },
+        ],
+      },
       {
         source: '/:path*',
         headers: [

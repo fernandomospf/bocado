@@ -5,6 +5,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { AdaptiveModule } from './adaptive/adaptive.module';
 import { AnalysisModule } from './analysis/analysis.module';
 import { AccountModule } from './account/account.module';
+import { AdminModule } from './admin/admin.module';
+import { BetaModule } from './beta/beta.module';
 import { AuthModule } from './auth/auth.module';
 import { ExportModule } from './export/export.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -28,7 +30,9 @@ import { WorkoutsModule } from './workouts/workouts.module';
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv, cache: true }),
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),
     PrismaModule,
+    BetaModule,
     AuthModule,
+    AdminModule,
     ProfileModule,
     MealsModule,
     FavoritesModule,

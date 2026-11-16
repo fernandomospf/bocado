@@ -4,7 +4,11 @@ import { HIDE_CALORIES_INLINE_SCRIPT } from '@/lib/kcal';
 import { Providers } from '@/components/Providers';
 import './globals.css';
 
+// URL pública (build arg NEXT_PUBLIC_APP_URL): torna absolutos os links do Open Graph. Sem ela, vale o padrão local
+const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+
 export const metadata: Metadata = {
+  ...(appUrl ? { metadataBase: new URL(appUrl) } : {}),
   title: { default: 'Bocado', template: '%s · Bocado' },
   description: 'Contagem de calorias e macronutrientes, por foto ou à mão.',
   applicationName: 'Bocado',

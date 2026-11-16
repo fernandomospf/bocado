@@ -84,7 +84,9 @@ describe('cascata no schema', () => {
     expect(relations.length).toBeGreaterThanOrEqual(8);
     for (const r of relations) {
       // Refeição dividida: a cópia no diário de outra pessoa fica, sem o nome de quem a dividiu
-      const keeps = (r.model === 'Food' && r.field === 'contributedBy') || (r.model === 'Meal' && r.field === 'sharedBy');
+      const keeps = (r.model === 'Food' && r.field === 'contributedBy') || (r.model === 'Meal' && r.field === 'sharedBy') ||
+        // Convite do beta: criado por um admin; excluir o admin não apaga o convite
+        (r.model === 'BetaInvite' && r.field === 'createdBy');
       const expected = keeps ? 'SetNull' : 'Cascade';
       expect({ ...r, onDelete: r.onDelete }).toEqual({ ...r, onDelete: expected });
     }

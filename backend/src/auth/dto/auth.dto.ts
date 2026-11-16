@@ -1,10 +1,17 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 const normalizeEmail = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim().toLowerCase() : value;
 
 export class RegisterDto {
+  /** Convite do beta (obrigatório com REGISTRATION_MODE=invite; ignorado em "open"). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  @Transform(({ value }) => (typeof value === 'string' ? value.replace(/\s+/g, '').toUpperCase() : value))
+  inviteCode?: string;
+
   @IsString()
   @MinLength(2, { message: 'Informe seu nome' })
   @MaxLength(80)

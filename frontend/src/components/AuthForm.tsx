@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
 import type { Me } from '@/lib/types';
@@ -15,21 +15,68 @@ type Mode = 'login' | 'register';
 
 const OAUTH_ERRORS: Record<string, string> = {
   google: 'Não foi possível entrar com o Google. Tente de novo.',
+  invite: 'Este convite não é válido ou já foi usado.',
+  full: 'As vagas do beta acabaram por enquanto. Entre na lista de espera.',
+};
+
+/** O convite sobrevive a recarregamentos (e ao redirect do Google) na sessionStorage. */
+const INVITE_KEY = 'bocado:betaInvite';
+const normalizeInvite = (v: string) => v.replace(/\s+/g, '').toUpperCase();
+const readStoredInvite = () => {
+  try {
+    return sessionStorage.getItem(INVITE_KEY) ?? '';
+  } catch {
+    return '';
+  }
+};
+const storeInvite = (v: string) => {
+  try {
+    if (v) sessionStorage.setItem(INVITE_KEY, v);
+    else sessionStorage.removeItem(INVITE_KEY);
+  } catch {
+    /* sem armazenamento: o campo continua funcionando */
+  }
 };
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
   const params = useSearchParams();
   const { mutate } = useSWRConfig();
-  const { data: providers } = useSWR<{ google: boolean }>('/auth/providers');
+  const { data: providers } = useSWR<{ google: boolean; registration?: 'open' | 'invite'; seatsOpen?: boolean }>('/auth/providers');
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(OAUTH_ERRORS[params.get('error') ?? ''] ?? null);
-
   const isRegister = mode === 'register';
+  const [inviteCode, setInviteCode] = useState(() => normalizeInvite(params.get('invite') ?? ''));
+  const [error, setError] = useState<string | null>(() => {
+    const code = params.get('error') ?? '';
+    // Google sem conta no login: com um convite digitado antes, o erro é do convite; sem ele, a conta não existe
+    if (code === 'invite' && !isRegister && !readStoredInvite()) {
+      return 'Não encontramos uma conta. O Bocado está em beta por convite.';
+    }
+    return OAUTH_ERRORS[code] ?? null;
+  });
+  const byInvite = providers?.registration === 'invite';
+
+  // ?invite= na URL ou o valor guardado (recarregar a página não perde o código)
+  useEffect(() => {
+    const fromUrl = normalizeInvite(params.get('invite') ?? '');
+    if (fromUrl) {
+      setInviteCode(fromUrl);
+      storeInvite(fromUrl);
+    } else {
+      const stored = readStoredInvite();
+      if (stored) setInviteCode((cur) => cur || stored);
+    }
+  }, [params]);
+
+  function changeInvite(raw: string) {
+    const v = normalizeInvite(raw).slice(0, 12);
+    setInviteCode(v);
+    storeInvite(v);
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -38,8 +85,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
     try {
       const me = await api<Me>(isRegister ? '/auth/register' : '/auth/login', {
         method: 'POST',
-        json: isRegister ? { name, email, password } : { email, password },
+        json: isRegister ? { name, email, password, ...(byInvite ? { inviteCode } : {}) } : { email, password },
       });
+      if (isRegister) storeInvite('');
       await mutate('/auth/me', me, { revalidate: false });
       router.replace(me.onboarded ? '/' : '/onboarding');
     } catch (err) {
@@ -67,6 +115,33 @@ export function AuthForm({ mode }: { mode: Mode }) {
             <p className="alert" role="alert">
               {error}
             </p>
+          )}
+
+          {isRegister && byInvite && (
+            <div className="field">
+              <label className="field-label" htmlFor="invite-code">
+                Código de convite
+              </label>
+              <input
+                id="invite-code"
+                className="input num"
+                style={{ textTransform: 'uppercase', letterSpacing: 2 }}
+                autoCapitalize="characters"
+                autoComplete="off"
+                spellCheck={false}
+                value={inviteCode}
+                onChange={(e) => changeInvite(e.target.value)}
+                required
+                maxLength={12}
+                placeholder="Ex.: K7M2QX9A"
+              />
+              <span className="caption">
+                Ainda não tem convite?{' '}
+                <Link href="/#lista-de-espera" className="text-link">
+                  Entre na lista de espera
+                </Link>
+              </span>
+            </div>
           )}
 
           {isRegister && (
@@ -111,7 +186,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
             />
           </label>
 
-          <button className="btn btn-primary btn-block" disabled={busy} type="submit">
+          <button className="btn btn-primary btn-block" disabled={busy || (isRegister && byInvite && !inviteCode)} type="submit">
             {busy ? <span className="spinner" aria-label="Carregando" /> : isRegister ? 'Criar conta' : 'Entrar'}
           </button>
 
@@ -119,10 +194,21 @@ export function AuthForm({ mode }: { mode: Mode }) {
             <>
               <div className="divider">ou</div>
               {/* Navegação completa: o fluxo OAuth precisa sair do app e voltar */}
-              <a className="btn btn-glass btn-block" href="/api/auth/google">
-                <GoogleIcon />
-                Continuar com Google
-              </a>
+              {isRegister && byInvite && !inviteCode ? (
+                <button type="button" className="btn btn-glass btn-block" disabled aria-disabled="true">
+                  <GoogleIcon />
+                  Continuar com Google
+                </button>
+              ) : (
+                <a
+                  className="btn btn-glass btn-block"
+                  href={isRegister && byInvite ? `/api/auth/google?invite=${encodeURIComponent(inviteCode)}` : '/api/auth/google'}
+                >
+                  <GoogleIcon />
+                  Continuar com Google
+                </a>
+              )}
+              {isRegister && byInvite && !inviteCode && <p className="caption">Digite o código de convite para continuar com o Google.</p>}
             </>
           )}
         </form>

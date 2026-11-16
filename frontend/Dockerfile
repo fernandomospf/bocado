@@ -12,6 +12,11 @@ FROM base AS build
 # Endereço da API dentro da rede do compose (usado nas rewrites)
 ARG INTERNAL_API_URL=http://backend:3001
 ENV INTERNAL_API_URL=$INTERNAL_API_URL
+# Variáveis NEXT_PUBLIC_* são gravadas no build: chave pública do Turnstile e URL pública (links canônicos e Open Graph)
+ARG NEXT_PUBLIC_TURNSTILE_SITEKEY=
+ARG NEXT_PUBLIC_APP_URL=
+ENV NEXT_PUBLIC_TURNSTILE_SITEKEY=$NEXT_PUBLIC_TURNSTILE_SITEKEY
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build

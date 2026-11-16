@@ -3,8 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import { User } from '@prisma/client';
 import type { Request, Response } from 'express';
-import type { AuthUser } from './auth.types';
-import { AuthService } from './auth.service';
+import { isBetaAccessError } from '../beta/beta.errors';
+import { type AuthUser, BETA_INVITE_COOKIE } from './auth.types';
+import { AuthService, type GoogleAccountInput } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
@@ -19,8 +20,8 @@ export class AuthController {
 
   @Public()
   @Get('providers')
-  providers() {
-    return { google: this.auth.googleEnabled };
+  async providers() {
+    return { google: this.auth.googleEnabled, ...(await this.auth.registrationInfo()) };
   }
 
   @Public()
@@ -64,8 +65,20 @@ export class AuthController {
   @Public()
   @UseGuards(GoogleCallbackGuard)
   @Get('google/callback')
-  googleCallback(@Req() req: Request & { user: User }, @Res() res: Response) {
-    this.auth.startSession(res, req.user);
-    res.redirect(`${this.config.getOrThrow<string>('APP_URL')}/`);
+  async googleCallback(@Req() req: Request & { user: { user: User } | { newAccount: GoogleAccountInput } }, @Res() res: Response) {
+    const app = this.config.getOrThrow<string>('APP_URL');
+    let user: User;
+    if ('user' in req.user) {
+      user = req.user.user; // conta existente: login normal, sem convite
+    } else {
+      try {
+        user = await this.auth.createGoogleUser(req.user.newAccount, this.auth.readInviteCookie(req.cookies?.[BETA_INVITE_COOKIE]));
+      } catch (err) {
+        if (isBetaAccessError(err)) return res.redirect(`${app}/login?error=${err.reason}`);
+        throw err;
+      }
+    }
+    this.auth.startSession(res, user);
+    res.redirect(`${app}/`);
   }
 }
