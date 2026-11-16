@@ -46,6 +46,9 @@ export interface Profile extends BodyData {
   hideWeightInReports: boolean;
   /** Meta adaptativa: sugerir ajustes da meta a partir do gasto estimado. */
   adaptiveEnabled: boolean;
+  /** Treino: mostrar a estimativa de gasto (desligada por padrão) e somar metade à meta do dia (desligada). */
+  workoutEstimateEnabled: boolean;
+  workoutAddToGoal: boolean;
   updatedAt: string;
 }
 
@@ -103,9 +106,37 @@ export interface Favorite {
   lastUsedAt: string | null;
 }
 
+export type WorkoutType = 'STRENGTH' | 'RUN' | 'BIKE' | 'WALK' | 'OTHER';
+export type WorkoutIntensity = 'LIGHT' | 'MODERATE' | 'HARD';
+
+/** Treino do dia (GET /days/:date). `estimateKcal` só vem com a estimativa ligada no Perfil. */
+export interface DayWorkout {
+  id: string;
+  type: WorkoutType;
+  durationMin: number;
+  intensity: WorkoutIntensity;
+  note: string | null;
+  estimateKcal?: number;
+}
+
+/** Treino completo (POST/PATCH/GET /workouts). */
+export interface Workout extends DayWorkout {
+  date: string;
+  createdAt: string;
+}
+
+export interface WorkoutSnapshot {
+  workout: Pick<Workout, 'id' | 'date' | 'type' | 'durationMin' | 'intensity' | 'note' | 'createdAt'>;
+  deletedAt: string;
+}
+
 export interface DaySummary {
   date: string;
+  /** Com a soma do treino ligada, `targets.kcal` já inclui o bônus (a base está em `baseTargetKcal`). */
   targets: Macros | null;
+  baseTargetKcal?: number;
+  goalBonusKcal?: number;
+  workouts: DayWorkout[];
   totals: Macros;
   meals: Meal[];
 }
@@ -316,6 +347,8 @@ export interface WeeklyReport {
   weight?: { thisWeekKg: number; previousWeekKg: number; measuredKg: number; expectedKg: number | null } | null;
   weightNote?: 'hidden' | 'needTwoThisWeek' | 'needPreviousWeek' | null;
   lowIntakeNote?: boolean;
+  /** Só contexto (não entra no balanço): contagem e minutos de treino da semana. */
+  workouts: { count: number; totalMinutes: number; byType: Partial<Record<WorkoutType, { count: number; minutes: number }>> };
 }
 
 export interface WeeklyListItem {

@@ -21,6 +21,7 @@ import { Sheet } from './Sheet';
 import { useToast } from './Toast';
 import { fromDraft, TargetsEditor, type TargetsDraft, toDraft } from './TargetsEditor';
 import { WeightSection } from './WeightSection';
+import { WorkoutPrefs } from './WorkoutPrefs';
 
 const WEEK_START_OPTIONS: { value: WeekStart; label: string }[] = [
   { value: 'MONDAY', label: 'Segunda' },
@@ -216,6 +217,7 @@ export function ProfileView() {
                   onChange={(e) => void setHideWeight(!e.target.checked)}
                 />
               </label>
+              <WorkoutPrefs />
             </section>
           </div>
         )}

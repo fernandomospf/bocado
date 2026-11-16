@@ -3097,3 +3097,49 @@ body:not(:has(.tabbar)) .toast-region {
   background: var(--fill);
   color: var(--text);
 }
+
+/* --------------------------------------------------------------------------
+   Treino
+   -------------------------------------------------------------------------- */
+
+.workout-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--accent);
+  background: var(--fill);
+}
+
+.chip-toggle {
+  gap: 6px;
+}
+
+/* Marcador discreto de dia com treino (azul-acento, sem vermelho) */
+.workout-dot {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.calendar-day[aria-pressed='true'] .workout-dot {
+  background: #fff;
+}
+
+.workout-dot-static,
+.workout-dot-inline {
+  position: static;
+  display: inline-block;
+}
+
+.workout-dot-inline {
+  margin-left: 8px;
+  vertical-align: middle;
+}

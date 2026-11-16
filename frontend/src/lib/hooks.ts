@@ -2,7 +2,7 @@
 
 import useSWR from 'swr';
 import { todayISO } from './date';
-import type { AdaptiveStatus, DaySummary, Favorite, MealType, Me, Profile, RecentMeal, WeekStart } from './types';
+import type { AdaptiveStatus, Workout, DaySummary, Favorite, MealType, Me, Profile, RecentMeal, WeekStart } from './types';
 
 export function useMe() {
   return useSWR<Me>('/auth/me');
@@ -33,4 +33,9 @@ export function useRecentMeals(type?: MealType) {
 /** Status da meta adaptativa (calculado no servidor com o dia local de hoje). */
 export function useAdaptiveStatus(enabled = true) {
   return useSWR<AdaptiveStatus>(enabled ? `/adaptive/status?today=${todayISO()}` : null, { revalidateOnFocus: false });
+}
+
+/** O último treino do usuário (para "repetir o último" e pré-selecionar o registro). */
+export function useLastWorkout() {
+  return useSWR<Workout | null>('/workouts/last', { revalidateOnFocus: false });
 }

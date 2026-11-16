@@ -25,6 +25,7 @@ import { Rings } from './Rings';
 import { ringSpecs } from './ringSpecs';
 import { DayPills } from './DayPills';
 import { WeeklyCard } from './WeeklyCard';
+import { WorkoutCard } from './WorkoutCard';
 
 /** Distância mínima (px) do arraste horizontal que troca de dia. */
 const SWIPE_MIN = 60;
@@ -157,6 +158,12 @@ export function TodayView() {
                 <span className="title num" style={{ color: remaining < 0 ? 'var(--ring-kcal)' : undefined }}>
                   {fmtInt(Math.abs(remaining))} kcal
                 </span>
+                {/* Soma do treino ligada: a meta base e o bônus aparecem separados */}
+                {data?.goalBonusKcal ? (
+                  <span className="caption num">
+                    Meta do dia: {fmtInt(data.baseTargetKcal ?? 0)} + {fmtInt(data.goalBonusKcal)} do treino
+                  </span>
+                ) : null}
               </div>
             </>
           ) : (
@@ -252,6 +259,8 @@ export function TodayView() {
             );
           })}
         </div>
+
+        <WorkoutCard date={date} workouts={data?.workouts ?? []} loading={isLoading && !data} />
 
         {/* Depois do Jantar, como último bloco das refeições (no desktop, no fim da coluna das refeições) */}
         {targets && (

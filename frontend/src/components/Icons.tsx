@@ -118,6 +118,40 @@ export const StarIcon = (p: IconProps) => (
   </svg>
 );
 
+export const DumbbellIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11" />
+  </svg>
+);
+
+export const RunIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="14.5" cy="4.5" r="1.8" />
+    <path d="M9 21l3-5-3-3 2-4 3 2 3 1M6 12l3-4 3-1" />
+  </svg>
+);
+
+export const BikeIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="6" cy="16" r="3.5" />
+    <circle cx="18" cy="16" r="3.5" />
+    <path d="M6 16l4-8h5l3 8M10 8l3 8M9 5h3" />
+  </svg>
+);
+
+export const WalkIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <circle cx="13" cy="4.5" r="1.8" />
+    <path d="M10 21l2-6-2-3 1-5 3 2 3 1M12 15l3 6M9 9l-3 3" />
+  </svg>
+);
+
+export const WorkoutOtherIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M13 3L5 14h6l-1 7 8-11h-6z" />
+  </svg>
+);
+
 export const TrashIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
