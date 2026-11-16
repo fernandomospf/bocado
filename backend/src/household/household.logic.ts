@@ -28,7 +28,7 @@ export async function removeFromHousehold(tx: Prisma.TransactionClient, userId: 
 
   await tx.recipe.updateMany({ where: { ownerId: userId, householdId: member.householdId }, data: { householdId: null } });
   await tx.householdInvite.deleteMany({ where: { householdId: member.householdId, createdById: userId } });
-  // Ofertas de refeição dividida pendentes (enviadas ou recebidas por ele) são apagadas aqui (Etapa 3)
+  // Ofertas de refeição dividida pendentes, enviadas ou recebidas por ele, são apagadas
   await removePendingOffers(tx, userId);
   await tx.householdMember.delete({ where: { userId } });
 
@@ -45,7 +45,6 @@ export async function removeFromHousehold(tx: Prisma.TransactionClient, userId: 
   return true;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-async function removePendingOffers(_tx: Prisma.TransactionClient, _userId: string): Promise<void> {
-  // Preenchido na Etapa 3, junto com a tabela SharedMealOffer
+async function removePendingOffers(tx: Prisma.TransactionClient, userId: string): Promise<void> {
+  await tx.sharedMealOffer.deleteMany({ where: { OR: [{ fromUserId: userId }, { toUserId: userId }] } });
 }

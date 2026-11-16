@@ -71,6 +71,12 @@ export interface Meal {
   createdAt: string;
   totals: Macros;
   items: MealItem[];
+  /** Veio de uma divisão com a casa (enviada ou recebida). */
+  shared?: boolean;
+  /** Quem dividiu comigo, se ainda é da minha casa. */
+  sharedBy?: { id: string; name: string };
+  /** Com quem eu dividi (só nomes de quem ainda é da casa). */
+  splitWith?: { id: string; name: string }[];
 }
 
 /** Resposta dos DELETE de refeição/alimento: o que foi apagado, para "Desfazer" (POST /meals/restore). */
@@ -434,4 +440,21 @@ export interface HouseholdInvite {
 export interface InvitePreview {
   householdName: string;
   inviterFirstName: string;
+}
+
+/** Oferta de refeição dividida, recebida de alguém da casa. */
+export interface SharedOffer {
+  id: string;
+  date: string;
+  type: MealType;
+  share: number;
+  from: { id: string; name: string; avatarUrl: string | null };
+  totals: Macros;
+  items: { name: string; grams: number }[];
+  expiresAt: string;
+}
+
+export interface SharedMealResult {
+  meal: Meal;
+  delivered: { userId: string; name: string; status: 'added' | 'offered' }[];
 }

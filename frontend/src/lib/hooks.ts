@@ -2,7 +2,7 @@
 
 import useSWR from 'swr';
 import { todayISO } from './date';
-import type { AdaptiveStatus, Household, WeightSummary, Workout, DaySummary, Favorite, MealType, Me, Profile, RecentMeal, WeekStart } from './types';
+import type { AdaptiveStatus, Household, SharedOffer, WeightSummary, Workout, DaySummary, Favorite, MealType, Me, Profile, RecentMeal, WeekStart } from './types';
 
 export function useMe() {
   return useSWR<Me>('/auth/me');
@@ -48,4 +48,9 @@ export function useWeightSummary(enabled = true) {
 /** A casa do usuário (null se não estiver em nenhuma). */
 export function useHousehold() {
   return useSWR<Household | null>('/household');
+}
+
+/** Refeições que alguém da casa dividiu com você e esperam resposta. */
+export function useSharedOffers() {
+  return useSWR<SharedOffer[]>('/shared-meals/offers');
 }

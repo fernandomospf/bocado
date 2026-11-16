@@ -109,6 +109,9 @@ model User {
   workouts     Workout[]
   householdMember HouseholdMember?
   householdInvites HouseholdInvite[] @relation("InviteCreator")
+  mealsSharedByMe Meal[] @relation("MealSharedBy")
+  offersSent     SharedMealOffer[] @relation("OfferFrom")
+  offersReceived SharedMealOffer[] @relation("OfferTo")
 
   @@map("users")
 }
@@ -157,8 +160,16 @@ model Meal {
   note      String?
   createdAt DateTime   @default(now())
   items     MealItem[]
+  /// Refeição dividida com a casa: todas as cópias (de quem enviou e de quem recebeu) compartilham o grupo
+  sharedGroupId String?  @db.Uuid
+  /// Quem dividiu. Vira nulo se essa pessoa excluir a conta; a cópia continua no diário de quem recebeu
+  sharedById    String?  @db.Uuid
+  sharedBy      User?    @relation("MealSharedBy", fields: [sharedById], references: [id], onDelete: SetNull)
+  /// Fração da refeição original que ficou com este diário (0 a 1)
+  share         Float?
 
   @@index([userId, date])
+  @@index([sharedGroupId])
   @@map("meals")
 }
 
@@ -441,4 +452,27 @@ model HouseholdInvite {
 
   @@index([householdId])
   @@map("household_invites")
+}
+
+/// Oferta de refeição dividida: chega à pessoa como convite e só vira refeição no diário dela se ela aceitar
+model SharedMealOffer {
+  id         String     @id @default(uuid()) @db.Uuid
+  groupId    String     @db.Uuid
+  fromUserId String     @db.Uuid
+  from       User       @relation("OfferFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId   String     @db.Uuid
+  to         User       @relation("OfferTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  date       DateTime   @db.Date
+  type       MealType
+  source     MealSource
+  /// Fração da refeição original que cabe a quem recebe
+  share      Float
+  /// Alimentos já escalados pela fração: [{ name, grams, kcal, protein, carbs, fat, estimated }]
+  items      Json
+  createdAt  DateTime   @default(now())
+  expiresAt  DateTime
+
+  @@index([toUserId])
+  @@index([groupId])
+  @@map("shared_meal_offers")
 }

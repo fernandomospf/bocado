@@ -6,6 +6,7 @@ import { fmtDec, fmtInt, parseNum } from '@/lib/format';
 import type { FoodResult } from '@/lib/types';
 import { type DraftItem, draftFromPer100, scalePer100 } from './ItemsEditor';
 import { Sheet } from './Sheet';
+import { NO_SPLIT, SplitPicker, type SplitState, splitIncomplete, splitReady } from './SplitPicker';
 import { useToast } from './Toast';
 
 export const ORIGIN_LABEL: Record<FoodResult['origin'], string> = {
@@ -29,14 +30,17 @@ interface FoodPortionSheetProps {
   food: FoodResult;
   onClose: () => void;
   /** Pode ser assíncrono (ex.: registrar direto na tela Hoje); erros aparecem no próprio Sheet. */
-  onAdd: (item: DraftItem) => void | Promise<void>;
+  onAdd: (item: DraftItem, split?: SplitState) => void | Promise<void>;
+  /** Mostra "Dividir com a casa" (só onde o botão salva direto a refeição). */
+  splittable?: boolean;
   /** Onde o item vai entrar, ex.: "Almoço · Hoje". */
   context?: string;
   actionLabel?: string;
 }
 
 /** Escolha da quantidade de um alimento da busca, com prévia dos macros. */
-export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 'Adicionar' }: FoodPortionSheetProps) {
+export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 'Adicionar', splittable }: FoodPortionSheetProps) {
+  const [split, setSplit] = useState<SplitState>(NO_SPLIT);
   const [grams, setGrams] = useState(fmtGrams(food.portion?.grams ?? 100));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +71,8 @@ export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 
       // foodId só para registros da base de alimentos; receitas e histórico não são um Food
       const foodId = ['taco', 'custom', 'off', 'label'].includes(food.origin) ? food.id : undefined;
       const draft = draftFromPer100(food.name, food.per100, value, foodId);
-      await onAdd(food.origin === 'recipe' ? { ...draft, recipeId: food.id } : draft);
+      const item = food.origin === 'recipe' ? { ...draft, recipeId: food.id } : draft;
+      await onAdd(item, splittable && splitReady(split) ? split : undefined);
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);
@@ -209,7 +214,13 @@ export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 
           </p>
         )}
 
-        <button className="btn btn-primary btn-block" disabled={!(value > 0) || busy} onClick={add}>
+        {splittable && <SplitPicker value={split} onChange={setSplit} totalKcal={m.kcal} />}
+
+        <button
+          className="btn btn-primary btn-block"
+          disabled={!(value > 0) || busy || (splittable && splitIncomplete(split))}
+          onClick={add}
+        >
           {busy ? <span className="spinner" aria-label="Salvando" /> : actionLabel}
         </button>
       </div>

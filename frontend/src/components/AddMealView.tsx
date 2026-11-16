@@ -27,6 +27,8 @@ import { FatQuestion } from './FatQuestion';
 import { MacroDots } from './MacroLegend';
 import { BarcodeIcon, CameraIcon, ChevronLeft, ImageIcon, PlusIcon, SparkIcon } from './Icons';
 import { PREFILL_KEY } from './CloseDayCard';
+import { NO_SPLIT, SplitPicker, type SplitState, splitIncomplete, splitReady } from './SplitPicker';
+import { useSharedSave } from '@/lib/sharedMeals';
 import {
   type DraftItem,
   draftFromAnalysis,
@@ -73,6 +75,8 @@ export function AddMealView() {
   const [description, setDescription] = useState('');
 
   const [busy, setBusy] = useState<'analyze' | 'save' | null>(null);
+  const [split, setSplit] = useState<SplitState>(NO_SPLIT);
+  const saveShared = useSharedSave();
   const [dragging, setDragging] = useState(false);
   const [chipFood, setChipFood] = useState<FoodResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -270,10 +274,14 @@ export function AddMealView() {
     setBusy('save');
     setError(null);
     try {
-      await api('/meals', {
-        method: 'POST',
-        json: { date, type, source, items: valid.map(toMealPayload) },
-      });
+      if (splitReady(split)) {
+        await saveShared({ date, type, source, items: valid.map(toMealPayload), shares: split.shares });
+      } else {
+        await api('/meals', {
+          method: 'POST',
+          json: { date, type, source, items: valid.map(toMealPayload) },
+        });
+      }
       await mutate(`/days/${date}`);
       void mutate('/recipes'); // a contagem de uso ("mais usadas") pode ter mudado
       router.push(date === today ? '/' : `/?date=${date}`);
@@ -524,6 +532,8 @@ export function AddMealView() {
           </button>
         )}
 
+        {items.length > 0 && <SplitPicker value={split} onChange={setSplit} totalKcal={totals.kcal} />}
+
         {items.length > 0 && (
           <div className="totals-bar glass">
             <div>
@@ -532,7 +542,7 @@ export function AddMealView() {
                 <MacroDots m={totals} />
               </p>
             </div>
-            <button className="btn btn-primary" onClick={save} disabled={!!busy}>
+            <button className="btn btn-primary" onClick={save} disabled={!!busy || splitIncomplete(split)}>
               {busy === 'save' ? <span className="spinner" aria-label="Salvando" /> : 'Salvar refeição'}
             </button>
           </div>

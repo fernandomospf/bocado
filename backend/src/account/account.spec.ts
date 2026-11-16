@@ -80,10 +80,12 @@ describe('cascata no schema', () => {
     m.fields.filter((f) => f.type === 'User' && f.relationFromFields?.length).map((f) => ({ model: m.name, field: f.name, onDelete: f.relationOnDelete })),
   );
 
-  it('toda relação com User apaga em cascata, exceto a autoria do acervo (SetNull)', () => {
+  it('toda relação com User apaga em cascata, exceto a autoria do acervo e a de refeição dividida (SetNull)', () => {
     expect(relations.length).toBeGreaterThanOrEqual(8);
     for (const r of relations) {
-      const expected = r.model === 'Food' && r.field === 'contributedBy' ? 'SetNull' : 'Cascade';
+      // Refeição dividida: a cópia no diário de outra pessoa fica, sem o nome de quem a dividiu
+      const keeps = (r.model === 'Food' && r.field === 'contributedBy') || (r.model === 'Meal' && r.field === 'sharedBy');
+      const expected = keeps ? 'SetNull' : 'Cascade';
       expect({ ...r, onDelete: r.onDelete }).toEqual({ ...r, onDelete: expected });
     }
   });

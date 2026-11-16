@@ -84,7 +84,7 @@ export class MealsService {
   ) {}
 
   /** Mantém só os recipeId de receitas que o usuário pode ver (o resto vira item avulso, sem erro). */
-  private async keepVisibleRecipeIds<T extends { recipeId?: string | null }>(userId: string, items: T[]): Promise<T[]> {
+  async keepVisibleRecipeIds<T extends { recipeId?: string | null }>(userId: string, items: T[]): Promise<T[]> {
     const ids = [...new Set(items.map((i) => i.recipeId).filter((v): v is string => !!v))];
     if (ids.length === 0) return items;
     const visible = await this.prisma.recipe.findMany({
@@ -332,14 +332,66 @@ export class MealsService {
       prefs ?? { workoutEstimateEnabled: false, workoutAddToGoal: false },
     );
     const bonus = w.goalBonusKcal;
+    const sharing = await this.sharingInfo(userId, meals);
     return {
       date,
       targets: targets && bonus ? { ...targets, kcal: targets.kcal + bonus } : targets,
       ...(targets && bonus ? { baseTargetKcal: targets.kcal, goalBonusKcal: bonus } : {}),
       workouts: w.workouts,
       totals: sumItems(meals.flatMap((m) => m.items)),
-      meals: sorted.map((m) => this.serializeMeal(m)),
+      meals: sorted.map((m) => ({ ...this.serializeMeal(m), ...sharing.get(m.id) })),
     };
+  }
+
+  /**
+   * Selos de refeição dividida. Quem recebeu vê `sharedBy` (id e nome) se a pessoa ainda é da mesma casa;
+   * senão, só `shared: true`. Quem enviou vê `splitWith` (só nomes de quem ainda é da casa). Nada além disso.
+   */
+  private async sharingInfo(userId: string, meals: Meal[]) {
+    const out = new Map<string, { shared: true; sharedBy?: { id: string; name: string }; splitWith?: { id: string; name: string }[] }>();
+    const shared = meals.filter((m) => m.sharedGroupId);
+    if (shared.length === 0) return out;
+
+    const mine = await this.prisma.householdMember.findUnique({ where: { userId }, select: { householdId: true } });
+    const housemates = new Map<string, string>();
+    if (mine) {
+      const rows = await this.prisma.householdMember.findMany({
+        where: { householdId: mine.householdId },
+        select: { userId: true, user: { select: { name: true } } },
+      });
+      for (const r of rows) housemates.set(r.userId, r.user.name);
+    }
+
+    const sentGroups = shared.filter((m) => m.sharedById === userId).map((m) => m.sharedGroupId!);
+    const recipients = new Map<string, Set<string>>();
+    if (sentGroups.length > 0) {
+      const [copies, offers] = await Promise.all([
+        this.prisma.meal.findMany({
+          where: { sharedGroupId: { in: sentGroups }, userId: { not: userId } },
+          select: { sharedGroupId: true, userId: true },
+        }),
+        this.prisma.sharedMealOffer.findMany({
+          where: { groupId: { in: sentGroups }, fromUserId: userId },
+          select: { groupId: true, toUserId: true },
+        }),
+      ]);
+      const add = (g: string, u: string) => recipients.set(g, (recipients.get(g) ?? new Set()).add(u));
+      copies.forEach((c) => add(c.sharedGroupId!, c.userId));
+      offers.forEach((o) => add(o.groupId, o.toUserId));
+    }
+
+    for (const m of shared) {
+      const info: { shared: true; sharedBy?: { id: string; name: string }; splitWith?: { id: string; name: string }[] } = { shared: true };
+      if (m.sharedById === userId) {
+        info.splitWith = [...(recipients.get(m.sharedGroupId!) ?? [])]
+          .filter((id) => housemates.has(id))
+          .map((id) => ({ id, name: housemates.get(id)! }));
+      } else if (m.sharedById && housemates.has(m.sharedById)) {
+        info.sharedBy = { id: m.sharedById, name: housemates.get(m.sharedById)! };
+      }
+      out.set(m.id, info);
+    }
+    return out;
   }
 
   async range(userId: string, from: string, to: string) {
@@ -382,7 +434,7 @@ export class MealsService {
     };
   }
 
-  private serializeMeal(meal: Meal & { items: MealItem[] }) {
+  serializeMeal(meal: Meal & { items: MealItem[] }) {
     return {
       id: meal.id,
       date: formatDay(meal.date),

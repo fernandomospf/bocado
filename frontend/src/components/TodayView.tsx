@@ -11,6 +11,7 @@ import { tap } from '@/lib/haptics';
 import { useDay, useWeekStartsOn } from '@/lib/hooks';
 import { MEAL_LABEL, MEAL_ORDER } from '@/lib/labels';
 import { useQuickMeals } from '@/lib/quickMeals';
+import { useSharedSave } from '@/lib/sharedMeals';
 import { recipeToFood } from '@/lib/recipe';
 import type { FoodResult, Meal, MealItem, MealType } from '@/lib/types';
 import { useShortcuts } from '@/lib/useShortcuts';
@@ -21,6 +22,8 @@ import { type DraftItem, toMealPayload } from './ItemsEditor';
 import { ItemSheet } from './ItemSheet';
 import { MacroDots, MacroLegend } from './MacroLegend';
 import { RecipePickerSheet } from './RecipePickerSheet';
+import { OfferCards } from './OfferCards';
+import type { SplitState } from './SplitPicker';
 import { Rings } from './Rings';
 import { ringSpecs } from './ringSpecs';
 import { DayPills } from './DayPills';
@@ -64,7 +67,15 @@ export function TodayView() {
   const [portion, setPortion] = useState<{ type: MealType; food: FoodResult } | null>(null);
   const cardContext = (type: MealType) => `${MEAL_LABEL[type]} · ${dayTitle(date)}`;
 
-  async function logRecipe(type: MealType, item: DraftItem) {
+  const saveShared = useSharedSave();
+
+  async function logRecipe(type: MealType, item: DraftItem, split?: SplitState) {
+    if (split) {
+      await saveShared({ date, type, source: 'SEARCH', items: [toMealPayload(item)], shares: split.shares });
+      await mutate();
+      setPortion(null);
+      return;
+    }
     const meal = await api<Meal>('/meals', {
       method: 'POST',
       json: { date, type, source: 'SEARCH', items: [toMealPayload(item)] },
@@ -185,6 +196,8 @@ export function TodayView() {
           )}
         </section>
 
+        <OfferCards />
+
         <WorkoutLine date={date} workouts={data?.workouts ?? []} />
 
         <WeeklyCard today={today} isToday={date === today} />
@@ -233,6 +246,7 @@ export function TodayView() {
                   </div>
                 ) : (
                   <div className="list">
+                    {meals.map((meal) => <SharedBadge key={`badge-${meal.id}`} meal={meal} />)}
                     {meals.flatMap((meal) =>
                       meal.items.map((item) => (
                         <button
@@ -300,7 +314,8 @@ export function TodayView() {
           food={portion.food}
           context={cardContext(portion.type)}
           onClose={() => setPortion(null)}
-          onAdd={(item) => logRecipe(portion.type, item)}
+          splittable
+          onAdd={(item, split) => logRecipe(portion.type, item, split)}
         />
       )}
 
@@ -311,5 +326,23 @@ export function TodayView() {
         onChanged={() => void mutate()}
       />
     </main>
+  );
+}
+
+/** "Compartilhada por Ana" (ou só "Compartilhada") em refeição recebida; "Dividida com Ana" na enviada. */
+function SharedBadge({ meal }: { meal: Meal }) {
+  if (!meal.shared) return null;
+  const first = (n: string) => n.trim().split(/\s+/)[0];
+  const label = meal.sharedBy
+    ? `Compartilhada por ${first(meal.sharedBy.name)}`
+    : meal.splitWith && meal.splitWith.length > 0
+      ? `Dividida com ${meal.splitWith.map((p) => first(p.name)).join(', ')}`
+      : meal.splitWith
+        ? 'Dividida'
+        : 'Compartilhada';
+  return (
+    <p className="caption" style={{ padding: '0 2px 8px' }}>
+      <span className="badge badge-origin-recipe">{label}</span>
+    </p>
   );
 }
