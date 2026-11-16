@@ -2,7 +2,7 @@
 
 import useSWR from 'swr';
 import { todayISO } from './date';
-import type { AdaptiveStatus, Workout, DaySummary, Favorite, MealType, Me, Profile, RecentMeal, WeekStart } from './types';
+import type { AdaptiveStatus, WeightSummary, Workout, DaySummary, Favorite, MealType, Me, Profile, RecentMeal, WeekStart } from './types';
 
 export function useMe() {
   return useSWR<Me>('/auth/me');
@@ -38,4 +38,9 @@ export function useAdaptiveStatus(enabled = true) {
 /** O último treino do usuário (para "repetir o último" e pré-selecionar o registro). */
 export function useLastWorkout() {
   return useSWR<Workout | null>('/workouts/last', { revalidateOnFocus: false });
+}
+
+/** Último peso e tendência (para pré-preencher o "Registrar peso"). */
+export function useWeightSummary(enabled = true) {
+  return useSWR<WeightSummary>(enabled ? '/weight/summary' : null, { revalidateOnFocus: false });
 }

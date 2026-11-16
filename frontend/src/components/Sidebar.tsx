@@ -4,8 +4,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useMe } from '@/lib/hooks';
 import { Avatar } from './Avatar';
-import { ChartIcon, PlusIcon, PotIcon, RingsIcon, UserIcon } from './Icons';
+import { ChartIcon, DumbbellIcon, PlusIcon, PotIcon, RingsIcon, ScaleIcon, UserIcon } from './Icons';
 import { Logo } from './Logo';
+import { useQuickSheets } from './QuickSheets';
 
 /** Abas da TabBar e itens da Sidebar (mesma ordem nos dois). */
 export const NAV_ITEMS = [
@@ -21,6 +22,7 @@ export const isActive = (pathname: string, href: string) => (href === '/' ? path
 export function Sidebar() {
   const pathname = usePathname();
   const { data: me } = useMe();
+  const { openWorkout, openWeight } = useQuickSheets();
 
   return (
     <aside className="sidebar glass" aria-label="Navegação lateral">
@@ -38,6 +40,17 @@ export function Sidebar() {
         <PlusIcon width={20} height={20} />
         Nova refeição
       </Link>
+
+      <div className="sidebar-quick">
+        <button type="button" className="btn btn-glass btn-block" onClick={() => openWorkout()} title="Registrar treino (T)">
+          <DumbbellIcon width={20} height={20} />
+          Registrar treino
+        </button>
+        <button type="button" className="btn btn-glass btn-block" onClick={openWeight}>
+          <ScaleIcon width={20} height={20} />
+          Registrar peso
+        </button>
+      </div>
 
       <nav className="sidebar-nav" aria-label="Navegação principal">
         {NAV_ITEMS.map(({ href, label, Icon }) => (

@@ -152,6 +152,13 @@ export const WorkoutOtherIcon = (p: IconProps) => (
   </svg>
 );
 
+export const ScaleIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="4" y="4" width="16" height="16" rx="4" />
+    <path d="M8.5 9.5a5 5 0 017 0M12 14l1.8-2.6" />
+  </svg>
+);
+
 export const TrashIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />

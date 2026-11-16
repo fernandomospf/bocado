@@ -25,7 +25,7 @@ import { Rings } from './Rings';
 import { ringSpecs } from './ringSpecs';
 import { DayPills } from './DayPills';
 import { WeeklyCard } from './WeeklyCard';
-import { WorkoutCard } from './WorkoutCard';
+import { WorkoutLine } from './WorkoutLine';
 
 /** Distância mínima (px) do arraste horizontal que troca de dia. */
 const SWIPE_MIN = 60;
@@ -181,6 +181,8 @@ export function TodayView() {
           )}
         </section>
 
+        <WorkoutLine date={date} workouts={data?.workouts ?? []} />
+
         <WeeklyCard today={today} isToday={date === today} />
       </div>
 
@@ -259,8 +261,6 @@ export function TodayView() {
             );
           })}
         </div>
-
-        <WorkoutCard date={date} workouts={data?.workouts ?? []} loading={isLoading && !data} />
 
         {/* Depois do Jantar, como último bloco das refeições (no desktop, no fim da coluna das refeições) */}
         {targets && (

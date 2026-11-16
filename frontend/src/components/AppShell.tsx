@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { useShortcuts } from '@/lib/useShortcuts';
+import { WorkoutSheetProvider, useQuickSheets } from './QuickSheets';
 import { Sidebar } from './Sidebar';
 import { TabBar } from './TabBar';
 import { TopBar } from './TopBar';
@@ -12,8 +13,18 @@ import { TopBar } from './TopBar';
  * (TabBar abaixo de 1100px, Sidebar a partir daí). Nada de detectar tela em JS: evita flash no SSR.
  */
 export function AppShell({ children }: { children: ReactNode }) {
+  return (
+    <WorkoutSheetProvider>
+      <Shell>{children}</Shell>
+    </WorkoutSheetProvider>
+  );
+}
+
+function Shell({ children }: { children: ReactNode }) {
   const router = useRouter();
-  useShortcuts({ n: () => router.push('/add') });
+  const { openWorkout } = useQuickSheets();
+  // Só com mouse/trackpad, fora de campos e sem folha aberta (o próprio hook cuida disso)
+  useShortcuts({ n: () => router.push('/add'), t: () => openWorkout() });
 
   return (
     <>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { PlusIcon } from './Icons';
+import { QuickAddMenu } from './QuickAddMenu';
 import { isActive, NAV_ITEMS } from './Sidebar';
 
 /** Barra de abas flutuante do celular e do tablet. O CSS a esconde a partir de 1100px (lá aparece a Sidebar). */
@@ -19,14 +19,7 @@ export function TabBar() {
           </Link>
         ))}
       </div>
-      <Link
-        href="/add"
-        className="tabbar-action glass"
-        aria-label="Adicionar refeição"
-        aria-current={pathname.startsWith('/add') ? 'page' : undefined}
-      >
-        <PlusIcon />
-      </Link>
+      <QuickAddMenu />
     </nav>
   );
 }
