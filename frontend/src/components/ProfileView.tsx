@@ -14,6 +14,7 @@ import { Avatar } from './Avatar';
 import { BodyForm } from './BodyForm';
 import { DeleteAccountSheet } from './DeleteAccountSheet';
 import { ExportCard } from './ExportCard';
+import { FavoritesSection } from './FavoritesSection';
 import { ChevronRight } from './Icons';
 import { Sheet } from './Sheet';
 import { useToast } from './Toast';
@@ -200,6 +201,7 @@ export function ProfileView() {
         {profile && (
           <div className="screen-group profile-o4">
             <h2 className="section-title">Seus registros</h2>
+            <FavoritesSection />
             <ExportCard />
           </div>
         )}

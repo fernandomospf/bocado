@@ -2840,3 +2840,99 @@ body:not(:has(.tabbar)) .toast-region {
     background: var(--glass-strong);
   }
 }
+
+/* --------------------------------------------------------------------------
+   Favoritas e recentes (chips de refeição, lista no Perfil)
+   -------------------------------------------------------------------------- */
+
+/* Chip de refeição: corpo (adiciona ao editor) + botão ✓ (registra direto). Alvos de pelo menos 44px. */
+.chip-meal {
+  flex: none;
+  display: inline-flex;
+  align-items: stretch;
+  min-height: 44px;
+  border-radius: 999px;
+  background: var(--glass-strong);
+  box-shadow: inset 0 0 0 1px var(--glass-line);
+  overflow: hidden;
+}
+
+.chip-meal-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 8px 0 14px;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip-meal-label {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip-meal-kcal {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+
+.chip-count {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--fill);
+}
+
+.chip-meal-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  color: var(--accent);
+  border-left: 1px solid var(--glass-line);
+}
+
+.chip-meal-main:active,
+.chip-meal-go:active {
+  background: var(--fill);
+}
+
+.chip-meal button:disabled {
+  opacity: 0.5;
+}
+
+.fav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.fav-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 52px;
+  padding: 6px 0;
+  border-top: 1px solid var(--glass-line);
+}
+
+.fav-row:first-child {
+  border-top: 0;
+}
+
+.fav-action {
+  flex: none;
+  min-height: 44px;
+  padding: 0 10px;
+  font-size: 14px;
+}

@@ -72,6 +72,33 @@ export interface MealSnapshot {
   deletedAt: string;
 }
 
+/** Item de uma refeição recente ou favorita (valores da porção registrada). */
+export interface QuickItem extends Macros {
+  name: string;
+  grams: number;
+  estimated?: boolean;
+}
+
+/** GET /meals/recent: a refeição mais recente de cada conjunto igual de alimentos. */
+export interface RecentMeal {
+  mealId: string;
+  type: MealType;
+  date: string;
+  times: number;
+  totals: Macros;
+  items: Required<QuickItem>[];
+}
+
+export interface Favorite {
+  id: string;
+  name: string;
+  type: MealType | null;
+  items: QuickItem[];
+  totals: Macros;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
 export interface DaySummary {
   date: string;
   targets: Macros | null;

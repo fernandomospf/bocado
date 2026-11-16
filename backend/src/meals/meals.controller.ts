@@ -17,6 +17,8 @@ import {
   DayParamDto,
   MoveMealItemDto,
   RangeQueryDto,
+  RecentQueryDto,
+  RepeatMealDto,
   RestoreMealDto,
   UpdateMealItemDto,
 } from './dto/meal.dto';
@@ -29,6 +31,18 @@ export class MealsController {
   @Post('meals')
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateMealDto) {
     return this.meals.create(user.id, dto);
+  }
+
+  /** Refeições recentes distintas (últimos 30 dias), com a frequência. Declarada antes das rotas com :mealId. */
+  @Get('meals/recent')
+  recent(@CurrentUser() user: AuthUser, @Query() { type, limit }: RecentQueryDto) {
+    return this.meals.recent(user.id, type, limit);
+  }
+
+  /** Duplica uma refeição sua em outra data (ou no mesmo dia, em outro tipo). */
+  @Post('meals/:mealId/repeat')
+  repeat(@CurrentUser() user: AuthUser, @Param('mealId', ParseUUIDPipe) mealId: string, @Body() dto: RepeatMealDto) {
+    return this.meals.repeat(user.id, mealId, dto);
   }
 
   /** Desfaz uma exclusão a partir do snapshot devolvido pelo DELETE (até 10 minutos depois). */

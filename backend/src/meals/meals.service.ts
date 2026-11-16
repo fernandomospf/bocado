@@ -5,11 +5,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Meal, MealItem, MealSource, Prisma } from '@prisma/client';
+import { Meal, MealItem, MealSource, MealType, Prisma } from '@prisma/client';
 import { formatDay, parseDay } from '../common/dates';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfileService } from '../profile/profile.service';
-import { CreateMealDto, MealSnapshotDto, MoveMealItemDto, UpdateMealItemDto } from './dto/meal.dto';
+import { CreateMealDto, MealSnapshotDto, MoveMealItemDto, RepeatMealDto, UpdateMealItemDto } from './dto/meal.dto';
+import { groupRecentMeals } from './recent';
 
 export interface Totals {
   kcal: number;
@@ -20,6 +21,9 @@ export interface Totals {
 
 const MEAL_ORDER = ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER'] as const;
 const MAX_RANGE_DAYS = 93;
+const RECENT_DAYS = 30;
+/** Quantas refeições olhar para trás ao montar os recentes (o grupo é calculado em memória). */
+const RECENT_SCAN = 400;
 /** Por quanto tempo uma exclusão pode ser desfeita. */
 export const RESTORE_WINDOW_MS = 10 * 60_000;
 /** Tolerância para relógios adiantados (deletedAt vem do servidor, mas passa pelo app). */
@@ -87,6 +91,69 @@ export class MealsService {
         source: dto.source ?? MealSource.MANUAL,
         note: dto.note || null,
         items: { create: dto.items },
+      },
+      include: { items: true },
+    });
+    return this.serializeMeal(meal);
+  }
+
+  /**
+   * Refeições distintas dos últimos 30 dias (mesmo conjunto de alimentos e gramas = uma só), com a frequência.
+   * Com `type`, as desse tipo vêm primeiro e as demais completam a lista.
+   */
+  async recent(userId: string, type?: MealType, limit = 8) {
+    const since = formatDay(new Date(Date.now() - RECENT_DAYS * 86_400_000));
+    const meals = await this.prisma.meal.findMany({
+      where: { userId, date: { gte: parseDay(since) } },
+      include: { items: { orderBy: { name: 'asc' } } },
+      orderBy: { createdAt: 'desc' },
+      take: RECENT_SCAN,
+    });
+    return groupRecentMeals(
+      meals.map((m) => ({
+        id: m.id,
+        type: m.type,
+        date: m.date,
+        createdAt: m.createdAt,
+        items: m.items.map(({ name, grams, kcal, protein, carbs, fat, estimated }) => ({
+          name,
+          grams,
+          kcal,
+          protein,
+          carbs,
+          fat,
+          estimated,
+        })),
+      })),
+      type,
+      limit,
+    );
+  }
+
+  /** Duplica a refeição do usuário na data informada (itens novos, mesma origem e mesmo `estimated`). */
+  async repeat(userId: string, mealId: string, dto: RepeatMealDto) {
+    if (dto.date > latestAllowedDay()) throw new BadRequestException('Não dá para registrar em um dia futuro');
+    const source = await this.prisma.meal.findFirst({ where: { id: mealId, userId }, include: { items: true } });
+    if (!source) throw new NotFoundException('Refeição não encontrada');
+    if (source.items.length === 0) throw new BadRequestException('Essa refeição não tem alimentos');
+
+    const meal = await this.prisma.meal.create({
+      data: {
+        userId,
+        date: parseDay(dto.date),
+        type: dto.type ?? source.type,
+        source: source.source,
+        items: {
+          create: source.items.map(({ name, grams, kcal, protein, carbs, fat, estimated }) => ({
+            name,
+            grams,
+            kcal,
+            protein,
+            carbs,
+            fat,
+            estimated,
+          })),
+        },
       },
       include: { items: true },
     });

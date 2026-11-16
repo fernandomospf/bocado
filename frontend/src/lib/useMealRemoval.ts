@@ -6,6 +6,7 @@ import { useToast } from '@/components/Toast';
 import { api, errorMessage } from './api';
 import { withoutItems } from './dayCache';
 import { tap } from './haptics';
+import { useRevalidateDay } from './useRevalidateDay';
 import type { DaySummary, Meal, MealItem, MealSnapshot } from './types';
 
 /**
@@ -16,16 +17,7 @@ export function useMealRemoval() {
   const { mutate } = useSWRConfig();
   const toast = useToast();
 
-  /** O dia, a faixa da semana/histórico e o "Para fechar o dia" dependem das refeições. */
-  const revalidate = useCallback(
-    (date: string) =>
-      mutate(
-        (key) =>
-          typeof key === 'string' &&
-          (key === `/days/${date}` || key.startsWith('/days?') || key.startsWith('/suggestions/close-day')),
-      ),
-    [mutate],
-  );
+  const revalidate = useRevalidateDay();
 
   const undo = useCallback(
     async (snapshot: MealSnapshot, message: string) => {

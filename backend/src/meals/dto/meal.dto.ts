@@ -7,6 +7,7 @@ import {
   IsBoolean,
   IsEnum,
   IsISO8601,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -159,6 +160,28 @@ export class RestoreMealDto {
   @ValidateNested()
   @Type(() => MealSnapshotDto)
   snapshot: MealSnapshotDto;
+}
+
+export class RecentQueryDto {
+  @IsOptional()
+  @IsEnum(MealType)
+  type?: MealType;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  limit?: number;
+}
+
+export class RepeatMealDto {
+  @Matches(ISO_DATE, { message: 'Data inválida' })
+  date: string;
+
+  @IsOptional()
+  @IsEnum(MealType)
+  type?: MealType;
 }
 
 export class DayParamDto {

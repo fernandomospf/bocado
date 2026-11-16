@@ -7,9 +7,11 @@ import { dayTitle, isValidISO, todayISO } from '@/lib/date';
 import { fmtInt, parseNum, round1 } from '@/lib/format';
 import { success as hapticSuccess, tap } from '@/lib/haptics';
 import { MEAL_ORDER, MEAL_SHORT } from '@/lib/labels';
+import { useQuickMeals } from '@/lib/quickMeals';
 import { useMealRemoval } from '@/lib/useMealRemoval';
 import type { Meal, MealItem, MealType } from '@/lib/types';
 import { EstimateBadge } from './EstimateBadge';
+import { StarIcon } from './Icons';
 import { Sheet } from './Sheet';
 import { useToast } from './Toast';
 
@@ -44,6 +46,7 @@ function ItemForm({ meal, item, onClose, onChanged }: ItemSheetProps & { meal: M
   const toast = useToast();
   const { mutate } = useSWRConfig();
   const { remove } = useMealRemoval();
+  const { saveFavorite } = useQuickMeals();
   const today = todayISO();
 
   const [name, setName] = useState(item.name);
@@ -269,6 +272,10 @@ function ItemForm({ meal, item, onClose, onChanged }: ItemSheetProps & { meal: M
         <div className="stack">
           <button type="submit" className="btn btn-primary btn-block" disabled={busy || !valid || !(valuesChanged || moved)}>
             {busy ? <span className="spinner" aria-label="Salvando" /> : 'Salvar'}
+          </button>
+          <button type="button" className="btn btn-glass btn-block" onClick={() => void saveFavorite(meal.id)} disabled={busy}>
+            <StarIcon width={18} height={18} />
+            Salvar refeição como favorita
           </button>
           <button type="button" className="btn btn-glass btn-block btn-danger" onClick={removeItem} disabled={busy}>
             Remover alimento

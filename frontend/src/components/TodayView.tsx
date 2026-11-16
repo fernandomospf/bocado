@@ -10,12 +10,13 @@ import { fmtInt } from '@/lib/format';
 import { tap } from '@/lib/haptics';
 import { useDay, useWeekStartsOn } from '@/lib/hooks';
 import { MEAL_LABEL, MEAL_ORDER } from '@/lib/labels';
+import { useQuickMeals } from '@/lib/quickMeals';
 import { recipeToFood } from '@/lib/recipe';
 import type { FoodResult, Meal, MealItem, MealType } from '@/lib/types';
 import { useShortcuts } from '@/lib/useShortcuts';
 import { FoodPortionSheet } from './FoodPortionSheet';
 import { CloseDayCard } from './CloseDayCard';
-import { PlusIcon, PotIcon } from './Icons';
+import { PlusIcon, PotIcon, RepeatIcon } from './Icons';
 import { type DraftItem, toPayload } from './ItemsEditor';
 import { ItemSheet } from './ItemSheet';
 import { MacroDots, MacroLegend } from './MacroLegend';
@@ -50,6 +51,10 @@ export function TodayView() {
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   const { data, error, isLoading, mutate } = useDay(date);
+  // O dia anterior (em cache do SWR) alimenta o "Repetir ontem" dos cards vazios
+  const { data: yesterday } = useDay(addDays(date, -1));
+  const quick = useQuickMeals();
+  const [repeating, setRepeating] = useState<MealType | null>(null);
   const { mutate: globalMutate } = useSWRConfig();
   const [selected, setSelected] = useState<{ meal: Meal; item: MealItem } | null>(null);
   // "Da receita": primeiro escolhe a receita, depois a porção (já com a refeição e a data do card)
@@ -62,6 +67,20 @@ export function TodayView() {
     await mutate();
     void globalMutate('/recipes'); // a contagem de uso ("mais usadas") mudou
     setPortion(null);
+  }
+
+  /** A refeição do mesmo tipo no dia anterior, se tiver alimentos. */
+  const yesterdayMeal = (type: MealType) => yesterday?.meals.find((m) => m.type === type && m.items.length > 0);
+
+  async function repeatYesterday(type: MealType, meal: Meal) {
+    if (repeating) return;
+    setRepeating(type);
+    try {
+      await quick.repeat(meal.id, date, type);
+      await mutate();
+    } finally {
+      setRepeating(null);
+    }
   }
 
   const go = (d: string) => {
@@ -173,6 +192,20 @@ export function TodayView() {
                   <div className="skeleton" style={{ height: 40 }} />
                 ) : meals.length === 0 ? (
                   <div className="empty-actions">
+                    {(() => {
+                      const prev = yesterdayMeal(type);
+                      return prev ? (
+                        <button
+                          type="button"
+                          className="empty-add"
+                          onClick={() => void repeatYesterday(type, prev)}
+                          disabled={repeating !== null}
+                        >
+                          <RepeatIcon width={18} height={18} />
+                          Repetir ontem · {fmtInt(prev.totals.kcal)} kcal
+                        </button>
+                      ) : null;
+                    })()}
                     <Link href={`/add?type=${type}&date=${date}`} className="empty-add">
                       <PlusIcon width={18} height={18} />
                       Adicionar

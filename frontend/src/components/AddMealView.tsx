@@ -11,6 +11,7 @@ import { tap } from '@/lib/haptics';
 import { compressImage } from '@/lib/image';
 import { MEAL_ORDER, MEAL_SHORT, mealTypeForNow } from '@/lib/labels';
 import { recipeToFood } from '@/lib/recipe';
+import { useQuickMeals } from '@/lib/quickMeals';
 import {
   applyFatChoice,
   type FatChoice,
@@ -18,7 +19,7 @@ import {
   isFatItem,
   nextFatState,
 } from '@/lib/preparationFat';
-import type { AnalysisResult, FoodResult, MealSource, MealType, PreparationFatTable } from '@/lib/types';
+import type { AnalysisResult, FoodResult, MealSource, MealType, PreparationFatTable, QuickItem } from '@/lib/types';
 import { BarcodeFlow } from './BarcodeFlow';
 import { FoodPortionSheet } from './FoodPortionSheet';
 import { FoodSearch } from './FoodSearch';
@@ -35,7 +36,7 @@ import {
   resolveKcal,
   toMealPayload,
 } from './ItemsEditor';
-import { QuickChips } from './QuickChips';
+import { QuickChips, type QuickSource } from './QuickChips';
 
 type Mode = 'search' | 'barcode' | 'photo' | 'text' | 'manual';
 
@@ -51,6 +52,7 @@ export function AddMealView() {
   const router = useRouter();
   const params = useSearchParams();
   const { mutate } = useSWRConfig();
+  const quick = useQuickMeals();
   const today = todayISO();
 
   const paramType = params.get('type') as MealType | null;
@@ -174,6 +176,24 @@ export function AddMealView() {
     setError(null);
   }
 
+  /** Favorita ou recente: os itens entram no editor (editáveis); a origem da refeição não muda. */
+  function addQuickItems(quickItems: QuickItem[]) {
+    setItems((prev) => [...prev.filter((i) => i.name.trim() || resolveKcal(i) > 0), ...quickItems.map(draftFromValues)]);
+    setError(null);
+    tap();
+  }
+
+  /** "Registrar direto": salva na hora e volta para o dia (o toast oferece Desfazer). */
+  async function registerQuick(src: QuickSource) {
+    if (busy) return;
+    setBusy('save');
+    setError(null);
+    const meal =
+      src.kind === 'favorite' ? await quick.logFavorite(src.id, date, type) : await quick.repeat(src.id, date, type);
+    if (meal) router.push(date === today ? '/' : `/?date=${date}`);
+    else setBusy(null);
+  }
+
   function applyAnalysis(result: AnalysisResult, from: MealSource) {
     const nextFat = nextFatState(fatRef.current, result.hasCookedFood, result.preparationFat);
     const fromPhoto = from === 'PHOTO';
@@ -295,7 +315,13 @@ export function AddMealView() {
           </label>
         </section>
 
-        <QuickChips onPickRecipe={(r) => setChipFood(recipeToFood(r))} />
+        <QuickChips
+          type={type}
+          onPickRecipe={(r) => setChipFood(recipeToFood(r))}
+          onPickItems={addQuickItems}
+          onRegister={(src) => void registerQuick(src)}
+          disabled={!!busy}
+        />
 
         <div className="segmented segmented-modes" role="group" aria-label="Como registrar">
           {MODES.map((m) => (

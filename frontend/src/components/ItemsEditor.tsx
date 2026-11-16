@@ -104,7 +104,9 @@ export function draftFromPer100(name: string, per100: Macros, grams: number, foo
 }
 
 /** Item a partir de valores já gravados (ex.: ingrediente de receita), com base para escalar a porção. */
-export function draftFromValues(i: Macros & { name: string; grams: number; foodId?: string | null }): DraftItem {
+export function draftFromValues(
+  i: Macros & { name: string; grams: number; foodId?: string | null; estimated?: boolean },
+): DraftItem {
   return newDraft({
     name: i.name,
     grams: str(i.grams),
@@ -114,6 +116,7 @@ export function draftFromValues(i: Macros & { name: string; grams: number; foodI
     fat: str(i.fat),
     ...(i.grams > 0 ? { base: { grams: i.grams, kcal: i.kcal, protein: i.protein, carbs: i.carbs, fat: i.fat } } : {}),
     ...(i.foodId ? { foodId: i.foodId } : {}),
+    ...(i.estimated ? { estimated: true } : {}),
   });
 }
 

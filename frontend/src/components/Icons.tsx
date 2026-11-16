@@ -103,6 +103,21 @@ export const CheckIcon = (p: IconProps) => (
   </svg>
 );
 
+export const RepeatIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M17 3l3 3-3 3" />
+    <path d="M4 11V9a3 3 0 013-3h13" />
+    <path d="M7 21l-3-3 3-3" />
+    <path d="M20 13v2a3 3 0 01-3 3H4" />
+  </svg>
+);
+
+export const StarIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 3.5l2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.3 9.9l6-.9z" />
+  </svg>
+);
+
 export const TrashIcon = (p: IconProps) => (
   <svg {...base(p)}>
     <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
