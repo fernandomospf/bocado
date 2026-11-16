@@ -77,6 +77,17 @@ export function ProfileView() {
     ).catch((err) => toast.show({ message: errorMessage(err), tone: 'error' }));
   }
 
+  async function setHideWeight(hideWeightInReports: boolean) {
+    if (!profile || profile.hideWeightInReports === hideWeightInReports) return;
+    tap();
+    await mutate(
+      async () => api<Profile>('/profile/preferences', { method: 'PATCH', json: { hideWeightInReports } }),
+      { optimisticData: { ...profile, hideWeightInReports }, rollbackOnError: true, revalidate: false },
+    )
+      .then(() => globalMutate((key) => typeof key === 'string' && key.startsWith('/reports')))
+      .catch((err) => toast.show({ message: errorMessage(err), tone: 'error' }));
+  }
+
   const goal = GOAL_OPTIONS.find((o) => o.value === profile?.goal)?.label;
   const activity = ACTIVITY_OPTIONS.find((o) => o.value === profile?.activityLevel)?.label;
 
@@ -194,6 +205,16 @@ export function ProfileView() {
                   </button>
                 ))}
               </div>
+              <label className="switch-row">
+                <span>Mostrar peso nos relatórios</span>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  className="switch"
+                  checked={!profile.hideWeightInReports}
+                  onChange={(e) => void setHideWeight(!e.target.checked)}
+                />
+              </label>
             </section>
           </div>
         )}

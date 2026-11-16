@@ -5,7 +5,9 @@ import { useState } from 'react';
 import useSWR from 'swr';
 import { addDays, dayMonth, dayTitle, shortDay, todayISO } from '@/lib/date';
 import { fmtInt } from '@/lib/format';
-import type { RangeSummary } from '@/lib/types';
+import { periodLabel } from '@/lib/reports';
+import type { RangeSummary, WeeklyListItem } from '@/lib/types';
+import { WeeklyReportSheet } from './WeeklyReportSheet';
 import { ChevronRight } from './Icons';
 import { MacroDots } from './MacroLegend';
 
@@ -16,6 +18,8 @@ const PERIODS = [
 
 export function HistoryView() {
   const [period, setPeriod] = useState<7 | 30>(7);
+  const [reportWeek, setReportWeek] = useState<string | null>(null);
+  const { data: weeks } = useSWR<WeeklyListItem[]>('/reports/weekly/list?limit=12', { revalidateOnFocus: false });
   const today = todayISO();
   const from = addDays(today, -(period - 1));
   const { data, error, isLoading } = useSWR<RangeSummary>(`/days?from=${from}&to=${today}`);
@@ -139,6 +143,35 @@ export function HistoryView() {
           </section>
         </div>
       </div>
+
+      <section className="history-weeks" aria-labelledby="weekly-reports-title">
+        <h2 className="section-title" id="weekly-reports-title">
+          Relatórios semanais
+        </h2>
+        <div className="card glass">
+          {!weeks ? (
+            <div className="skeleton" style={{ height: 52 }} />
+          ) : weeks.length === 0 ? (
+            <p className="body-2">Os relatórios aparecem depois que você registrar algumas refeições.</p>
+          ) : (
+            <div className="list">
+              {weeks.map((w) => (
+                <button key={w.weekStart} type="button" className="list-row" onClick={() => setReportWeek(w.weekStart)}>
+                  <span className="list-row-main">
+                    <span className="list-row-title" style={{ display: 'block' }}>
+                      {periodLabel(w.weekStart, w.weekEnd)}
+                    </span>
+                    <span className="list-row-sub">{w.loggedDays} de 7 dias registrados</span>
+                  </span>
+                  <ChevronRight width={16} height={16} style={{ color: 'var(--text-3)' }} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {reportWeek && <WeeklyReportSheet weekStart={reportWeek} onClose={() => setReportWeek(null)} />}
     </main>
   );
 }

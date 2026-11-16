@@ -24,6 +24,7 @@ import { RecipePickerSheet } from './RecipePickerSheet';
 import { Rings } from './Rings';
 import { ringSpecs } from './ringSpecs';
 import { DayPills } from './DayPills';
+import { WeeklyCard } from './WeeklyCard';
 
 /** Distância mínima (px) do arraste horizontal que troca de dia. */
 const SWIPE_MIN = 60;
@@ -172,6 +173,8 @@ export function TodayView() {
             </div>
           )}
         </section>
+
+        <WeeklyCard today={today} isToday={date === today} />
       </div>
 
       <div className="today-main">

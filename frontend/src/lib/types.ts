@@ -42,6 +42,8 @@ export interface Profile extends BodyData {
   customTargets: boolean;
   suggestion: Suggestion;
   weekStartsOn: WeekStart;
+  /** Relatórios semanais sem nenhuma informação de peso. */
+  hideWeightInReports: boolean;
   updatedAt: string;
 }
 
@@ -278,4 +280,44 @@ export interface CloseDayResponse {
   pantryChips: string[];
   /** Só nas respostas da despensa: o que foi reconhecido no texto. */
   pantry?: { recognized: { term: string; name: string }[]; unknown: string[] };
+}
+
+// --- Relatório semanal (GET /reports/weekly) ---
+
+export interface WeeklyDay {
+  date: string;
+  kcal: number;
+  logged: boolean;
+  goalKcal: number;
+}
+
+export type WeeklyHighlight =
+  | { kind: 'topProtein'; date: string; protein: number }
+  | { kind: 'mealShare'; mealType: MealType; share: number }
+  | { kind: 'streak'; days: number };
+
+export interface WeeklyReport {
+  weekStart: string;
+  weekEnd: string;
+  days: WeeklyDay[];
+  loggedDays: number;
+  insufficientData: boolean;
+  targets?: Macros;
+  avg?: Macros;
+  /** Positivo = abaixo da meta. */
+  balanceVsTargetKcal?: number;
+  /** `kg` é a estimativa (kcal / 7700), positivo = abaixo do gasto; null com o peso oculto. */
+  balanceVsExpenditure?: { kcal: number; kg: number | null; tdee: number };
+  daysOnTarget?: number;
+  daysProteinHit?: number;
+  highlights?: WeeklyHighlight[];
+  weight?: { thisWeekKg: number; previousWeekKg: number; measuredKg: number; expectedKg: number | null } | null;
+  weightNote?: 'hidden' | 'needTwoThisWeek' | 'needPreviousWeek' | null;
+  lowIntakeNote?: boolean;
+}
+
+export interface WeeklyListItem {
+  weekStart: string;
+  weekEnd: string;
+  loggedDays: number;
 }
