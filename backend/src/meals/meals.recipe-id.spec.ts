@@ -34,7 +34,7 @@ describe('MealItem.recipeId', () => {
     const created = prisma.meal.create.mock.calls[0][0].data.items.create;
     expect(created[0].recipeId).toBe(MINE);
     expect(created[1].recipeId).toBeUndefined();
-    expect(prisma.recipe.findMany.mock.calls[0][0].where.ownerId).toBe('user-1');
+    expect(JSON.stringify(prisma.recipe.findMany.mock.calls[0][0].where)).toContain('user-1');
   });
 
   it('sem recipeId nos itens, nem consulta receitas', async () => {

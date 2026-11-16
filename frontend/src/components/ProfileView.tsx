@@ -16,6 +16,7 @@ import { BodyForm } from './BodyForm';
 import { DeleteAccountSheet } from './DeleteAccountSheet';
 import { ExportCard } from './ExportCard';
 import { FavoritesSection } from './FavoritesSection';
+import { HouseholdSection } from './HouseholdSection';
 import { ChevronRight } from './Icons';
 import { Sheet } from './Sheet';
 import { useToast } from './Toast';
@@ -226,6 +227,13 @@ export function ProfileView() {
           <div className="screen-group profile-o4">
             <h2 className="section-title">Meta adaptativa</h2>
             <AdaptiveSection />
+          </div>
+        )}
+
+        {profile && (
+          <div className="screen-group profile-o4">
+            <h2 className="section-title">Casa</h2>
+            <HouseholdSection />
           </div>
         )}
 

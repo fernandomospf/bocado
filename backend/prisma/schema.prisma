@@ -107,6 +107,8 @@ model User {
   favoriteMeals FavoriteMeal[]
   adaptiveAdjustments AdaptiveAdjustment[]
   workouts     Workout[]
+  householdMember HouseholdMember?
+  householdInvites HouseholdInvite[] @relation("InviteCreator")
 
   @@map("users")
 }
@@ -248,8 +250,9 @@ model Recipe {
   id               String             @id @default(uuid()) @db.Uuid
   ownerId          String             @db.Uuid
   owner            User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  /// Casa com quem a receita é compartilhada (a chave estrangeira entra com a tabela de casas)
+  /// Casa com quem a receita é compartilhada. Nula = privada. Se a casa acabar, volta a ser privada
   householdId      String?            @db.Uuid
+  household        Household?         @relation(fields: [householdId], references: [id], onDelete: SetNull)
   name             String
   notes            String?
   /// Peso final da panela; sem ele, a base é a soma dos gramas crus
@@ -387,4 +390,55 @@ model FoodReport {
 
   @@unique([foodId, userId])
   @@map("food_reports")
+}
+
+enum HouseholdRole {
+  OWNER
+  MEMBER
+}
+
+/// Casa: até 6 pessoas que compartilham receitas e podem dividir refeições. Nunca expõe diário, metas ou peso.
+model Household {
+  id        String            @id @default(uuid()) @db.Uuid
+  name      String
+  createdAt DateTime          @default(now())
+  members   HouseholdMember[]
+  invites   HouseholdInvite[]
+  recipes   Recipe[]
+
+  @@map("households")
+}
+
+model HouseholdMember {
+  id                String        @id @default(uuid()) @db.Uuid
+  householdId       String        @db.Uuid
+  household         Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  /// UNIQUE: no máximo uma casa por usuário
+  userId            String        @unique @db.Uuid
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role              HouseholdRole @default(MEMBER)
+  /// Refeições divididas por membros da casa entram direto no diário, sem oferta
+  autoAcceptShared  Boolean       @default(false)
+  joinedAt          DateTime      @default(now())
+
+  @@index([householdId])
+  @@map("household_members")
+}
+
+model HouseholdInvite {
+  id          String    @id @default(uuid()) @db.Uuid
+  householdId String    @db.Uuid
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  /// 8 caracteres, sem 0/O/1/I/L
+  code        String    @unique
+  createdById String    @db.Uuid
+  createdBy   User      @relation("InviteCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  usedAt      DateTime?
+  /// Sem chave estrangeira: excluir a conta de quem entrou não pode depender do convite
+  usedById    String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+
+  @@index([householdId])
+  @@map("household_invites")
 }

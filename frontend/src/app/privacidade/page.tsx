@@ -13,13 +13,14 @@ const TOC = [
   { id: 'dados', label: '2. Dados que coletamos' },
   { id: 'ia', label: '3. Fotos e descrições (IA)' },
   { id: 'codigo-de-barras', label: '4. Código de barras e acervo de produtos' },
-  { id: 'finalidade', label: '5. Para que usamos os dados' },
-  { id: 'cookies', label: '6. Cookies' },
-  { id: 'seguranca', label: '7. Armazenamento e segurança' },
-  { id: 'retencao', label: '8. Por quanto tempo guardamos' },
-  { id: 'direitos', label: '9. Seus direitos' },
-  { id: 'criancas', label: '10. Crianças e adolescentes' },
-  { id: 'alteracoes', label: '11. Alterações e contato' },
+  { id: 'casa', label: '5. Casa e compartilhamento' },
+  { id: 'finalidade', label: '6. Para que usamos os dados' },
+  { id: 'cookies', label: '7. Cookies' },
+  { id: 'seguranca', label: '8. Armazenamento e segurança' },
+  { id: 'retencao', label: '9. Por quanto tempo guardamos' },
+  { id: 'direitos', label: '10. Seus direitos' },
+  { id: 'criancas', label: '11. Crianças e adolescentes' },
+  { id: 'alteracoes', label: '12. Alterações e contato' },
 ];
 
 export default function PrivacyPage() {
@@ -130,7 +131,26 @@ export default function PrivacyPage() {
         errados.
       </p>
 
-      <h2 id="finalidade">5. Para que usamos os dados</h2>
+      <h2 id="casa">5. Casa e compartilhamento</h2>
+      <p>
+        Você pode criar uma &ldquo;casa&rdquo; e convidar até 5 pessoas por um código ou link (válido por 7 dias).
+        Quem está na casa vê <strong>apenas o seu nome, a sua foto e as receitas que você marcar como compartilhadas</strong>.
+        O seu diário, as refeições, as metas, o peso, os treinos, os relatórios, as favoritas e a meta adaptativa nunca ficam
+        visíveis para a casa, e o seu e-mail também não.
+      </p>
+      <p>
+        Se você dividir uma refeição com alguém da casa, essa pessoa recebe uma oferta com o nome da refeição, a porção e os
+        valores nutricionais da parte dela, e decide se adiciona ao próprio diário (ou liga a aceitação automática). Cada
+        cópia é independente: editar ou apagar a sua não altera a dos outros.
+      </p>
+      <p>
+        Ao sair da casa ou ser removido, as suas receitas voltam a ser só suas e as ofertas pendentes enviadas ou recebidas
+        por você são apagadas. Se quem criou a casa sair, o membro mais antigo assume; se não restar ninguém, a casa é
+        apagada. Ao excluir a conta, a mesma regra vale, as suas receitas compartilhadas são apagadas e as refeições que você
+        dividiu e que já estão no diário de outras pessoas continuam lá, sem o seu nome.
+      </p>
+
+      <h2 id="finalidade">6. Para que usamos os dados</h2>
       <p>
         Exclusivamente para fazer o app funcionar: manter sua conta, calcular suas metas, mostrar seu histórico e
         estimar refeições. Não há anúncios, não vendemos seus dados e não os compartilhamos com terceiros, exceto os
@@ -142,7 +162,7 @@ export default function PrivacyPage() {
         <li>Cloudflare, para a entrega e a segurança do tráfego do app.</li>
       </ul>
 
-      <h2 id="cookies">6. Cookies</h2>
+      <h2 id="cookies">7. Cookies</h2>
       <p>Usamos apenas cookies essenciais, do tipo httpOnly, que não podem ser lidos por scripts da página:</p>
       <ul>
         <li>um cookie de sessão, que mantém você conectado por até 30 dias ou até você sair da conta;</li>
@@ -153,19 +173,19 @@ export default function PrivacyPage() {
       </ul>
       <p>Não usamos cookies de rastreamento, publicidade nem ferramentas de analytics.</p>
 
-      <h2 id="seguranca">7. Armazenamento e segurança</h2>
+      <h2 id="seguranca">8. Armazenamento e segurança</h2>
       <p>
         Os dados ficam em um banco PostgreSQL em servidor próprio. Todo o acesso ao app é feito por HTTPS, as senhas são
         guardadas com hash e a sessão fica em cookie httpOnly. Nenhum sistema é totalmente imune a falhas, mas adotamos
         essas medidas para proteger suas informações.
       </p>
 
-      <h2 id="retencao">8. Por quanto tempo guardamos</h2>
+      <h2 id="retencao">9. Por quanto tempo guardamos</h2>
       <p>
         Seus dados ficam enquanto a conta existir e são apagados quando você a exclui.
       </p>
 
-      <h2 id="direitos">9. Seus direitos</h2>
+      <h2 id="direitos">10. Seus direitos</h2>
       <p>
         Pela LGPD, você pode confirmar se tratamos seus dados, acessá-los, corrigi-los, levá-los para outro serviço
         (portabilidade), pedir a eliminação e revogar o consentimento. Direto no app, em Perfil:
@@ -184,13 +204,13 @@ export default function PrivacyPage() {
         em até 15 dias. Você também pode apresentar reclamação à Autoridade Nacional de Proteção de Dados (ANPD).
       </p>
 
-      <h2 id="criancas">10. Crianças e adolescentes</h2>
+      <h2 id="criancas">11. Crianças e adolescentes</h2>
       <p>
         O Bocado não é voltado a menores de 13 anos. Para quem tem de 13 a 17 anos, recomendamos o uso com supervisão de
         um responsável.
       </p>
 
-      <h2 id="alteracoes">11. Alterações e contato</h2>
+      <h2 id="alteracoes">12. Alterações e contato</h2>
       <p>
         Esta política pode ser atualizada quando o app mudar. A data no topo indica a versão atual, e avisaremos dentro
         do app quando houver mudança relevante. Dúvidas: <a href={`mailto:${CONTACT}`}>{CONTACT}</a>.

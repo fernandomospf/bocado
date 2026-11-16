@@ -13,7 +13,7 @@ export default function TermsPage() {
   return (
     <LegalPage
       title="Termos de Uso"
-      updatedAt="15 de novembro de 2026"
+      updatedAt="16 de novembro de 2026"
       otherPage={{ href: '/privacidade', label: 'Política de Privacidade' }}
     >
       <h2>1. Aceitação</h2>
@@ -53,7 +53,9 @@ export default function TermsPage() {
       <p>
         Os dados que você registra continuam sendo seus. Você autoriza o Bocado a processá-los para prestar o serviço,
         como descrito na Política de Privacidade. Os produtos que você cadastra no acervo compartilhado podem ser usados
-        por outros usuários.
+        por outros usuários. As receitas que você marcar como compartilhadas ficam visíveis para as pessoas da sua casa,
+        que também veem o seu nome e a sua foto, e para mais ninguém. Convide só quem você conhece e remova quem não deve
+        mais participar.
       </p>
 
       <h2>6. Disponibilidade</h2>

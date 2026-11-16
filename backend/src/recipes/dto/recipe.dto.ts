@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsInt,
   IsNumber,
   IsOptional,
@@ -73,4 +74,9 @@ export class SaveRecipeDto {
   @ValidateNested({ each: true })
   @Type(() => RecipeIngredientDto)
   ingredients: RecipeIngredientDto[];
+}
+
+export class ShareRecipeDto {
+  @IsBoolean()
+  shared: boolean;
 }

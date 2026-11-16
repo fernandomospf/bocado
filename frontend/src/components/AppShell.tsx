@@ -1,7 +1,12 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
+import { useSWRConfig } from 'swr';
+import { api, errorMessage } from '@/lib/api';
+import { takePendingInvite } from '@/lib/invite';
+import type { Household } from '@/lib/types';
+import { useToast } from './Toast';
 import { useShortcuts } from '@/lib/useShortcuts';
 import { WorkoutSheetProvider, useQuickSheets } from './QuickSheets';
 import { Sidebar } from './Sidebar';
@@ -25,6 +30,7 @@ function Shell({ children }: { children: ReactNode }) {
   const { openWorkout } = useQuickSheets();
   // Só com mouse/trackpad, fora de campos e sem folha aberta (o próprio hook cuida disso)
   useShortcuts({ n: () => router.push('/add'), t: () => openWorkout() });
+  usePendingInvite();
 
   return (
     <>
@@ -34,4 +40,24 @@ function Shell({ children }: { children: ReactNode }) {
       <TabBar />
     </>
   );
+}
+
+/**
+ * Convite guardado antes do login (rota /convite/[code]): depois de entrar e concluir o questionário, o app
+ * está montado aqui e conclui a entrada na casa. A chave é apagada ao ler, com sucesso ou erro.
+ */
+function usePendingInvite() {
+  const toast = useToast();
+  const { mutate } = useSWRConfig();
+  useEffect(() => {
+    const code = takePendingInvite();
+    if (!code) return;
+    api<Household>('/household/join', { method: 'POST', json: { code } })
+      .then((house) => {
+        toast.show({ message: `Você entrou na casa ${house.name}`, durationMs: 4000 });
+        void mutate((key) => typeof key === 'string' && (key.startsWith('/household') || key.startsWith('/recipes')));
+      })
+      .catch((err) => toast.show({ message: `Não foi possível entrar na casa: ${errorMessage(err)}`, tone: 'error', durationMs: 7000 }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 }

@@ -227,6 +227,8 @@ export interface RecipeSummary {
   ingredientCount: number;
   isOwner: boolean;
   shared: boolean;
+  /** Nome de quem criou, só em receita da casa que é de outra pessoa. */
+  ownerName?: string | null;
   /** Quantas vezes o usuário registrou a receita (a lista vem ordenada por isso). */
   timesUsed: number;
   updatedAt: string;
@@ -404,4 +406,32 @@ export interface AdaptiveHistoryItem {
   confidence: AdaptiveConfidence;
   windowStart: string;
   windowEnd: string;
+}
+
+export interface HouseholdMember {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  role: 'OWNER' | 'MEMBER';
+}
+
+/** A casa do usuário. Os membros só expõem nome, foto e papel (nunca e-mail ou dados do diário). */
+export interface Household {
+  id: string;
+  name: string;
+  maxMembers: number;
+  me: { role: 'OWNER' | 'MEMBER'; autoAcceptShared: boolean };
+  members: HouseholdMember[];
+}
+
+export interface HouseholdInvite {
+  id: string;
+  code: string;
+  link: string;
+  expiresAt: string;
+}
+
+export interface InvitePreview {
+  householdName: string;
+  inviterFirstName: string;
 }

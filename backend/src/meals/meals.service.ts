@@ -88,7 +88,11 @@ export class MealsService {
     const ids = [...new Set(items.map((i) => i.recipeId).filter((v): v is string => !!v))];
     if (ids.length === 0) return items;
     const visible = await this.prisma.recipe.findMany({
-      where: { id: { in: ids }, ownerId: userId },
+      where: {
+        id: { in: ids },
+        // Minhas receitas ou as compartilhadas com a minha casa
+        OR: [{ ownerId: userId }, { householdId: { not: null }, household: { members: { some: { userId } } } }],
+      },
       select: { id: true },
     });
     const ok = new Set(visible.map((r) => r.id));

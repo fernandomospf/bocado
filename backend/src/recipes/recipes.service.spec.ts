@@ -35,6 +35,7 @@ function setup() {
   const prisma = {
     recipe: { findFirst: jest.fn(), findMany: jest.fn(), create: jest.fn(), update: jest.fn(), delete: jest.fn() },
     recipeIngredient: { deleteMany: jest.fn() },
+    householdMember: { findUnique: jest.fn().mockResolvedValue(null) },
     food: { findMany: jest.fn().mockResolvedValue([{ id: 'food-taco' }]) },
     $transaction: jest.fn(),
     $queryRaw: jest.fn().mockResolvedValue([]),

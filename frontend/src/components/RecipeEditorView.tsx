@@ -7,6 +7,7 @@ import { api, errorMessage } from '@/lib/api';
 import { fmtDec, fmtInt, parseNum } from '@/lib/format';
 import { computeRecipe } from '@/lib/recipe';
 import type { RecipeDetail } from '@/lib/types';
+import { useHousehold } from '@/lib/hooks';
 import { FoodSearch } from './FoodSearch';
 import { ChevronLeft, PlusIcon } from './Icons';
 import { type DraftItem, draftFromValues, ItemsEditor, newDraft, toPayload } from './ItemsEditor';
@@ -30,6 +31,8 @@ export function RecipeEditorView({ id }: { id: string }) {
   const [servings, setServings] = useState('');
   const [items, setItems] = useState<DraftItem[]>([]);
   const [loaded, setLoaded] = useState(isNew);
+  const { data: household } = useHousehold();
+  const [share, setShare] = useState(false);
 
   const [busy, setBusy] = useState<'save' | 'delete' | 'copy' | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -42,6 +45,7 @@ export function RecipeEditorView({ id }: { id: string }) {
     setNotes(data.notes ?? '');
     setCooked(toText(data.totalCookedGrams));
     setServings(data.servings ? String(data.servings) : '');
+    setShare(data.shared);
     setItems(data.ingredients.map(draftFromValues));
     setLoaded(true);
   }, [data, loaded]);
@@ -83,7 +87,14 @@ export function RecipeEditorView({ id }: { id: string }) {
         servings: servingsCount,
         ingredients: ingredients.map(({ foodId, ...i }) => (foodId ? { ...i, foodId } : i)),
       };
-      await api(isNew ? '/recipes' : `/recipes/${id}`, { method: isNew ? 'POST' : 'PUT', json: body });
+      const saved = await api<RecipeDetail>(isNew ? '/recipes' : `/recipes/${id}`, {
+        method: isNew ? 'POST' : 'PUT',
+        json: body,
+      });
+      // Compartilhar com a casa é uma chamada própria (só o dono, e só quem tem casa)
+      if (household && share !== saved.shared) {
+        await api(`/recipes/${saved.id}/share`, { method: 'PATCH', json: { shared: share } });
+      }
       await mutate(isRecipeKey);
       router.replace('/recipes');
     } catch (err) {
@@ -272,6 +283,26 @@ export function RecipeEditorView({ id }: { id: string }) {
             <p className="alert" role="alert">
               {error}
             </p>
+          )}
+
+          {household && !readOnly && (
+            <section className="card glass stack">
+              <label className="switch-row">
+                <span>
+                  Compartilhar com a casa
+                  <span className="caption" style={{ display: 'block' }}>
+                    {household.name}: quem está na casa vê só esta receita.
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  className="switch"
+                  checked={share}
+                  onChange={(e) => setShare(e.target.checked)}
+                />
+              </label>
+            </section>
           )}
 
           {readOnly && (

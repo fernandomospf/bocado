@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import bcrypt from 'bcryptjs';
+import { removeFromHousehold } from '../household/household.logic';
 import { PrismaService } from '../prisma/prisma.service';
 import { DeleteAccountDto } from './account.dto';
 
@@ -24,8 +25,9 @@ export class AccountService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      // Casa: ainda não existe a tabela de casas (Recipe.householdId não tem FK). Quando existir, aplicar aqui a
-      // regra de "sair da casa": transferir o OWNER para o membro mais antigo ou apagar a casa vazia.
+      // Casa: mesma regra de "sair da casa" (OWNER passa ao membro mais antigo; casa vazia é apagada).
+      // As receitas dele somem junto com a conta (onDelete Cascade), inclusive as compartilhadas.
+      await removeFromHousehold(tx, userId);
 
       // Explícito, além do SetNull do schema: o acervo compartilhado não pode perder produtos
       await tx.food.updateMany({ where: { contributedById: userId }, data: { contributedById: null } });

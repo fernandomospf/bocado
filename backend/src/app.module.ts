@@ -12,6 +12,7 @@ import { UserThrottlerGuard } from './common/user-throttler.guard';
 import { validateEnv } from './config/env.validation';
 import { FavoritesModule } from './favorites/favorites.module';
 import { FoodsModule } from './foods/foods.module';
+import { HouseholdModule } from './household/household.module';
 import { HealthModule } from './health/health.module';
 import { MealsModule } from './meals/meals.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -33,6 +34,7 @@ import { WorkoutsModule } from './workouts/workouts.module';
     FavoritesModule,
     FoodsModule,
     RecipesModule,
+    HouseholdModule,
     ReportsModule,
     AdaptiveModule,
     WorkoutsModule,

@@ -96,7 +96,11 @@ export function RecipesListView() {
                     {r.timesUsed > 0 && ` · usada ${r.timesUsed}x`}
                   </div>
                 </div>
-                {r.shared && <span className="badge badge-origin-recipe">{r.isOwner ? 'Na casa' : 'Da casa'}</span>}
+                {r.shared && (
+                  <span className="badge badge-origin-recipe">
+                    {r.isOwner ? 'Na casa' : `da casa${r.ownerName ? ` · ${r.ownerName.split(' ')[0]}` : ''}`}
+                  </span>
+                )}
                 <ChevronRight width={16} height={16} aria-hidden />
               </Link>
             ))}

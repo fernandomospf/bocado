@@ -11,6 +11,7 @@ import { AccountService } from './account.service';
 function setup(user: { id: string; passwordHash: string | null } | null) {
   const calls: string[] = [];
   const tx = {
+    householdMember: { findUnique: jest.fn().mockResolvedValue(null) },
     food: { updateMany: jest.fn().mockImplementation(() => calls.push('food.updateMany')) },
     user: { delete: jest.fn().mockImplementation(() => calls.push('user.delete')) },
   };

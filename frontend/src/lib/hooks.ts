@@ -2,7 +2,7 @@
 
 import useSWR from 'swr';
 import { todayISO } from './date';
-import type { AdaptiveStatus, WeightSummary, Workout, DaySummary, Favorite, MealType, Me, Profile, RecentMeal, WeekStart } from './types';
+import type { AdaptiveStatus, Household, WeightSummary, Workout, DaySummary, Favorite, MealType, Me, Profile, RecentMeal, WeekStart } from './types';
 
 export function useMe() {
   return useSWR<Me>('/auth/me');
@@ -43,4 +43,9 @@ export function useLastWorkout() {
 /** Último peso e tendência (para pré-preencher o "Registrar peso"). */
 export function useWeightSummary(enabled = true) {
   return useSWR<WeightSummary>(enabled ? '/weight/summary' : null, { revalidateOnFocus: false });
+}
+
+/** A casa do usuário (null se não estiver em nenhuma). */
+export function useHousehold() {
+  return useSWR<Household | null>('/household');
 }

@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { FoodSource, Prisma, Recipe, RecipeIngredient } from '@prisma/client';
 import { NORMALIZED_NAME_SQL, normalizeName } from '../foods/food-normalize';
 import { PrismaService } from '../prisma/prisma.service';
@@ -32,16 +32,33 @@ export class RecipesService {
     return householdId ? { OR: [{ ownerId: userId }, { householdId }] } : { ownerId: userId };
   }
 
-  /** Casa do usuário. Sem o módulo de casas, ninguém tem casa. */
-  protected async householdOf(_userId: string): Promise<string | null> {
-    return null;
+  /** Casa do usuário (uma só por pessoa), se tiver. */
+  protected async householdOf(userId: string): Promise<string | null> {
+    const member = await this.prisma.householdMember.findUnique({ where: { userId }, select: { householdId: true } });
+    return member?.householdId ?? null;
+  }
+
+  /** Compartilha a receita com a casa (ou volta a privada). Só o dono, e só quem tem casa. */
+  async setShared(userId: string, id: string, shared: boolean) {
+    await this.assertOwner(userId, id);
+    let householdId: string | null = null;
+    if (shared) {
+      householdId = await this.householdOf(userId);
+      if (!householdId) throw new BadRequestException('Você não está em uma casa');
+    }
+    const recipe = await this.prisma.recipe.update({
+      where: { id },
+      data: { householdId },
+      include: { ingredients: { orderBy: { position: 'asc' } } },
+    });
+    return this.serialize(recipe, userId);
   }
 
   /** Receitas visíveis, as mais usadas primeiro (empate: a editada mais recentemente). */
   async list(userId: string) {
     const recipes = await this.prisma.recipe.findMany({
       where: await this.visibleWhere(userId),
-      include: { ingredients: { select: { grams: true } } },
+      include: { ingredients: { select: { grams: true } }, owner: { select: { name: true } } },
       orderBy: { updatedAt: 'desc' },
     });
     const usage = await this.usageById(userId, recipes);
@@ -59,6 +76,8 @@ export class RecipesService {
           ingredientCount: r.ingredients.length,
           isOwner: r.ownerId === userId,
           shared: r.householdId !== null,
+          // Só o nome de quem criou, e só em receita da casa de outra pessoa
+          ownerName: r.householdId !== null && r.ownerId !== userId ? r.owner.name : null,
           timesUsed: usage.get(r.id) ?? 0,
           updatedAt: r.updatedAt,
         };

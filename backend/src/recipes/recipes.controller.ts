@@ -1,7 +1,7 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Put } from '@nestjs/common';
+import { Body, Patch, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Put } from '@nestjs/common';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { SaveRecipeDto } from './dto/recipe.dto';
+import { SaveRecipeDto, ShareRecipeDto } from './dto/recipe.dto';
 import { RecipesService } from './recipes.service';
 
 @Controller('recipes')
@@ -28,6 +28,12 @@ export class RecipesController {
   @Post(':id/duplicate')
   duplicate(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.recipes.duplicate(user.id, id);
+  }
+
+  /** Compartilha a receita com a casa ou volta a privada (só o dono). */
+  @Patch(':id/share')
+  share(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string, @Body() dto: ShareRecipeDto) {
+    return this.recipes.setShared(user.id, id, dto.shared);
   }
 
   @Put(':id')
