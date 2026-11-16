@@ -56,7 +56,7 @@ export function DeleteAccountSheet({ open, hasPassword, onClose, onExportFirst }
         <div className="stack" style={{ gap: 8 }}>
           <h2 className="title">Excluir conta</h2>
           <ul className="danger-list">
-            <li>Apagamos seu perfil, metas, refeições, registros de peso e receitas.</li>
+            <li>Apagamos seu perfil, metas, refeições, registros de peso e de água e receitas.</li>
             <li>Produtos que você cadastrou no acervo continuam, sem o seu nome.</li>
             <li>Não dá para desfazer.</li>
           </ul>

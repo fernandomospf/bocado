@@ -3,6 +3,7 @@
 import useSWR from 'swr';
 import { todayISO } from './date';
 import type { AiQuota } from './aiQuota';
+import type { WaterDay, WaterRangeDay } from './types';
 import type { AdaptiveStatus, Household, SharedOffer, WeightSummary, Workout, DaySummary, Favorite, MealType, Me, Profile, RecentMeal, WeekStart } from './types';
 
 export function useMe() {
@@ -59,4 +60,17 @@ export function useSharedOffers() {
 /** Cotas de IA do próprio usuário (usado, limite e quando voltam). Revalide com mutate('/ai/quota') depois de cada chamada de IA. */
 export function useAiQuota() {
   return useSWR<AiQuota>('/ai/quota', { revalidateOnFocus: true });
+}
+
+/** O dia de água: meta que valia, total e registros. `enabled` false pausa a busca (contador desligado). */
+export function useWaterDay(date: string, enabled = true) {
+  return useSWR<WaterDay>(enabled ? `/water?date=${date}` : null, { revalidateOnFocus: true });
+}
+
+export function useWaterRange(from: string, to: string, enabled = true) {
+  return useSWR<{ days: WaterRangeDay[] }>(enabled ? `/water/range?from=${from}&to=${to}` : null);
+}
+
+export function useWaterStreak(today: string, enabled = true) {
+  return useSWR<{ current: number; best: number }>(enabled ? `/water/streak?today=${today}` : null);
 }

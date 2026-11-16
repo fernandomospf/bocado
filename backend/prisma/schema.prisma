@@ -111,6 +111,8 @@ model User {
   aiLimitFactor Float @default(1)
   householdMember HouseholdMember?
   householdInvites HouseholdInvite[] @relation("InviteCreator")
+  waterEntries   WaterEntry[]
+  waterDays      WaterDay[]
   mealsSharedByMe Meal[] @relation("MealSharedBy")
   betaInvitesCreated BetaInvite[] @relation("BetaInviteCreator")
   betaInviteUse  BetaInviteUse?
@@ -142,6 +144,15 @@ model Profile {
   hideWeightInReports Boolean   @default(false)
   /// Modo "esconder calorias": só a interface muda (proteína e constância). O backend guarda e devolve tudo
   hideCalories        Boolean   @default(false)
+  /// Meta de peso (só referência para o gráfico e o progresso; não altera metas de calorias). Início = tendência no dia em que foi definida
+  goalWeightKg        Float?
+  goalStartWeightKg   Float?
+  goalSetAt           DateTime? @db.Date
+  /// Contador de água
+  waterEnabled        Boolean        @default(true)
+  waterGoalMode       WaterGoalMode  @default(AUTO)
+  waterGoalManualMl   Int?
+  waterBottleMl       Int?
   /// Meta adaptativa: sugerir ajustes da meta a partir do gasto estimado (nunca aplica sozinha)
   adaptiveEnabled     Boolean   @default(true)
   /// Sem novas sugestões até esta data (depois de "manter" ou "lembrar depois")
@@ -562,4 +573,33 @@ model WaitlistEntry {
 
   @@index([status, createdAt])
   @@map("waitlist_entries")
+}
+
+enum WaterGoalMode {
+  AUTO
+  MANUAL
+}
+
+/// Um registro de água (copo, garrafa…). A água dos alimentos e bebidas das refeições NÃO entra aqui
+model WaterEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  amountMl  Int
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@map("water_entries")
+}
+
+/// A meta de água que valia naquele dia. Dias passados nunca são recalculados
+model WaterDay {
+  userId String   @db.Uuid
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date   DateTime @db.Date
+  goalMl Int
+
+  @@id([userId, date])
+  @@map("water_days")
 }

@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useMe } from '@/lib/hooks';
+import { useMe, useProfile } from '@/lib/hooks';
 import { Avatar } from './Avatar';
-import { ChartIcon, DumbbellIcon, PlusIcon, PotIcon, RingsIcon, ScaleIcon, UserIcon } from './Icons';
+import { ChartIcon, DropIcon, DumbbellIcon, PlusIcon, PotIcon, RingsIcon, ScaleIcon, UserIcon } from './Icons';
 import { Logo } from './Logo';
 import { useQuickSheets } from './QuickSheets';
 
@@ -22,7 +22,8 @@ export const isActive = (pathname: string, href: string) => (href === '/' ? path
 export function Sidebar() {
   const pathname = usePathname();
   const { data: me } = useMe();
-  const { openWorkout, openWeight } = useQuickSheets();
+  const { openWorkout, openWeight, openWater } = useQuickSheets();
+  const { data: profile } = useProfile();
 
   return (
     <aside className="sidebar glass" aria-label="Navegação lateral">
@@ -46,6 +47,12 @@ export function Sidebar() {
           <DumbbellIcon width={20} height={20} />
           Registrar treino
         </button>
+        {profile?.waterEnabled !== false && (
+          <button type="button" className="btn btn-glass btn-block" onClick={() => openWater()} title="Registrar água (W)">
+            <DropIcon width={20} height={20} />
+            Registrar água
+          </button>
+        )}
         <button type="button" className="btn btn-glass btn-block" onClick={openWeight}>
           <ScaleIcon width={20} height={20} />
           Registrar peso

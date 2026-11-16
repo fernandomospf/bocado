@@ -6,12 +6,13 @@ import { addDays, todayISO } from '@/lib/date';
 import { tap } from '@/lib/haptics';
 import { useToast } from './Toast';
 
-type Kind = 'meals' | 'weight';
+type Kind = 'meals' | 'weight' | 'water';
 type Period = '7d' | '15d' | '30d' | '90d' | '180d' | '365d';
 
 const KINDS: { value: Kind; label: string }[] = [
   { value: 'meals', label: 'Refeições' },
   { value: 'weight', label: 'Peso' },
+  { value: 'water', label: 'Água' },
 ];
 
 const PERIODS: { value: Period; days: number; label: string }[] = [
@@ -26,6 +27,13 @@ const PERIODS: { value: Period; days: number; label: string }[] = [
 const EMPTY: Record<Kind, string> = {
   meals: 'Nenhuma refeição nesse período',
   weight: 'Nenhum registro de peso nesse período',
+  water: 'Nenhum registro de água nesse período',
+};
+
+const FILE: Record<Kind, { path: string; name: string }> = {
+  meals: { path: 'meals', name: 'refeicoes' },
+  weight: { path: 'weight', name: 'peso' },
+  water: { path: 'water', name: 'agua' },
 };
 
 const br = (iso: string) => iso.split('-').reverse().join('/');
@@ -52,7 +60,7 @@ async function saveFile(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/** Exportar refeições ou peso em CSV (para o Excel/LibreOffice em português). */
+/** Exportar refeições, peso ou água em CSV (para o Excel/LibreOffice em português). */
 export function ExportCard({ hasWeight = true }: { hasWeight?: boolean }) {
   const id = useId();
   const toast = useToast();
@@ -63,7 +71,7 @@ export function ExportCard({ hasWeight = true }: { hasWeight?: boolean }) {
 
   const to = todayISO();
   const from = addDays(to, -((PERIODS.find((p) => p.value === period)?.days ?? 30) - 1));
-  const kinds = hasWeight ? KINDS : KINDS.filter((k) => k.value === 'meals');
+  const kinds = hasWeight ? KINDS : KINDS.filter((k) => k.value !== 'weight');
 
   async function download() {
     setBusy(true);
@@ -71,13 +79,13 @@ export function ExportCard({ hasWeight = true }: { hasWeight?: boolean }) {
     try {
       const query = `period=${period}&to=${to}`;
       // Antes de baixar: o período tem registros?
-      const count = await api<{ items: number; weights: number }>(`/export/summary?${query}`);
-      if ((kind === 'meals' ? count.items : count.weights) === 0) {
+      const count = await api<{ items: number; weights: number; water?: number }>(`/export/summary?${query}`);
+      if ((kind === 'meals' ? count.items : kind === 'weight' ? count.weights : (count.water ?? 0)) === 0) {
         setEmpty(EMPTY[kind]);
         return;
       }
 
-      const res = await fetch(`/api/export/${kind === 'meals' ? 'meals' : 'weight'}.csv?${query}`, {
+      const res = await fetch(`/api/export/${FILE[kind].path}.csv?${query}`, {
         credentials: 'same-origin',
       });
       if (!res.ok) {
@@ -86,7 +94,7 @@ export function ExportCard({ hasWeight = true }: { hasWeight?: boolean }) {
       }
       const name =
         /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ??
-        `bocado-${kind === 'meals' ? 'refeicoes' : 'peso'}-${from}_a_${to}.csv`;
+        `bocado-${FILE[kind].name}-${from}_a_${to}.csv`;
       await saveFile(await res.blob(), name);
       toast.show({ message: 'CSV baixado' });
     } catch (err) {

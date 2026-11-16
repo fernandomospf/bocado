@@ -1,9 +1,10 @@
-import { BadRequestException, ConflictException, GoneException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, GoneException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma, Workout } from '@prisma/client';
 import { formatDay, parseDay } from '../common/dates';
 import { latestAllowedDay, RESTORE_WINDOW_MS } from '../meals/meals.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { dayNumber } from '../weight/weight.math';
+import { WaterService } from '../water/water.service';
 import { CreateWorkoutDto, RestoreWorkoutDto, UpdateWorkoutDto } from './dto/workout.dto';
 import { estimateKcal } from './workout.math';
 
@@ -17,7 +18,10 @@ export interface WorkoutSnapshot {
 
 @Injectable()
 export class WorkoutsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly water?: WaterService,
+  ) {}
 
   /** Peso e preferências: a estimativa só aparece com `workoutEstimateEnabled`. */
   private async estimator(userId: string) {
@@ -72,11 +76,12 @@ export class WorkoutsService {
     const w = await this.prisma.workout.create({
       data: { userId, date: parseDay(dto.date), type: dto.type, durationMin: dto.durationMin, intensity: dto.intensity, note: dto.note?.trim() || null },
     });
+    await this.water?.recalcAround(userId, dto.date); // a meta de água de hoje considera o treino
     return (await this.estimator(userId))(w);
   }
 
   async update(userId: string, id: string, dto: UpdateWorkoutDto) {
-    await this.owned(userId, id);
+    const before = await this.owned(userId, id);
     if (dto.date) this.assertNotFuture(dto.date);
     const w = await this.prisma.workout.update({
       where: { id },
@@ -88,6 +93,8 @@ export class WorkoutsService {
         ...(dto.note !== undefined ? { note: dto.note.trim() || null } : {}),
       },
     });
+    await this.water?.recalcAround(userId, formatDay(before.date));
+    if (dto.date && dto.date !== formatDay(before.date)) await this.water?.recalcAround(userId, dto.date);
     return (await this.estimator(userId))(w);
   }
 
@@ -95,6 +102,7 @@ export class WorkoutsService {
   async remove(userId: string, id: string): Promise<WorkoutSnapshot> {
     const w = await this.owned(userId, id);
     await this.prisma.workout.delete({ where: { id } });
+    await this.water?.recalcAround(userId, formatDay(w.date));
     return {
       workout: { id: w.id, date: formatDay(w.date), type: w.type, durationMin: w.durationMin, intensity: w.intensity, note: w.note, createdAt: w.createdAt.toISOString() },
       deletedAt: new Date().toISOString(),
@@ -121,6 +129,7 @@ export class WorkoutsService {
           createdAt: new Date(workout.createdAt),
         },
       });
+      await this.water?.recalcAround(userId, workout.date);
       return (await this.estimator(userId))(w);
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') throw new ConflictException('Isso já foi restaurado');
@@ -135,6 +144,7 @@ export class WorkoutsService {
     const w = await this.prisma.workout.create({
       data: { userId, date: parseDay(date), type: src.type, durationMin: src.durationMin, intensity: src.intensity },
     });
+    await this.water?.recalcAround(userId, date);
     return (await this.estimator(userId))(w);
   }
 }

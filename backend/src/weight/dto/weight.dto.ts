@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { IsNumber, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 import { ISO_DATE } from '../../common/dates';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
@@ -28,4 +28,13 @@ export class SaveWeightDto {
   @MaxLength(140)
   @Transform(trim)
   note?: string;
+}
+
+/** Meta de peso: de 30 a 350 kg, 1 casa decimal. `null` remove a meta. */
+export class SetWeightGoalDto {
+  @ValidateIf((o: SetWeightGoalDto) => o.goalWeightKg !== null)
+  @IsNumber({ maxDecimalPlaces: 1 }, { message: 'Informe a meta com no máximo 1 casa decimal' })
+  @Min(30, { message: 'A meta precisa ser de pelo menos 30 kg' })
+  @Max(350, { message: 'A meta precisa ser de no máximo 350 kg' })
+  goalWeightKg: number | null;
 }

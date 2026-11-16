@@ -75,6 +75,7 @@ function ReportBody({ report: r, hide }: { report: WeeklyReport; hide: boolean }
           </p>
         </section>
         <WorkoutsSection workouts={r.workouts} />
+        <WaterReportLine water={r.water} />
       </>
     );
   }
@@ -137,6 +138,11 @@ function ReportBody({ report: r, hide }: { report: WeeklyReport; hide: boolean }
                   </div>
                 )}
               </div>
+              {r.weightGoal && (
+                <p className="body-2 num">
+                  {r.weightGoal.remainingKg > 0 ? `Faltam ${fmtDec(r.weightGoal.remainingKg)} kg para a meta` : 'Você chegou perto da sua meta de peso'}
+                </p>
+              )}
               <p className="caption">Uma semana é pouco tempo: o peso muda com água, sal e rotina.</p>
             </>
           ) : (
@@ -146,6 +152,7 @@ function ReportBody({ report: r, hide }: { report: WeeklyReport; hide: boolean }
       )}
 
       <WorkoutsSection workouts={r.workouts} />
+      <WaterReportLine water={r.water} />
 
       {highlights.length > 0 && (
         <section className="card glass stack-sm" aria-label="Destaques">
@@ -229,6 +236,19 @@ function WorkoutsSection({ workouts }: { workouts: WeeklyReport['workouts'] }) {
           </details>
         </>
       )}
+    </section>
+  );
+}
+
+/** "Água: meta batida em 5 de 7 dias" (só com o contador ligado e ao menos 1 dia registrado). */
+function WaterReportLine({ water }: { water: WeeklyReport['water'] }) {
+  if (!water) return null;
+  return (
+    <section className="card glass stack-sm" aria-label="Água">
+      <h3 className="headline">Água</h3>
+      <p className="body-2 num">
+        Meta batida em {water.goalDays} de {water.loggedDays} {water.loggedDays === 1 ? 'dia registrado' : 'dias registrados'}
+      </p>
     </section>
   );
 }

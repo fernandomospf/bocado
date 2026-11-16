@@ -71,6 +71,8 @@ function setup() {
     mealItem: { count: jest.fn().mockResolvedValue(0) },
     weightEntry: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
     workout: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
+    waterEntry: { count: jest.fn().mockResolvedValue(0), groupBy: jest.fn().mockResolvedValue([]) },
+    waterDay: { findMany: jest.fn().mockResolvedValue([]) },
     profile: { findUnique: jest.fn().mockResolvedValue({ kcalTarget: 2000 }) },
   };
   return { prisma, service: new ExportService(prisma as never) };

@@ -51,6 +51,9 @@
 
   --accent: #2f62ff;
   --accent-ink: #ffffff;
+  /* Água: azul-ciano neutro (nunca vermelho) */
+  --water: #1aa7d8;
+  --water-2: #6fd6f2;
   --danger: #e5384a;
   --success: #12a37f;
 
@@ -96,6 +99,8 @@
     --fill-strong: rgb(255 255 255 / 0.12);
 
     --ring-kcal: #ff5a55;
+    --water: #3bbfea;
+    --water-2: #86dff6;
     --ring-protein: #5b85ff;
     --ring-carbs: #ffb52e;
     --ring-fat: #22d3bd;
@@ -3763,6 +3768,152 @@ body:not(:has(.tabbar)) .toast-region {
 
 @media (prefers-reduced-motion: reduce) {
   .quota-fill {
+    transition: none;
+  }
+}
+
+
+/* ---------- Água ---------- */
+.water-drop-bg {
+  fill: var(--fill-strong);
+}
+
+.water-drop-edge {
+  fill: none;
+  stroke: color-mix(in srgb, var(--water) 55%, transparent);
+  stroke-width: 2.5;
+}
+
+.water-drop-fill {
+  transition: transform 700ms var(--ease);
+}
+
+.water-hero {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+
+.water-status {
+  font-weight: 650;
+  color: var(--water);
+}
+
+.water-status-done {
+  color: var(--success);
+}
+
+.water-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.water-buttons .btn,
+.water-quick,
+.water-other .btn {
+  min-height: 48px;
+}
+
+.water-quick {
+  white-space: nowrap;
+  min-height: 44px;
+}
+
+.water-other {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.water-week {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.water-dot-wrap {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 36px;
+}
+
+.water-dot {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--water) 55%, transparent);
+  background: transparent;
+}
+
+.water-dot-hit {
+  background: var(--water);
+  border-color: var(--water);
+}
+
+.water-dot-partial {
+  background: color-mix(in srgb, var(--water) 30%, transparent);
+}
+
+.water-dot-none {
+  border-color: var(--fill-strong);
+}
+
+/* Linha compacta da Hoje */
+.water-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 16px;
+  border-radius: var(--radius-lg);
+  text-align: left;
+  color: var(--text);
+}
+
+.water-line-drop {
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .water-drop-fill {
+    transition: none;
+  }
+}
+
+/* ---------- Meta de peso ---------- */
+.goal-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--fill-strong);
+  overflow: hidden;
+}
+
+.goal-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--ring-protein-2), var(--accent));
+  transition: width 600ms var(--ease);
+}
+
+.weight-chart-goal {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  fill: none;
+}
+
+.weight-chart-goal-label {
+  fill: var(--accent);
+  font-weight: 650;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goal-fill {
     transition: none;
   }
 }

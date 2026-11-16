@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect } from 'react';
 import { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
+import { useProfile } from '@/lib/hooks';
 import { takePendingInvite } from '@/lib/invite';
 import type { Household } from '@/lib/types';
 import { useToast } from './Toast';
@@ -27,9 +28,15 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function Shell({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { openWorkout } = useQuickSheets();
+  const { openWorkout, openWater } = useQuickSheets();
+  const { data: profile } = useProfile();
   // Só com mouse/trackpad, fora de campos e sem folha aberta (o próprio hook cuida disso)
-  useShortcuts({ n: () => router.push('/add'), t: () => openWorkout() });
+  useShortcuts({
+    n: () => router.push('/add'),
+    t: () => openWorkout(),
+    // W abre a água (só se o contador estiver ligado)
+    w: () => profile?.waterEnabled !== false && openWater(),
+  });
   usePendingInvite();
 
   return (

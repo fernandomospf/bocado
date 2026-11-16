@@ -179,3 +179,11 @@ export const GoogleIcon = (p: IconProps) => (
     <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
   </svg>
 );
+
+/** Gota d'água: item "Água" do menu "+". */
+export const DropIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 3.2c3.2 3.7 6 6.9 6 10.3a6 6 0 11-12 0c0-3.4 2.8-6.6 6-10.3z" />
+    <path d="M9.2 14.2a3 3 0 002.4 2.6" />
+  </svg>
+);

@@ -80,6 +80,14 @@ export default function PrivacyPage() {
 
       <h3>Peso</h3>
       <p>Os registros de peso que você faz: data, valor e uma observação opcional, no máximo um por dia.</p>
+      <h3>Água e meta de peso</h3>
+      <p>
+        Os registros de água que você anota (quantidade, dia e horário), a meta de água de cada dia e, se você definir, a sua
+        meta de peso (com o peso de início e a data em que foi definida). Servem só para o contador, o gráfico e os relatórios,
+        são visíveis apenas para você (nunca para quem está na sua casa) e são apagados junto com a conta. A água dos alimentos
+        e bebidas das refeições não é contada.
+      </p>
+
       <h3>Treinos</h3>
       <p>
         Os treinos que você registrar: data, tipo, duração, intensidade e uma nota opcional. Eles servem só de contexto

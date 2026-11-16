@@ -36,7 +36,8 @@ export const MEALS_HEADER = [
   'Estimativa',
 ];
 export const DAY_TOTALS_HEADER = ['Data', 'Kcal', 'Proteína (g)', 'Carboidratos (g)', 'Gorduras (g)', 'Meta de kcal'];
-export const WORKOUT_HEADER = ['Data', 'Tipo', 'Duração (min)', 'Intensidade', 'Nota'];
+export const WATER_HEADER = ['Data', 'Total (ml)', 'Meta do dia (ml)'];
+const WORKOUT_HEADER = ['Data', 'Tipo', 'Duração (min)', 'Intensidade', 'Nota'];
 export const WORKOUT_ESTIMATE_HEADER = 'Gasto estimado (kcal)';
 export const WORKOUT_TYPE_LABEL: Record<string, string> = {
   STRENGTH: 'Musculação',
@@ -67,13 +68,14 @@ export class ExportService {
   /** Quantos registros o período tem (o app avisa antes de baixar um arquivo vazio). */
   async summary(userId: string, from: string, to: string) {
     const range = { gte: parseDay(from), lte: parseDay(to) };
-    const [meals, items, weights, workouts] = await Promise.all([
+    const [meals, items, weights, workouts, water] = await Promise.all([
       this.prisma.meal.count({ where: { userId, date: range } }),
       this.prisma.mealItem.count({ where: { meal: { userId, date: range } } }),
       this.prisma.weightEntry.count({ where: { userId, date: range } }),
       this.prisma.workout.count({ where: { userId, date: range } }),
+      this.prisma.waterEntry.count({ where: { userId, date: range } }),
     ]);
-    return { from, to, meals, items, weights, workouts };
+    return { from, to, meals, items, weights, workouts, water };
   }
 
   async *mealsCsv(userId: string, from: string, to: string): AsyncGenerator<string> {
@@ -156,6 +158,28 @@ export class ExportService {
     if (inRange.length >= 2) {
       const change = inRange[inRange.length - 1].trendKg - inRange[0].trendKg;
       body += row([]) + row([textCell('Variação no período (kg)'), numCell(change, 2)]);
+    }
+    // Meta de peso (se existir): só o valor de referência, no rodapé
+    const profile = await this.prisma.profile.findUnique({ where: { userId }, select: { goalWeightKg: true } });
+    if (profile?.goalWeightKg != null) body += row([]) + row([textCell('Meta de peso (kg)'), numCell(profile.goalWeightKg)]);
+    if (body) yield body;
+  }
+
+  /** Água: um dia por linha (data; total em ml; meta do dia em ml), só dos dias com registro ou meta gravada. */
+  async *waterCsv(userId: string, from: string, to: string): AsyncGenerator<string> {
+    yield BOM + row(WATER_HEADER.map(textCell));
+    const range = { gte: parseDay(from), lte: parseDay(to) };
+    const [goals, entries] = await Promise.all([
+      this.prisma.waterDay.findMany({ where: { userId, date: range } }),
+      this.prisma.waterEntry.groupBy({ by: ['date'], where: { userId, date: range }, _sum: { amountMl: true } }),
+    ]);
+    const totals = new Map(entries.map((e) => [formatDay(e.date), e._sum.amountMl ?? 0]));
+    const days = new Map(goals.map((g) => [formatDay(g.date), g.goalMl as number | null]));
+    for (const d of totals.keys()) if (!days.has(d)) days.set(d, null);
+    let body = '';
+    for (const [day, goal] of [...days].sort(([a], [b]) => a.localeCompare(b))) {
+      if (!totals.has(day)) continue; // só dias com registro
+      body += row([dateCell(day), numCell(totals.get(day) ?? 0, 0), numCell(goal, 0)]);
     }
     if (body) yield body;
   }

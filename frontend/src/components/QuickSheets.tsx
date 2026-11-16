@@ -6,6 +6,7 @@ import { isValidISO, todayISO } from '@/lib/date';
 import { useWeightSummary } from '@/lib/hooks';
 import type { DayWorkout } from '@/lib/types';
 import { isWeightKey } from './WeightSection';
+import { WaterSheet } from './WaterSheet';
 import { WeightSheet } from './WeightSheet';
 import { WorkoutSheet } from './WorkoutSheet';
 
@@ -13,6 +14,8 @@ interface QuickSheetsApi {
   /** Abre "Registrar treino" (ou a edição, com `workout`). Sem `date`, usa o dia mostrado na Hoje, ou hoje. */
   openWorkout: (opts?: { date?: string; workout?: DayWorkout }) => void;
   openWeight: () => void;
+  /** Abre a folha "Água" (do dia da Hoje, ou de hoje; ou de `date`). */
+  openWater: (date?: string) => void;
   /** Dia padrão para registros rápidos: o da Hoje se a pessoa está nela; nas outras telas, hoje. */
   defaultDate: () => string;
 }
@@ -41,14 +44,16 @@ export function WorkoutSheetProvider({ children }: { children: ReactNode }) {
   const { mutate } = useSWRConfig();
   const [workout, setWorkout] = useState<{ date: string; workout: DayWorkout | null } | null>(null);
   const [weightOpen, setWeightOpen] = useState(false);
+  const [waterDate, setWaterDate] = useState<string | null>(null);
   const { data: summary, isLoading: summaryLoading } = useWeightSummary(weightOpen);
 
   const openWorkout = useCallback((opts?: { date?: string; workout?: DayWorkout }) => {
     setWorkout({ date: opts?.date ?? currentScreenDate(), workout: opts?.workout ?? null });
   }, []);
   const openWeight = useCallback(() => setWeightOpen(true), []);
+  const openWater = useCallback((date?: string) => setWaterDate(date ?? currentScreenDate()), []);
 
-  const api = useMemo(() => ({ openWorkout, openWeight, defaultDate: currentScreenDate }), [openWorkout, openWeight]);
+  const api = useMemo(() => ({ openWorkout, openWeight, openWater, defaultDate: currentScreenDate }), [openWorkout, openWeight, openWater]);
 
   return (
     <QuickSheetsContext.Provider value={api}>
@@ -56,6 +61,7 @@ export function WorkoutSheetProvider({ children }: { children: ReactNode }) {
       {workout && (
         <WorkoutSheet key={workout.workout?.id ?? 'new'} date={workout.date} workout={workout.workout} onClose={() => setWorkout(null)} />
       )}
+      {waterDate && <WaterSheet key={waterDate} date={waterDate} onClose={() => setWaterDate(null)} />}
       {weightOpen && !summaryLoading && (
         <WeightSheet
           defaultWeight={summary?.latest?.weightKg}

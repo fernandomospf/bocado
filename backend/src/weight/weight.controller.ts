@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, Put, Query } from '@nestjs/common';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { SaveWeightDto, WeightDateParamDto, WeightRangeQueryDto } from './dto/weight.dto';
+import { SaveWeightDto, SetWeightGoalDto, WeightDateParamDto, WeightRangeQueryDto } from './dto/weight.dto';
 import { WeightService } from './weight.service';
 
 @Controller('weight')
@@ -18,6 +18,12 @@ export class WeightController {
   @Get('summary')
   summary(@CurrentUser() user: AuthUser) {
     return this.weight.summary(user.id);
+  }
+
+  /** Define (ou, com null, remove) a meta de peso. Não altera o objetivo do perfil nem as metas de calorias. */
+  @Put('goal')
+  setGoal(@CurrentUser() user: AuthUser, @Body() dto: SetWeightGoalDto) {
+    return this.weight.setGoal(user.id, dto.goalWeightKg);
   }
 
   @Put(':date')

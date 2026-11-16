@@ -23,6 +23,7 @@ import { ProfileModule } from './profile/profile.module';
 import { ReportsModule } from './reports/reports.module';
 import { RecipesModule } from './recipes/recipes.module';
 import { SuggestionsModule } from './suggestions/suggestions.module';
+import { WaterModule } from './water/water.module';
 import { WeightModule } from './weight/weight.module';
 import { WorkoutsModule } from './workouts/workouts.module';
 
@@ -46,6 +47,7 @@ import { WorkoutsModule } from './workouts/workouts.module';
     WorkoutsModule,
     SuggestionsModule,
     WeightModule,
+    WaterModule,
     ExportModule,
     AccountModule,
     AnalysisModule,

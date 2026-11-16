@@ -4,7 +4,7 @@ import { formatDay, parseDay } from '../common/dates';
 import { latestAllowedDay } from '../meals/meals.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { suggestTargets } from '../profile/nutrition';
-import { addDays } from '../weight/weight.math';
+import { addDays, movingAverages } from '../weight/weight.math';
 import { summarizeWeek } from '../workouts/workout.math';
 import { buildWeeklyReport, type DayInput, pendingWeekStart, weekEndOf, weekStartOf } from './weekly.math';
 
@@ -30,7 +30,7 @@ export class ReportsService {
 
   private async build(userId: string, profile: Awaited<ReturnType<ReportsService['profile']>>, weekStart: string) {
     const weekEnd = weekEndOf(weekStart);
-    const [meals, weights, workoutRows] = await Promise.all([
+    const [meals, weights, workoutRows, waterDays, waterEntries] = await Promise.all([
       this.prisma.meal.findMany({
         where: { userId, date: { gte: parseDay(weekStart), lte: parseDay(weekEnd) } },
         select: { date: true, type: true, items: { select: { kcal: true, protein: true, carbs: true, fat: true } } },
@@ -43,6 +43,12 @@ export class ReportsService {
       this.prisma.workout.findMany({
         where: { userId, date: { gte: parseDay(weekStart), lte: parseDay(weekEnd) } },
         select: { type: true, durationMin: true },
+      }),
+      this.prisma.waterDay.findMany({ where: { userId, date: { gte: parseDay(weekStart), lte: parseDay(weekEnd) } } }),
+      this.prisma.waterEntry.groupBy({
+        by: ['date'],
+        where: { userId, date: { gte: parseDay(weekStart), lte: parseDay(weekEnd) } },
+        _sum: { amountMl: true },
       }),
     ]);
 
@@ -80,7 +86,22 @@ export class ReportsService {
       hideWeight: profile.hideWeightInReports,
       weights: weights.map((w) => ({ date: formatDay(w.date), weightKg: w.weightKg })),
     });
-    return { ...report, workouts };
+    // Água (só com o contador ligado e ao menos 1 dia registrado): dias com a meta batida
+    const goals = new Map(waterDays.map((d) => [formatDay(d.date), d.goalMl]));
+    const waterLoggedDays = waterEntries.length;
+    const waterGoalDays = waterEntries.filter((e) => {
+      const goal = goals.get(formatDay(e.date));
+      return goal !== undefined && (e._sum.amountMl ?? 0) >= goal;
+    }).length;
+    const water = profile.waterEnabled && waterLoggedDays > 0 ? { loggedDays: waterLoggedDays, goalDays: waterGoalDays } : null;
+
+    // Meta de peso: quanto falta (só se a pessoa mostra o peso nos relatórios). Não entra em nenhum cálculo do relatório
+    const weightGoal =
+      !profile.hideWeightInReports && profile.goalWeightKg !== null && weights.length > 0
+        ? { targetKg: profile.goalWeightKg, remainingKg: Math.round(Math.abs(movingAverages(weights.map((w) => ({ date: formatDay(w.date), weightKg: w.weightKg }))).at(-1)!.trendKg - profile.goalWeightKg) * 10) / 10 }
+        : null;
+
+    return { ...report, workouts, water, weightGoal };
   }
 
   /** Dias com ao menos uma refeição com alimentos, do mais recente para o mais antigo. */

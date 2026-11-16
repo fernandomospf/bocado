@@ -8,6 +8,7 @@ import { fmtDec } from '@/lib/format';
 import type { Profile, WeightEntry, WeightList, WeightSummary } from '@/lib/types';
 import { ChevronRight, PlusIcon } from './Icons';
 import { WeightChart } from './WeightChart';
+import { WeightGoalCard } from './WeightGoalCard';
 import { WeightSheet } from './WeightSheet';
 
 type Period = 30 | 90;
@@ -43,6 +44,7 @@ export function WeightSection() {
   const [recalc, setRecalc] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
 
   const entries = useMemo(() => list?.entries ?? [], [list]);
+  const goalKg = list?.goalWeightKg ?? null;
   const periodStart = addDays(today, -(period - 1));
   const inPeriod = useMemo(() => entries.filter((e) => e.date >= periodStart), [entries, periodStart]);
   const recent = useMemo(() => [...entries].reverse(), [entries]);
@@ -54,9 +56,10 @@ export function WeightSection() {
     if (inPeriod.length === 1) return `Peso nos últimos ${period} dias: um registro, ${fmtDec(last.weightKg)} kg.`;
     return (
       `Peso nos últimos ${period} dias, ${inPeriod.length} registros: tendência de ${fmtDec(first.trendKg)} kg ` +
-      `para ${fmtDec(last.trendKg)} kg (${fmtChange(last.trendKg - first.trendKg)}).`
+      `para ${fmtDec(last.trendKg)} kg (${fmtChange(last.trendKg - first.trendKg)}).` +
+      (goalKg != null ? ` Meta de ${fmtDec(goalKg)} kg.` : '')
     );
-  }, [inPeriod, period]);
+  }, [inPeriod, period, goalKg]);
 
   async function refresh() {
     await globalMutate(isWeightKey);
@@ -85,6 +88,7 @@ export function WeightSection() {
   return (
     <>
       <h2 className="section-title">Peso</h2>
+      <WeightGoalCard summary={summary} />
       <section className="card glass stack-lg">
         {latest ? (
           <>
@@ -116,7 +120,7 @@ export function WeightSection() {
 
             {inPeriod.length > 0 ? (
               <figure className="weight-chart-wrap">
-                <WeightChart entries={inPeriod} from={periodStart} to={today} label={chartLabel} />
+                <WeightChart entries={inPeriod} from={periodStart} to={today} label={chartLabel} goalKg={goalKg} />
                 <figcaption className="caption weight-chart-legend">
                   <span>
                     <i className="weight-legend-point" /> Pesagens
@@ -124,6 +128,7 @@ export function WeightSection() {
                   <span>
                     <i className="weight-legend-trend" /> Média de 7 dias
                   </span>
+                  {goalKg != null && <span>- - Meta</span>}
                 </figcaption>
               </figure>
             ) : (

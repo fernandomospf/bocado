@@ -51,6 +51,13 @@ export interface Profile extends BodyData {
   /** Treino: mostrar a estimativa de gasto (desligada por padrão) e somar metade à meta do dia (desligada). */
   workoutEstimateEnabled: boolean;
   workoutAddToGoal: boolean;
+  /** Contador de água. */
+  waterEnabled: boolean;
+  waterGoalMode: 'AUTO' | 'MANUAL';
+  waterGoalManualMl: number | null;
+  waterBottleMl: number | null;
+  /** Meta de peso (kg), se houver. */
+  goalWeightKg: number | null;
   updatedAt: string;
 }
 
@@ -176,6 +183,21 @@ export interface WeightList {
   from: string;
   to: string;
   entries: WeightEntry[];
+  /** Meta de peso: a linha-alvo do gráfico. */
+  goalWeightKg: number | null;
+}
+
+/** Progresso rumo à meta de peso (sem datas nem prazos). */
+export interface WeightGoal {
+  targetKg: number;
+  startKg: number;
+  /** Tendência atual (ou o último peso). */
+  currentKg: number;
+  remainingKg: number;
+  /** 0 a 100. */
+  progressPct: number;
+  reached: boolean;
+  direction: 'down' | 'up';
 }
 
 export interface WeightSummary {
@@ -185,6 +207,7 @@ export interface WeightSummary {
   change30Kg: number | null;
   targetsWeightKg: number | null;
   targetsOutdated: boolean;
+  goal: WeightGoal | null;
 }
 
 /** 'off' = Open Food Facts; 'label' = acervo Bocado (lido do rótulo por um usuário). */
@@ -361,6 +384,10 @@ export interface WeeklyReport {
   lowIntakeNote?: boolean;
   /** Só contexto (não entra no balanço): contagem e minutos de treino da semana. */
   workouts: { count: number; totalMinutes: number; byType: Partial<Record<WorkoutType, { count: number; minutes: number }>> };
+  /** Água: dias com registro e dias com a meta batida (null com o contador desligado ou sem registro). */
+  water?: { loggedDays: number; goalDays: number } | null;
+  /** Meta de peso: quanto falta (só com o peso visível nos relatórios). */
+  weightGoal?: { targetKg: number; remainingKg: number } | null;
 }
 
 export interface WeeklyListItem {
@@ -459,4 +486,29 @@ export interface SharedOffer {
 export interface SharedMealResult {
   meal: Meal;
   delivered: { userId: string; name: string; status: 'added' | 'offered' }[];
+}
+
+// --- Água ---
+
+export interface WaterEntry {
+  id: string;
+  amountMl: number;
+  createdAt: string;
+}
+
+export interface WaterDay {
+  date: string;
+  /** Meta que valia naquele dia (null se a pessoa ainda precisa definir a própria). */
+  goalMl: number | null;
+  totalMl: number;
+  entries: WaterEntry[];
+  goalSource: 'auto' | 'manual';
+  needsManualGoal: boolean;
+  explain: { weightKg: number | null; baseMl: number | null; workoutMl: number | null };
+}
+
+export interface WaterRangeDay {
+  date: string;
+  goalMl: number | null;
+  totalMl: number;
 }

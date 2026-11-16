@@ -86,16 +86,20 @@ describeDb('HTTP: privacidade entre membros da casa e rate limits', () => {
     await prisma.adaptiveAdjustment.create({
       data: { userId: a.id, action: 'APPLIED', windowStart: day, windowEnd: day, avgIntake: 1999, weightStartKg: 88.8, weightEndKg: 87.3, estimatedTdee: 2468, confidence: 'HIGH', previousKcal: 1777, newKcal: 1666 },
     });
+    // Água e meta de peso da A: marcadores únicos para provar que a casa não enxerga
+    await prisma.profile.update({ where: { userId: a.id }, data: { goalWeightKg: 61.7, goalStartWeightKg: 88.8, goalSetAt: day } });
+    await prisma.waterDay.create({ data: { userId: a.id, date: day, goalMl: 2917 } });
+    const waterA = await prisma.waterEntry.create({ data: { userId: a.id, date: day, amountMl: 1337 } });
     const secretRecipe = await prisma.recipe.create({
       data: { ownerId: a.id, name: 'SEGREDO-A-RECEITA', kcal100: 1, protein100: 1, carbs100: 1, fat100: 1, ingredients: { create: [{ name: 'x', grams: 1, kcal: 1, protein: 1, carbs: 1, fat: 1, position: 0 }] } },
     });
     const sharedRecipe = await prisma.recipe.create({
       data: { ownerId: a.id, name: 'Receita da casa', householdId: (await prisma.householdMember.findUniqueOrThrow({ where: { userId: a.id } })).householdId, kcal100: 1, protein100: 1, carbs100: 1, fat100: 1, ingredients: { create: [{ name: 'x', grams: 1, kcal: 1, protein: 1, carbs: 1, fat: 1, position: 0 }] } },
     });
-    return { a, b, ta, tb, meal, workout, fav, secretRecipe, sharedRecipe };
+    return { a, b, ta, tb, meal, workout, fav, secretRecipe, sharedRecipe, waterA };
   }
 
-  const SECRETS = ['SEGREDO-A', '87.3', '1234', '1777', '1666', '2468'];
+  const SECRETS = ['SEGREDO-A', '87.3', '1234', '1777', '1666', '2468', '1337', '61.7', '88.8', '2917'];
 
   it('B não lê meals, days, profile, peso, treinos, relatórios, favoritas, meta adaptativa nem exportação de A', async () => {
     const { a, tb } = await scenario();
@@ -107,6 +111,8 @@ describeDb('HTTP: privacidade entre membros da casa e rate limits', () => {
       '/export/summary?period=365d&to=2026-11-16', '/export/meals.csv?period=365d&to=2026-11-16',
       '/export/weight.csv?period=365d&to=2026-11-16', '/export/workouts.csv?period=365d&to=2026-11-16',
       '/suggestions/close-day?date=2026-11-10', '/recipes', '/household', '/shared-meals/offers',
+      '/water?date=2026-11-10', '/water/range?from=2026-11-01&to=2026-11-30', '/water/streak?today=2026-11-10',
+      '/export/water.csv?period=365d&to=2026-11-16', '/weight/summary',
     ];
     let ok = 0;
     const statuses: string[] = [];
@@ -122,7 +128,7 @@ describeDb('HTTP: privacidade entre membros da casa e rate limits', () => {
   });
 
   it('B não consegue alterar nem apagar registros de A pelo id (404)', async () => {
-    const { tb, meal, workout, fav, secretRecipe } = await scenario();
+    const { tb, meal, workout, fav, secretRecipe, waterA } = await scenario();
     const item = meal.items[0].id;
     const checks: [string, string, unknown?][] = [
       ['DELETE', `/meals/${meal.id}`],
@@ -139,6 +145,7 @@ describeDb('HTTP: privacidade entre membros da casa e rate limits', () => {
       ['DELETE', `/recipes/${secretRecipe.id}`],
       ['POST', `/recipes/${secretRecipe.id}/duplicate`],
       ['PATCH', `/recipes/${secretRecipe.id}/share`, { shared: true }],
+      ['DELETE', `/water/${waterA.id}`],
     ];
     for (const [method, path, body] of checks) {
       const res = await call(tb, method, path, body);
@@ -148,6 +155,7 @@ describeDb('HTTP: privacidade entre membros da casa e rate limits', () => {
     expect(await prisma.workout.count()).toBe(1);
     expect(await prisma.favoriteMeal.count()).toBe(1);
     expect(await prisma.recipe.count()).toBe(2);
+    expect(await prisma.waterEntry.count()).toBe(1); // o registro de água da A continua lá
   });
 
   it('o que B enxerga de A: nome, foto e receitas compartilhadas, nunca e-mail; só o dono edita a da casa', async () => {

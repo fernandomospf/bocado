@@ -63,16 +63,20 @@ interface WeightChartProps {
   from: string;
   to: string;
   label: string;
+  /** Meta de peso: linha tracejada horizontal (o eixo Y sempre a inclui, com folga). */
+  goalKg?: number | null;
 }
 
 /** Pontos = pesagens; linha = média de 7 dias. Escala Y com folga automática. */
-export function WeightChart({ entries, from, to, label }: WeightChartProps) {
+export function WeightChart({ entries, from, to, label, goalKg }: WeightChartProps) {
   const start = dayIndex(from);
   const span = Math.max(1, dayIndex(to) - start);
 
   const values = entries.flatMap((e) => [e.weightKg, e.trendKg]);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  // A meta entra no eixo (com a folga de sempre): a linha-alvo nunca fica cortada
+  const withGoal = goalKg != null ? [...values, goalKg] : values;
+  const min = Math.min(...withGoal);
+  const max = Math.max(...withGoal);
   const pad = Math.max((max - min) * 0.15, 0.5);
   const yMin = min - pad;
   const yMax = max + pad;
@@ -82,6 +86,9 @@ export function WeightChart({ entries, from, to, label }: WeightChartProps) {
   const r = (n: number) => Math.round(n * 10) / 10;
 
   const ticks = max - min < 0.05 ? [min] : [min, (min + max) / 2, max];
+  // O rótulo da meta fica acima da linha (ou abaixo, se ela estiver perto do topo)
+  const goalY = goalKg != null ? y(goalKg) : null;
+  const labelAbove = goalY !== null && goalY > PAD.top + 12;
 
   // Mais de 7 dias sem registro: a média recomeça do zero, então a linha é interrompida em vez de ligar o vazio
   const segments: WeightEntry[][] = [];
@@ -112,6 +119,14 @@ export function WeightChart({ entries, from, to, label }: WeightChartProps) {
         {dayMonth(to)}
       </text>
 
+      {goalKg != null && goalY !== null && (
+        <g>
+          <line className="weight-chart-goal" x1={PAD.left} x2={W - PAD.right} y1={r(goalY)} y2={r(goalY)} />
+          <text className="weight-chart-goal-label" x={W - PAD.right} y={r(labelAbove ? goalY - 4 : goalY + 11)} textAnchor="end">
+            Meta {fmtDec(goalKg)} kg
+          </text>
+        </g>
+      )}
       {trendPaths.map((d) => (
         <path key={d} className="weight-chart-trend" d={d} />
       ))}

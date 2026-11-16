@@ -5,10 +5,10 @@ import { usePathname } from 'next/navigation';
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { todayISO } from '@/lib/date';
 import { tap } from '@/lib/haptics';
-import { useLastWorkout } from '@/lib/hooks';
+import { useLastWorkout, useProfile } from '@/lib/hooks';
 import { useWorkoutActions } from '@/lib/useWorkouts';
 import { workoutSummary } from '@/lib/workouts';
-import { DumbbellIcon, PlusIcon, PotIcon, RepeatIcon, ScaleIcon } from './Icons';
+import { DropIcon, DumbbellIcon, PlusIcon, PotIcon, RepeatIcon, ScaleIcon } from './Icons';
 import { useQuickSheets } from './QuickSheets';
 
 /**
@@ -17,7 +17,8 @@ import { useQuickSheets } from './QuickSheets';
  */
 export function QuickAddMenu() {
   const pathname = usePathname();
-  const { openWorkout, openWeight, defaultDate } = useQuickSheets();
+  const { openWorkout, openWeight, openWater, defaultDate } = useQuickSheets();
+  const { data: profile } = useProfile();
   const { data: last } = useLastWorkout();
   const { repeat } = useWorkoutActions();
   const [open, setOpen] = useState(false);
@@ -120,6 +121,19 @@ export function QuickAddMenu() {
             >
               <RepeatIcon width={16} height={16} />
               Repetir último · {workoutSummary(last).replace(', ', ' ')}
+            </button>
+          )}
+
+          {/* Contador de água: não aparece se a pessoa o desligou nas preferências */}
+          {profile?.waterEnabled !== false && (
+            <button type="button" role="menuitem" className="quick-item" onClick={() => choose(() => openWater())}>
+              <span className="quick-icon">
+                <DropIcon width={22} height={22} />
+              </span>
+              <span className="quick-text">
+                <strong>Água</strong>
+                <span className="caption">Registrar um copo ou uma garrafa</span>
+              </span>
             </button>
           )}
 

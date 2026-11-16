@@ -31,6 +31,7 @@ import { Rings } from './Rings';
 import { ringSpecs } from './ringSpecs';
 import { DayPills } from './DayPills';
 import { WeeklyCard } from './WeeklyCard';
+import { WaterLine } from './WaterLine';
 import { WorkoutLine } from './WorkoutLine';
 
 /** Distância mínima (px) do arraste horizontal que troca de dia. */
@@ -212,6 +213,9 @@ export function TodayView() {
         {hide && <ConsistencyCard today={today} />}
 
         <WorkoutLine date={date} workouts={data?.workouts ?? []} />
+
+        {/* Contador de água (some se a pessoa o desligou); fica na coluna dos anéis no desktop */}
+        <WaterLine date={date} isToday={date === today} />
 
         <WeeklyCard today={today} isToday={date === today} />
       </div>

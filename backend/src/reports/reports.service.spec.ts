@@ -29,6 +29,8 @@ function setup({ hasProfile = true, meals = [] as object[], logged = [] as strin
     meal: { findMany: jest.fn().mockResolvedValue(meals) },
     weightEntry: { findMany: jest.fn().mockResolvedValue([]) },
     workout: { findMany: jest.fn().mockResolvedValue([]) },
+    waterDay: { findMany: jest.fn().mockResolvedValue([]) },
+    waterEntry: { groupBy: jest.fn().mockResolvedValue([]) },
     $queryRaw: jest.fn().mockResolvedValue(logged.map((date) => ({ date }))),
   };
   return { prisma, service: new ReportsService(prisma as never) };

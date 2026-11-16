@@ -1,4 +1,4 @@
-import { ActivityLevel, GoalType, Sex, WeekStart } from '@prisma/client';
+import { ActivityLevel, GoalType, Sex, WaterGoalMode, WeekStart } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsBoolean,
@@ -86,4 +86,27 @@ export class PreferencesDto {
   @IsOptional()
   @IsBoolean()
   workoutAddToGoal?: boolean;
+
+  /** Contador de água: ligar/desligar (null não vale). */
+  @ValidateIf((o: PreferencesDto) => o.waterEnabled !== undefined)
+  @IsBoolean()
+  waterEnabled?: boolean;
+
+  @ValidateIf((o: PreferencesDto) => o.waterGoalMode !== undefined)
+  @IsEnum(WaterGoalMode, { message: 'Escolha automática ou manual' })
+  waterGoalMode?: WaterGoalMode;
+
+  /** Meta manual em ml (1000 a 5000); null limpa. */
+  @ValidateIf((o: PreferencesDto) => o.waterGoalManualMl !== undefined && o.waterGoalManualMl !== null)
+  @IsInt({ message: 'Informe a meta de água em ml' })
+  @Min(1000, { message: 'A meta de água precisa ser de pelo menos 1.000 ml' })
+  @Max(5000, { message: 'A meta de água pode ter no máximo 5.000 ml' })
+  waterGoalManualMl?: number | null;
+
+  /** Tamanho da garrafa em ml (100 a 2000); null limpa. */
+  @ValidateIf((o: PreferencesDto) => o.waterBottleMl !== undefined && o.waterBottleMl !== null)
+  @IsInt({ message: 'Informe o tamanho da garrafa em ml' })
+  @Min(100, { message: 'A garrafa precisa ter pelo menos 100 ml' })
+  @Max(2000, { message: 'A garrafa pode ter no máximo 2.000 ml' })
+  waterBottleMl?: number | null;
 }

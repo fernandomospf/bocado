@@ -24,6 +24,7 @@ import { Sheet } from './Sheet';
 import { useToast } from './Toast';
 import { fromDraft, TargetsEditor, type TargetsDraft, toDraft } from './TargetsEditor';
 import { WeightSection } from './WeightSection';
+import { WaterPrefs } from './WaterPrefs';
 import { WorkoutPrefs } from './WorkoutPrefs';
 
 const WEEK_START_OPTIONS: { value: WeekStart; label: string }[] = [
@@ -263,6 +264,7 @@ export function ProfileView() {
                 ))}
               </div>
               <WorkoutPrefs />
+              <WaterPrefs />
             </section>
           </div>
         )}

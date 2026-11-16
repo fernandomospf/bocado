@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { Profile } from '@prisma/client';
+import { WaterService } from '../water/water.service';
 import { formatDay, parseDay } from '../common/dates';
 import { PrismaService } from '../prisma/prisma.service';
 import { BodyDataDto, PreferencesDto, SaveProfileDto, TargetsDto } from './dto/profile.dto';
@@ -7,7 +8,10 @@ import { ageFrom, BodyData, suggestTargets, Targets } from './nutrition';
 
 @Injectable()
 export class ProfileService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly water?: WaterService,
+  ) {}
 
   private toBodyData(dto: BodyDataDto): BodyData {
     const birthDate = parseDay(dto.birthDate);
@@ -117,8 +121,13 @@ export class ProfileService {
         ...(dto.hideWeightInReports !== undefined ? { hideWeightInReports: dto.hideWeightInReports } : {}),
         ...(dto.hideCalories !== undefined ? { hideCalories: dto.hideCalories } : {}),
         ...(dto.adaptiveEnabled !== undefined ? { adaptiveEnabled: dto.adaptiveEnabled } : {}),
+        ...(dto.waterEnabled !== undefined ? { waterEnabled: dto.waterEnabled } : {}),
+        ...(dto.waterGoalMode !== undefined ? { waterGoalMode: dto.waterGoalMode } : {}),
+        ...(dto.waterGoalManualMl !== undefined ? { waterGoalManualMl: dto.waterGoalManualMl } : {}),
+        ...(dto.waterBottleMl !== undefined ? { waterBottleMl: dto.waterBottleMl } : {}),
       },
     });
+    if (dto.waterGoalMode !== undefined || dto.waterGoalManualMl !== undefined) await this.water?.recalcToday(userId);
     return this.serialize(profile);
   }
 
@@ -142,6 +151,11 @@ export class ProfileService {
       weekStartsOn: p.weekStartsOn,
       hideWeightInReports: p.hideWeightInReports,
       hideCalories: p.hideCalories,
+      waterEnabled: p.waterEnabled,
+      waterGoalMode: p.waterGoalMode,
+      waterGoalManualMl: p.waterGoalManualMl,
+      waterBottleMl: p.waterBottleMl,
+      goalWeightKg: p.goalWeightKg,
       adaptiveEnabled: p.adaptiveEnabled,
       workoutEstimateEnabled: p.workoutEstimateEnabled,
       workoutAddToGoal: p.workoutAddToGoal,

@@ -8,7 +8,7 @@ import { ExportService } from './export.service';
 import { resolvePeriod } from './period';
 
 /** Arquivo transmitido em streaming, com nome e tipo para download. */
-function csvFile(chunks: AsyncGenerator<string>, kind: 'refeicoes' | 'peso' | 'treinos', from: string, to: string) {
+function csvFile(chunks: AsyncGenerator<string>, kind: 'refeicoes' | 'peso' | 'treinos' | 'agua', from: string, to: string) {
   return new StreamableFile(Readable.from(chunks), {
     type: 'text/csv; charset=utf-8',
     disposition: `attachment; filename="bocado-${kind}-${from}_a_${to}.csv"`,
@@ -38,6 +38,12 @@ export class ExportController {
   weight(@CurrentUser() user: AuthUser, @Query() q: ExportQueryDto) {
     const { from, to } = resolvePeriod(q.period, q.to);
     return csvFile(this.exports.weightCsv(user.id, from, to), 'peso', from, to);
+  }
+
+  @Get('water.csv')
+  water(@CurrentUser() user: AuthUser, @Query() q: ExportQueryDto) {
+    const { from, to } = resolvePeriod(q.period, q.to);
+    return csvFile(this.exports.waterCsv(user.id, from, to), 'agua', from, to);
   }
 
   @Get('workouts.csv')
