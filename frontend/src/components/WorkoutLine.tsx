@@ -7,8 +7,8 @@ import { useQuickSheets } from './QuickSheets';
 import { WorkoutTypeIcon } from './WorkoutTypeIcon';
 
 /**
- * Linha compacta do treino do dia, logo abaixo do card dos anéis. Sem treino no dia, não mostra nada.
- * É contexto: fica fora dos anéis, e a estimativa só aparece com a preferência ligada, sempre como estimativa.
+ * Linhas compactas dos treinos do dia, dentro do dropdown Atividades da Hoje. Sem treino no dia, não mostra nada.
+ * É contexto: fica fora dos medidores, e a estimativa só aparece com a preferência ligada, sempre como estimativa.
  */
 export function WorkoutLine({ date, workouts }: { date: string; workouts: DayWorkout[] }) {
   const { openWorkout } = useQuickSheets();

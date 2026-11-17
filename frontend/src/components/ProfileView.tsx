@@ -25,6 +25,7 @@ import { useToast } from './Toast';
 import { fromDraft, TargetsEditor, type TargetsDraft, toDraft } from './TargetsEditor';
 import { WeightSection } from './WeightSection';
 import { WaterPrefs } from './WaterPrefs';
+import { MovementPrefs } from './MovementPrefs';
 import { WorkoutPrefs } from './WorkoutPrefs';
 
 const WEEK_START_OPTIONS: { value: WeekStart; label: string }[] = [
@@ -82,6 +83,8 @@ export function ProfileView() {
       async () => api<Profile>('/profile/preferences', { method: 'PATCH', json: { weekStartsOn } }),
       { optimisticData: { ...profile, weekStartsOn }, rollbackOnError: true, revalidate: false },
     ).catch((err) => toast.show({ message: errorMessage(err), tone: 'error' }));
+    // O resumo de movimento é por semana: muda junto com o início da semana
+    void globalMutate((key) => typeof key === 'string' && key.startsWith('/workouts/week'));
   }
 
   async function setHideWeight(hideWeightInReports: boolean) {
@@ -263,6 +266,7 @@ export function ProfileView() {
                   </button>
                 ))}
               </div>
+              <MovementPrefs />
               <WorkoutPrefs />
               <WaterPrefs />
             </section>

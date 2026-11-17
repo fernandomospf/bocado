@@ -41,13 +41,15 @@ interface CloseDayCardProps {
   eatenKcal: number;
   /** O Jantar já tem itens: a sugestão passa a ser registrada como lanche. */
   dinnerLogged: boolean;
+  /** Avisa se o card tem algo para mostrar (o dropdown fechado exibe um ponto "Sugestão"). */
+  onAvailability?: (available: boolean) => void;
 }
 
 /**
  * "Para fechar o dia": a partir das 18h, uma refeição que cubra o que falta.
  * Base local primeiro (o que a pessoa já comeu → pratos comuns); a IA só se pedirem e o local não bastar.
  */
-export function CloseDayCard({ date, isToday, eatenKcal, dinnerLogged }: CloseDayCardProps) {
+export function CloseDayCard({ date, isToday, eatenKcal, dinnerLogged, onAvailability }: CloseDayCardProps) {
   const router = useRouter();
   const toast = useToast();
   const { hideCalories: hide } = useDisplayPrefs();
@@ -91,7 +93,12 @@ export function CloseDayCard({ date, isToday, eatenKcal, dinnerLogged }: CloseDa
     }
   }, [eatenKcal, visible, mutate]);
 
-  if (!visible || !data || !data.remaining) return null;
+  const available = visible && !!data && !!data.remaining;
+  useEffect(() => {
+    onAvailability?.(available);
+  }, [available, onAvailability]);
+
+  if (!available || !data || !data.remaining) return null;
 
   const dismiss = () => {
     localStorage.setItem(dismissKey(date), '1');

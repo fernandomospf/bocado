@@ -52,17 +52,10 @@ export function WorkoutPrefs() {
       <h3 className="headline" style={{ marginTop: 6 }}>
         Treino
       </h3>
-      <label className="switch-row">
-        <span>Mostrar estimativa de gasto dos treinos</span>
-        <input
-          type="checkbox"
-          role="switch"
-          className="switch"
-          checked={profile.workoutEstimateEnabled}
-          onChange={(e) => void save({ workoutEstimateEnabled: e.target.checked })}
-        />
-      </label>
-      <p className="caption">É uma estimativa aproximada, que pode errar bastante.</p>
+      {/* A estimativa em si fica em Preferências > Movimento; aqui só a soma à meta, separada e desligada por padrão */}
+      {!profile.workoutEstimateEnabled && (
+        <p className="caption">Para somar parte do gasto à meta do dia, ligue antes “Mostrar gasto estimado dos treinos” em Movimento.</p>
+      )}
 
       {profile.workoutEstimateEnabled && (
         <>

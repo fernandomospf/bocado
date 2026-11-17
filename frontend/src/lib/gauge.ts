@@ -97,14 +97,17 @@ export function writeFrom(storage: StorageLike | undefined, key: string, fractio
 // precisam bater com os de lá; gauge.test.mjs confere as constantes contra o CSS.
 
 export const CLUSTER = {
-  /** Espaço entre os medidores (px). */
-  gap: 14,
-  /** Largura do medidor central em relação à de um lateral. */
+  /** Espaço entre as colunas (px). */
+  gap: 8,
+  /** Largura da coluna central em relação a uma lateral (grid 1fr 1.7fr 1fr). */
   centerRatio: 1.7,
   /** Abaixo desta largura do cluster (px), macros em cima e os laterais embaixo. */
   stackBelow: 340,
-  maxSide: 130,
-  maxCenter: 240,
+  /** Tetos no modo empilhado (px). */
+  stackedCenter: 190,
+  stackedSide: 104,
+  /** Altura mínima do bloco de texto abaixo de cada arco (px): igual nas três colunas. */
+  textMin: 42,
 } as const;
 
 export interface ClusterLayout {
@@ -114,12 +117,15 @@ export interface ClusterLayout {
   side: number;
 }
 
-/** Larguras dos medidores para um cluster de `width` px com `sides` medidores laterais (0, 1 ou 2). */
+/**
+ * Larguras para um cluster de `width` px com `sides` laterais (0, 1 ou 2). Em linha, o grid mantém as 3 colunas
+ * mesmo com um lateral desligado, para o centro continuar no meio.
+ */
 export function clusterLayout(width: number, sides: 0 | 1 | 2): ClusterLayout {
-  const { gap, centerRatio, stackBelow, maxSide, maxCenter } = CLUSTER;
+  const { gap, centerRatio, stackBelow, stackedCenter, stackedSide } = CLUSTER;
   if (sides > 0 && width < stackBelow) {
-    return { mode: 'stacked', center: Math.min(width, maxCenter), side: Math.min((width - gap) / 2, maxSide) };
+    return { mode: 'stacked', center: Math.min(width, stackedCenter), side: Math.min((width - gap) / 2, stackedSide) };
   }
-  const unit = (width - gap * sides) / (centerRatio + sides);
-  return { mode: 'row', center: Math.min(unit * centerRatio, maxCenter), side: Math.min(unit, maxSide) };
+  const unit = (width - gap * 2) / (centerRatio + 2);
+  return { mode: 'row', center: unit * centerRatio, side: unit };
 }

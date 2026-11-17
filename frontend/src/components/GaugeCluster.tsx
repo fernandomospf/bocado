@@ -1,21 +1,20 @@
 'use client';
 
-import { useState } from 'react';
-import { useProfile, useMovementWeek, useWaterDay } from '@/lib/hooks';
+import { type CSSProperties, useState } from 'react';
+import { fmtInt } from '@/lib/format';
 import { ringsFromKey } from '@/lib/gauge';
-import { macroView, movementView, waterView } from '@/lib/gaugeModel';
-import { STATUS_LABEL, waterStatus } from '@/lib/water';
+import { macroView, waterView } from '@/lib/gaugeModel';
+import { useMovementWeek, useProfile, useWaterDay } from '@/lib/hooks';
 import type { Macros, Meal } from '@/lib/types';
 import { DayCompositionSheet } from './DayCompositionSheet';
 import { HalfGauge } from './HalfGauge';
-import { DropIcon, FlameIcon } from './Icons';
-import { MacroLegend } from './MacroLegend';
+import { DropIcon } from './Icons';
+import { MovementGauge } from './MovementGauge';
 import { useQuickSheets } from './QuickSheets';
 import { ringSpecs } from './ringSpecs';
 
 interface GaugeClusterProps {
   date: string;
-  today: string;
   /** Sem metas ainda: o cluster inteiro vira esqueleto. */
   targets?: Macros;
   totals: Macros;
@@ -23,12 +22,20 @@ interface GaugeClusterProps {
   hideCalories: boolean;
 }
 
+/** Legenda curta (a Energia já está no centro; sem calorias, a Proteína também). */
+const STRIP = [
+  { key: 'protein', label: 'Proteína', color: 'var(--ring-protein)' },
+  { key: 'carbs', label: 'Carbo', color: 'var(--ring-carbs)' },
+  { key: 'fat', label: 'Gordura', color: 'var(--ring-fat)' },
+] as const;
+
 /**
- * Os três medidores da Hoje: água (esquerda), macros (centro, maior e com a legenda) e movimento (direita).
+ * Os três medidores da Hoje: água (esquerda), macros (centro, ~1,7x) e movimento (direita), com a MESMA linha de
+ * base. Nenhum texto dentro das meias-luas: cada um tem um bloco de uma linha de rótulo e uma de valor embaixo.
  * O tamanho vem do espaço do CARD (container query em globals.css, `.gauge-cluster`), não da tela. Medidores
- * desligados somem e o resto se recentraliza; macros está sempre presente.
+ * desligados somem; macros fica sempre presente e no centro.
  */
-export function GaugeCluster({ date, today, targets, totals, meals, hideCalories }: GaugeClusterProps) {
+export function GaugeCluster({ date, targets, totals, meals, hideCalories }: GaugeClusterProps) {
   const { data: profile } = useProfile();
   const { openWater, openMovement } = useQuickSheets();
   const [compositionOpen, setCompositionOpen] = useState(false);
@@ -43,88 +50,77 @@ export function GaugeCluster({ date, today, targets, totals, meals, hideCalories
 
   if (!targets) {
     return (
-      <div className="gauge-cluster" aria-busy="true">
-        <div className="gauge-row" data-sides={sides} style={{ '--sides': sides } as React.CSSProperties}>
-          {waterOn && <div className="gauge-cell gauge-cell-side skeleton gauge-skeleton" />}
+      <div className="gauge-cluster" data-sides={sides} aria-busy="true">
+        <div className="gauge-grid">
+          {waterOn && <div className="gauge-cell gauge-cell-water skeleton gauge-skeleton" />}
           <div className="gauge-cell gauge-cell-center skeleton gauge-skeleton" />
-          {moveOn && <div className="gauge-cell gauge-cell-side skeleton gauge-skeleton" />}
+          {moveOn && <div className="gauge-cell gauge-cell-move skeleton gauge-skeleton" />}
         </div>
+        <div className="macro-strip skeleton" style={{ height: 44 }} />
       </div>
     );
   }
 
   const macro = macroView({ arcs: ringSpecs(totals, targets, hideCalories), totals, targets, hideCalories });
-
-  const waterModel = profile?.waterEnabled && water.data
-    ? waterView({
-        totalMl: water.data.totalMl,
-        goalMl: water.data.goalMl,
-        statusLabel: (() => {
-          if (date !== today) return undefined;
-          const now = new Date();
-          const s = waterStatus({ totalMl: water.data.totalMl, goalMl: water.data.goalMl, hour: now.getHours(), minute: now.getMinutes() });
-          return s === 'plain' ? undefined : STATUS_LABEL[s];
-        })(),
-      })
-    : null;
-
-  const moveModel =
-    profile?.movementEnabled && week.data
-      ? movementView({
-          doneMin: week.data.doneMin,
-          goalMin: week.data.goalMin,
-          estimateKcal: week.data.estimateKcal,
-          hideCalories,
-        })
-      : null;
+  const waterModel = profile?.waterEnabled && water.data ? waterView({ totalMl: water.data.totalMl, goalMl: water.data.goalMl }) : null;
+  const strip = STRIP.filter((s) => !(hideCalories && s.key === 'protein'));
 
   return (
-    <div className="gauge-cluster">
-      <div className="gauge-row" data-sides={sides} style={{ '--sides': sides } as React.CSSProperties}>
-        {waterOn &&
-          (waterModel ? (
-            <div className="gauge-cell gauge-cell-side">
-              <button type="button" className="gauge-btn" aria-label={waterModel.ariaLabel} onClick={() => openWater(date)}>
-                <HalfGauge arcs={waterModel.arcs} size={120} strokeWidth={10} memoryKey={memoryKey}>
+    <div className="gauge-cluster" data-sides={sides}>
+      <div className="gauge-grid">
+        {waterOn && (
+          <div className="gauge-cell gauge-cell-water gauge-cell-side">
+            {waterModel ? (
+              <button type="button" className="gauge-btn" aria-label={waterModel.ariaLabel} title={waterModel.sentence} onClick={() => openWater(date)}>
+                <HalfGauge arcs={waterModel.arcs} size={100} strokeWidth={8} memoryKey={memoryKey}>
                   <DropIcon className="gauge-slot-icon" style={{ color: 'var(--water)' }} />
-                  <span className="gauge-slot-main num">{waterModel.slotMain}</span>
                 </HalfGauge>
-                <span className="gauge-label">{waterModel.label}</span>
-                {waterModel.caption && <span className="gauge-caption">{waterModel.caption}</span>}
+                <span className="gauge-text">
+                  <span className="gauge-value num">{waterModel.value}</span>
+                  <span className="gauge-label">{waterModel.label}</span>
+                </span>
               </button>
-            </div>
-          ) : (
-            <SideFallback label="Água" failed={!!water.error} />
-          ))}
+            ) : (
+              <SideFallback label="Água" failed={!!water.error} />
+            )}
+          </div>
+        )}
 
         <div className="gauge-cell gauge-cell-center">
-          <button type="button" className="gauge-btn gauge-btn-center" aria-label={macro.ariaLabel} onClick={() => setCompositionOpen(true)}>
-            <HalfGauge arcs={macro.arcs} size={200} strokeWidth={10} gap={3} memoryKey={memoryKey}>
-              {macro.slotTop && <span className="gauge-slot-top">{macro.slotTop}</span>}
-              <span className="gauge-slot-main gauge-slot-main-lg num">{macro.slotMain}</span>
-            </HalfGauge>
+          <button type="button" className="gauge-btn" aria-label={macro.ariaLabel} title={macro.sentence} onClick={() => setCompositionOpen(true)}>
+            <HalfGauge arcs={macro.arcs} size={150} strokeWidth={10} gap={3} memoryKey={memoryKey} />
+            <span className="gauge-text">
+              <span className="gauge-label">{macro.label}</span>
+              <span className="gauge-value gauge-value-lg num">{macro.value}</span>
+            </span>
           </button>
         </div>
 
-        {moveOn &&
-          (moveModel ? (
-            <div className="gauge-cell gauge-cell-side">
-              <button type="button" className="gauge-btn" aria-label={moveModel.ariaLabel} onClick={() => openMovement(date)}>
-                <HalfGauge arcs={moveModel.arcs} size={120} strokeWidth={10}>
-                  <FlameIcon className="gauge-slot-icon" style={{ color: 'var(--flame)' }} />
-                  <span className="gauge-slot-main num">{moveModel.slotMain}</span>
-                </HalfGauge>
-                <span className="gauge-label">{moveModel.label}</span>
-                {moveModel.caption && <span className="gauge-caption">{moveModel.caption}</span>}
-              </button>
-            </div>
-          ) : (
-            <SideFallback label="Movimento · semana" failed={!!week.error} />
-          ))}
+        {moveOn && (
+          <div className="gauge-cell gauge-cell-move gauge-cell-side">
+            {profile?.movementEnabled && week.data ? (
+              <MovementGauge week={week.data} onOpen={() => openMovement(date)} />
+            ) : (
+              <SideFallback label="Movimento" failed={!!week.error} />
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Só o medidor central tem legenda */}
-      <MacroLegend totals={totals} targets={targets} hideKcal={hideCalories} />
+      {/* Só os macros têm legenda: uma linha, separada por um fio */}
+      <div className="macro-strip" style={{ '--cols': strip.length } as CSSProperties}>
+        {strip.map((s) => (
+          <div key={s.key} className="macro-strip-item">
+            <span className="macro-strip-head">
+              <span className="macro-strip-dot" style={{ background: s.color }} aria-hidden />
+              {s.label}
+            </span>
+            <span className="macro-strip-val num">
+              {fmtInt(totals[s.key])} <span className="macro-strip-total">/ {fmtInt(targets[s.key])} g</span>
+            </span>
+          </div>
+        ))}
+      </div>
 
       {compositionOpen && (
         <DayCompositionSheet
@@ -140,18 +136,15 @@ export function GaugeCluster({ date, today, targets, totals, meals, hideCalories
   );
 }
 
-/** Lateral sem dados: esqueleto enquanto carrega; "Sem dados" discreto se a consulta falhou. */
+/** Lateral sem dados: esqueleto enquanto carrega; "—" discreto se a consulta deu erro. */
 function SideFallback({ label, failed }: { label: string; failed: boolean }) {
+  if (!failed) return <div className="skeleton gauge-skeleton" />;
   return (
-    <div className="gauge-cell gauge-cell-side">
-      {failed ? (
-        <div className="gauge-btn gauge-empty">
-          <span className="gauge-label">{label}</span>
-          <span className="gauge-caption">Sem dados agora</span>
-        </div>
-      ) : (
-        <div className="skeleton gauge-skeleton" />
-      )}
+    <div className="gauge-btn gauge-empty">
+      <span className="gauge-text">
+        <span className="gauge-value">—</span>
+        <span className="gauge-label">{label}</span>
+      </span>
     </div>
   );
 }

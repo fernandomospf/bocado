@@ -188,9 +188,35 @@ export const DropIcon = (p: IconProps) => (
   </svg>
 );
 
-/** Chama: medidor de movimento. `lit` preenche; sem ele é só o contorno (o FlameIcon animado da Etapa 3 usa o mesmo desenho). */
-export const FlameIcon = ({ lit, ...p }: IconProps & { lit?: boolean }) => (
-  <svg {...base(p)} fill={lit ? 'currentColor' : 'none'}>
-    <path d="M12 2.8c.6 3 3.2 4.6 4.6 7.2a6.2 6.2 0 11-11.2.4c.9-1.2 1.7-2.2 2.2-3.8 1 .8 1.6 1.8 1.8 2.8 1.2-2.2 2.2-4.1 2.6-6.6z" />
-  </svg>
-);
+const FLAME_PATH = 'M12 2.8c.6 3 3.2 4.6 4.6 7.2a6.2 6.2 0 11-11.2.4c.9-1.2 1.7-2.2 2.2-3.8 1 .8 1.6 1.8 1.8 2.8 1.2-2.2 2.2-4.1 2.6-6.6z';
+
+/**
+ * Chama do medidor de movimento, em 3 estados: "off" (contorno, tom neutro), "burning" (gradiente laranja → amarelo,
+ * tremulação leve; `heat` de 0 a 1 esquenta a cor de forma contínua) e "lit" (preenchida, brilho suave e lento).
+ * A tremulação e o brilho são só CSS (transform/opacity) e param com prefers-reduced-motion.
+ */
+export const FlameIcon = ({
+  state = 'off',
+  heat = 0,
+  gradientId,
+  ...p
+}: IconProps & { state?: 'off' | 'burning' | 'lit'; heat?: number; gradientId: string }) => {
+  const warm = Math.round(Math.min(1, Math.max(0, heat)) * 100);
+  return (
+    <svg
+      {...base(p)}
+      className={`flame flame-${state}${p.className ? ` ${p.className}` : ''}`}
+      style={{ ...p.style, color: state === 'off' ? 'var(--text-3)' : `color-mix(in srgb, var(--flame) ${warm}%, var(--text-3))` }}
+    >
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0%" style={{ stopColor: 'var(--flame)' }} />
+          <stop offset="100%" style={{ stopColor: 'var(--flame-2)' }} />
+        </linearGradient>
+      </defs>
+      <g className="flame-body">
+        <path d={FLAME_PATH} fill={state === 'off' ? 'none' : `url(#${gradientId})`} fillOpacity={state === 'lit' ? 1 : 0.25 + 0.75 * (warm / 100)} />
+      </g>
+    </svg>
+  );
+};

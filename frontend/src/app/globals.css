@@ -1076,64 +1076,51 @@ img {
 }
 
 /* --------------------------------------------------------------------------
-   Medidores em meia-lua (GaugeCluster / HalfGauge)
-   O tamanho vem do espaço do CARD (container query), não da tela. Constantes espelhadas em lib/gauge.ts (CLUSTER):
-   gap 14px, centro 1,7x o lateral, empilha abaixo de 340px, máx. 130px (lateral) e 240px (centro).
+   Medidores em meia-lua (GaugeCluster / HalfGauge / MovementGauge)
+   Grid 1fr | 1.7fr | 1fr com align-items: end: os três arcos dividem a MESMA linha de base, porque o bloco de
+   texto embaixo tem a mesma altura mínima nas três colunas e nenhum texto quebra linha. O tamanho vem do CARD
+   (container query), não da tela. Constantes espelhadas em lib/gauge.ts (CLUSTER).
    -------------------------------------------------------------------------- */
+
+.gauge-card {
+  /* Padding lateral curto: o cluster precisa de ~340px úteis em 390px de tela */
+  padding: 16px 6px 14px;
+}
 
 .gauge-cluster {
   container-type: inline-size;
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
 }
 
-.gauge-row {
-  --g-gap: 14px;
-  --sides: 2;
-  --u: calc((100cqw - var(--g-gap) * var(--sides)) / (1.7 + var(--sides)));
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: flex-end;
+.gauge-grid {
+  --g-gap: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1.7fr 1fr;
   gap: var(--g-gap);
+  align-items: end;
 }
 
 .gauge-cell {
   min-width: 0;
 }
 
-.gauge-cell-side {
-  width: min(var(--u), 130px);
+.gauge-cell-water {
+  grid-column: 1;
 }
 
 .gauge-cell-center {
-  width: min(calc(var(--u) * 1.7), 240px);
+  grid-column: 2;
 }
 
-@container (max-width: 339px) {
-  .gauge-row:not([data-sides='0']) .gauge-cell-center {
-    order: -1;
-    width: min(100cqw, 240px);
-  }
-  .gauge-row:not([data-sides='0']) .gauge-cell-side {
-    width: min(calc((100cqw - var(--g-gap)) / 2), 130px);
-  }
-}
-
-.gauge-card {
-  /* Padding lateral curto: o cluster precisa de ~340px úteis em 390px de tela (ver CLUSTER em lib/gauge.ts) */
-  padding: 18px 6px 18px;
-}
-
-.gauge-card .legend {
-  padding: 0 14px;
-  width: auto;
+.gauge-cell-move {
+  grid-column: 3;
 }
 
 .gauge-skeleton {
-  aspect-ratio: 2 / 1.1;
+  aspect-ratio: 2 / 1.55;
   border-radius: var(--radius-md);
 }
 
@@ -1142,13 +1129,13 @@ img {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   width: 100%;
   min-height: 44px;
-  padding: 6px 4px 8px;
+  padding: 0;
   background: none;
   border: 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   color: inherit;
   font: inherit;
   cursor: pointer;
@@ -1157,35 +1144,54 @@ img {
 
 .gauge-btn:focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.gauge-btn-center {
-  padding: 10px 8px 12px;
-  background: var(--glass-strong);
-  box-shadow: var(--glass-shadow);
+  outline-offset: 4px;
 }
 
 .gauge-empty {
   cursor: default;
-  justify-content: center;
   color: var(--text-2);
+}
+
+/* Destaque do centro: só o tamanho e um brilho sutil no desenho (sem fundo nem borda) */
+.gauge-cell-center .half-gauge-svg {
+  filter: drop-shadow(0 3px 8px rgb(38 54 92 / 0.14));
+}
+
+/* Bloco de texto: altura mínima IGUAL nas três colunas, uma linha por texto */
+.gauge-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 42px;
+  max-width: 100%;
+  text-align: center;
+}
+
+.gauge-text > * {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .gauge-label {
-  font-size: 11.5px;
-  font-weight: 600;
-  line-height: 1.2;
-  text-align: center;
-  text-wrap: balance;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--text-2);
 }
 
-.gauge-caption {
-  font-size: 11px;
-  line-height: 1.25;
-  color: var(--text-2);
-  text-align: center;
-  text-wrap: balance;
+.gauge-value {
+  font-size: clamp(13px, 4.4cqw, 15px);
+  font-weight: 500;
+  line-height: 20px;
+  letter-spacing: -0.01em;
+}
+
+.gauge-value-lg {
+  font-size: clamp(13px, 5.8cqw, 20px);
+  line-height: 24px;
 }
 
 .half-gauge {
@@ -1210,42 +1216,400 @@ img {
   stroke-width: 1.5;
 }
 
+/* Vão inferior da meia-lua: só o ícone (16px) */
 .half-gauge-slot {
   position: absolute;
   bottom: 0;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 1px;
-  text-align: center;
+  align-items: flex-end;
+  justify-content: center;
   pointer-events: none;
 }
 
 .gauge-slot-icon {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
+  margin-bottom: 1px;
 }
 
-.gauge-slot-top {
-  font-size: 10px;
-  line-height: 1.1;
+/* Legenda dos macros: uma linha, colunas iguais, separada por um fio */
+.macro-strip {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 10px;
+  padding-top: 10px;
+  border-top: 0.5px solid var(--glass-line);
+}
+
+.macro-strip-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.macro-strip-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  line-height: 16px;
   color: var(--text-2);
-}
-
-.gauge-slot-main {
-  font-size: 12.5px;
-  font-weight: 700;
-  line-height: 1.1;
   white-space: nowrap;
 }
 
-.gauge-slot-main-lg {
-  font-size: 15px;
+.macro-strip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.macro-strip-val {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.macro-strip-total {
+  color: var(--text-3);
+  font-weight: 400;
+}
+
+/* Estreito: macros em cima (largura própria), água e movimento lado a lado embaixo, mesma regra de base */
+@container (max-width: 339px) {
+  .gauge-grid {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 10px;
+  }
+  .gauge-cell-center {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    justify-self: center;
+    width: min(100%, 190px);
+  }
+  .gauge-cell-water,
+  .gauge-cell-move {
+    grid-row: 2;
+    justify-self: center;
+    width: min(100%, 104px);
+  }
+  .gauge-cell-water {
+    grid-column: 1;
+  }
+  .gauge-cell-move {
+    grid-column: 2;
+  }
+  .gauge-cluster[data-sides='1'] .gauge-cell-side {
+    grid-column: 1 / -1;
+  }
+  .gauge-value-lg {
+    font-size: 20px;
+  }
+  .gauge-value {
+    font-size: 15px;
+  }
+}
+
+/* --- Chama do movimento ---------------------------------------------------- */
+
+.flame {
+  overflow: visible;
+  transition: color 600ms var(--ease);
+}
+
+.flame-body {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+.flame-burning .flame-body {
+  animation: flame-flicker 2.4s ease-in-out infinite;
+}
+
+.flame-lit {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--flame-2) 70%, transparent));
+}
+
+.flame-lit .flame-body {
+  animation: flame-glow 4s ease-in-out infinite;
+}
+
+@keyframes flame-flicker {
+  0%, 100% { transform: scale(1, 1) rotate(0deg); }
+  30% { transform: scale(0.97, 1.04) rotate(-2deg); }
+  60% { transform: scale(1.02, 0.97) rotate(1.5deg); }
+}
+
+@keyframes flame-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.82; }
+}
+
+.half-tip {
+  pointer-events: none;
+}
+
+.move-tip-glow {
+  fill: var(--flame-2);
+  opacity: 0.35;
+  animation: tip-pulse 0.7s ease-in-out infinite alternate;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.move-tip-flame {
+  fill: var(--flame-2);
+  stroke: var(--flame);
+  stroke-width: 1.5;
+}
+
+@keyframes tip-pulse {
+  from { opacity: 0.2; transform: scale(0.85); }
+  to { opacity: 0.5; transform: scale(1.15); }
+}
+
+/* Brilho curto ao fechar a meta da semana (~600ms) */
+.move-burst {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  width: 90%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--flame-2) 55%, transparent) 0%, transparent 65%);
+  transform: translate(-50%, -50%) scale(0.4);
+  opacity: 0;
+  pointer-events: none;
+  animation: move-burst 600ms ease-out forwards;
+}
+
+@keyframes move-burst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+  35% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.3); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .half-arc-anim {
+  .half-arc-anim,
+  .flame {
+    transition: none;
+  }
+  .flame-burning .flame-body,
+  .flame-lit .flame-body,
+  .move-tip-glow {
+    animation: none;
+  }
+  .move-burst {
+    display: none;
+  }
+}
+
+/* --- Folha "Movimento da semana" -------------------------------------------- */
+
+.move-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.move-hero-gauge {
+  width: min(220px, 70%);
+  margin-bottom: 6px;
+}
+
+/* Barrinhas por dia: tons neutros, só transform na altura */
+.move-bars {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  align-items: end;
+}
+
+.move-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.move-bar-track {
+  position: relative;
+  width: 100%;
+  max-width: 26px;
+  height: 56px;
+  border-radius: 8px;
+  background: var(--fill);
+  overflow: hidden;
+}
+
+.move-bar-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background: var(--fill-strong);
+  background: color-mix(in srgb, var(--flame) 45%, var(--fill-strong));
+  transform-origin: bottom;
+  transition: transform 500ms var(--ease);
+}
+
+.move-bar-label {
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+/* Stepper da meta semanal */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--fill);
+}
+
+.stepper-btn {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--glass-strong);
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.stepper-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.stepper-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.stepper-value {
+  min-width: 72px;
+  text-align: center;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .move-bar-fill {
+    transition: none;
+  }
+}
+
+/* --- Dropdowns da Hoje (CollapsibleSection) ------------------------------- */
+
+.collapsible-heading {
+  margin: 0;
+  font: inherit;
+}
+
+.collapsible-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 4px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.collapsible-head:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.collapsible-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.collapsible-chevron {
+  flex: none;
+  color: var(--text-3);
+  transform: rotate(90deg);
+  transition: transform 260ms var(--ease);
+}
+
+.collapsible:not(.is-open) .collapsible-chevron {
+  transform: rotate(0deg);
+}
+
+.collapsible-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.collapsible-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* Altura animada sem medir: grid de 0fr a 1fr */
+.collapsible-panel {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 280ms var(--ease), opacity 200ms ease;
+}
+
+.collapsible:not(.is-open) .collapsible-panel {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  transition: grid-template-rows 280ms var(--ease), opacity 200ms ease, visibility 0s linear 280ms;
+}
+
+.collapsible-inner {
+  min-height: 0;
+  /* Recorta durante a animação, mas deixa a sombra dos cards respirar */
+  overflow: clip;
+  overflow-clip-margin: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 6px;
+}
+
+.activities-week-link {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 4px;
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapsible-panel,
+  .collapsible:not(.is-open) .collapsible-panel,
+  .collapsible-chevron {
     transition: none;
   }
 }

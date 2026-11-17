@@ -105,13 +105,13 @@ describe('layout do cluster', () => {
   const inner = (screen) => Math.min(screen, 560) - 36 - 12;
   const desktop = 380 - 12;
 
-  it('390px: três medidores em linha, centro ~1,7x o lateral', () => {
+  it('390px: três medidores em linha, centro 1,7x o lateral, dentro do card', () => {
     const l = clusterLayout(inner(390), 2);
     assert.equal(l.mode, 'row');
     close(l.center / l.side, CLUSTER.centerRatio);
-    assert.ok(l.side >= 84 && l.side <= 95, `lateral ${l.side}`);
-    assert.ok(l.center >= 143 && l.center <= 160, `centro ${l.center}`);
-    assert.ok(l.side * 2 + l.center + CLUSTER.gap * 2 <= inner(390) + 0.001); // nada estoura o card
+    assert.ok(l.side >= 85 && l.side <= 95, `lateral ${l.side}`);
+    assert.ok(l.center >= 145 && l.center <= 160, `centro ${l.center}`);
+    close(l.side * 2 + l.center + CLUSTER.gap * 2, inner(390), 1e-6); // ocupa exatamente o card, sem estourar
   });
 
   it('360 e 320px: macros em cima e laterais lado a lado embaixo', () => {
@@ -126,29 +126,25 @@ describe('layout do cluster', () => {
   it('coluna sticky do desktop: em linha, dentro do espaço', () => {
     const l = clusterLayout(desktop, 2);
     assert.equal(l.mode, 'row');
+    assert.ok(l.side >= 90 && l.center >= 155, `${l.side} / ${l.center}`);
     assert.ok(l.side * 2 + l.center + CLUSTER.gap * 2 <= desktop + 0.001);
-    assert.ok(l.side <= CLUSTER.maxSide && l.center <= CLUSTER.maxCenter);
   });
 
-  it('com 1 e 2 medidores sobra espaço e os tamanhos respeitam os tetos; macros sozinho ocupa até o teto', () => {
+  it('com 1 ou 0 laterais o centro continua no meio (3 colunas) e macros sozinho nunca empilha', () => {
     const w = inner(390);
-    const two = clusterLayout(w, 1);
-    assert.ok(two.side <= CLUSTER.maxSide && two.center <= CLUSTER.maxCenter);
-    assert.ok(two.side + two.center + CLUSTER.gap <= w + 0.001);
-    const one = clusterLayout(w, 0);
-    assert.equal(one.mode, 'row');
-    assert.equal(one.center, CLUSTER.maxCenter);
-    // com 0 laterais nunca empilha, mesmo estreito
+    assert.deepEqual(clusterLayout(w, 1), clusterLayout(w, 2));
     assert.equal(clusterLayout(250, 0).mode, 'row');
+    assert.equal(clusterLayout(250, 1).mode, 'stacked');
   });
 
-  it('o CSS espelha as constantes (gap, razão, ponto de quebra, tetos)', () => {
+  it('o CSS espelha as constantes (gap, colunas, ponto de quebra, tetos, altura do texto)', () => {
     const css = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');
     assert.match(css, new RegExp(`--g-gap: ${CLUSTER.gap}px`));
-    assert.match(css, new RegExp(`\\(${CLUSTER.centerRatio} \\+ var\\(--sides\\)\\)`));
+    assert.match(css, new RegExp(`grid-template-columns: 1fr ${CLUSTER.centerRatio}fr 1fr`));
     assert.match(css, new RegExp(`@container \\(max-width: ${CLUSTER.stackBelow - 1}px\\)`));
-    assert.match(css, new RegExp(`min\\(var\\(--u\\), ${CLUSTER.maxSide}px\\)`));
-    assert.match(css, new RegExp(`min\\(calc\\(var\\(--u\\) \\* ${CLUSTER.centerRatio}\\), ${CLUSTER.maxCenter}px\\)`));
+    assert.match(css, new RegExp(`width: min\\(100%, ${CLUSTER.stackedCenter}px\\)`));
+    assert.match(css, new RegExp(`width: min\\(100%, ${CLUSTER.stackedSide}px\\)`));
+    assert.match(css, new RegExp(`min-height: ${CLUSTER.textMin}px`));
     assert.match(css, /container-type: inline-size/);
   });
 });
@@ -161,7 +157,8 @@ describe('macros (centro)', () => {
     const v = view({ kcal: 1191, protein: 102, carbs: 100, fat: 30 }, false);
     assert.deepEqual(v.arcs.map((a) => a.key), ['kcal', 'protein', 'carbs', 'fat']);
     assert.equal(v.sentence, 'Restam 809 kcal');
-    assert.equal(v.slotMain, '809 kcal');
+    assert.equal(v.label, 'Restam');
+    assert.equal(v.value, '809 kcal');
   });
 
   it('passou da meta: dado neutro, "X kcal além da meta" e marcador só nos arcos que passaram', () => {
@@ -175,6 +172,7 @@ describe('macros (centro)', () => {
     const v = view({ kcal: 3000, protein: 102, carbs: 100, fat: 30 }, true);
     assert.deepEqual(v.arcs.map((a) => a.key), ['protein', 'carbs', 'fat']);
     assert.equal(v.sentence, 'Proteína: faltam 48 g');
+    assert.equal(v.value, '48 g');
     assert.doesNotMatch(JSON.stringify(v), /kcal|Energia|calor/i);
     assert.equal(view({ kcal: 0, protein: 150, carbs: 0, fat: 0 }, true).sentence, 'Meta de proteína batida');
     assert.doesNotMatch(JSON.stringify(view({ kcal: 0, protein: 190, carbs: 0, fat: 0 }, true)), /kcal|Energia|calor/i);
@@ -188,37 +186,36 @@ describe('água e movimento', () => {
     assert.equal(fmtLiters(800), '800 ml');
   });
 
-  it('água: status, meta e excesso neutro; dia passado sem status mostra "de X"', () => {
-    const w = waterView({ totalMl: 1200, goalMl: 2600, statusLabel: 'No ritmo' });
-    assert.equal(w.slotMain, '1,2 L');
-    assert.equal(w.caption, 'No ritmo');
-    assert.equal(waterView({ totalMl: 1200, goalMl: 2600 }).caption, 'de 2,6 L');
+  it('água: valor e rótulo curtos, sem status no cluster; excesso neutro', () => {
+    const w = waterView({ totalMl: 1200, goalMl: 2600 });
+    assert.equal(w.value, '1,2 L');
+    assert.equal(w.label, 'Água');
+    assert.equal(waterView({ totalMl: 800, goalMl: 2600 }).value, '800 ml');
+    assert.doesNotMatch(JSON.stringify(w), /ritmo|copo/);
     assert.equal(waterView({ totalMl: 3000, goalMl: 2600 }).arcs[0].overLabel, '400 ml além da meta');
     assert.equal(waterView({ totalMl: 500, goalMl: null }).arcs[0].target, 0);
   });
 
-  it('movimento: "90/150 min", rótulo da semana, estimativa só quando existe e nunca sem calorias', () => {
-    const m = movementView({ doneMin: 90, goalMin: 150, estimateKcal: 640, hideCalories: false });
-    assert.equal(m.slotMain, '90/150 min');
-    assert.equal(m.label, 'Movimento · semana');
-    assert.equal(m.caption, '≈ 640 kcal (estimativa)');
-    assert.equal(movementView({ doneMin: 90, goalMin: 150, estimateKcal: null, hideCalories: false }).caption, '');
-    const hidden = movementView({ doneMin: 90, goalMin: 150, estimateKcal: 640, hideCalories: true });
-    assert.doesNotMatch(JSON.stringify(hidden), /kcal/i);
+  it('movimento: "90/150" e "Movimento"; unidade e semana só no aria-label; nunca kcal no cluster', () => {
+    const m = movementView({ doneMin: 90, goalMin: 150 });
+    assert.equal(m.value, '90/150');
+    assert.equal(m.label, 'Movimento');
+    assert.equal(m.ariaLabel, 'Movimento da semana: 90 de 150 min');
+    assert.doesNotMatch(JSON.stringify(m), /kcal/i);
   });
 
   it('movimento sem meta: só os minutos, sem progresso; acima da meta: "X min além da meta"', () => {
-    const none = movementView({ doneMin: 45, goalMin: null, estimateKcal: null, hideCalories: false });
-    assert.equal(none.slotMain, '45 min');
+    const none = movementView({ doneMin: 45, goalMin: null });
+    assert.equal(none.value, '45 min');
     assert.equal(none.arcs[0].target, 0);
-    assert.equal(movementView({ doneMin: 180, goalMin: 150, estimateKcal: null, hideCalories: false }).arcs[0].overLabel, '30 min além da meta');
+    assert.equal(movementView({ doneMin: 180, goalMin: 150 }).arcs[0].overLabel, '30 min além da meta');
   });
 
   it('nenhum texto novo usa vocabulário de culpa', () => {
     const all = JSON.stringify([
       macroView({ arcs: ringSpecs({ kcal: 9, protein: 9, carbs: 9, fat: 9 }, { kcal: 1, protein: 1, carbs: 1, fat: 1 }), totals: { kcal: 9, protein: 9 }, targets: { kcal: 1, protein: 1 }, hideCalories: false }),
-      waterView({ totalMl: 5000, goalMl: 2000, statusLabel: 'Meta batida' }),
-      movementView({ doneMin: 900, goalMin: 150, estimateKcal: 100, hideCalories: false }),
+      waterView({ totalMl: 5000, goalMl: 2000 }),
+      movementView({ doneMin: 900, goalMin: 150 }),
     ]);
     assert.doesNotMatch(all, /queimou|queimad|compensar|falhou|vermelho|red/i);
   });

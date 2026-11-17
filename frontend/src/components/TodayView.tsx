@@ -2,13 +2,16 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { type TouchEvent, useRef, useState } from 'react';
+import { type TouchEvent, useCallback, useRef, useState } from 'react';
 import { useSWRConfig } from 'swr';
 import { api } from '@/lib/api';
 import { addDays, dayTitle, isValidISO, todayISO } from '@/lib/date';
 import { fmtInt } from '@/lib/format';
 import { tap } from '@/lib/haptics';
-import { useDay, useWeekStartsOn } from '@/lib/hooks';
+import { useDay, useLastWorkout, useMe, useWeekStartsOn } from '@/lib/hooks';
+import { activitiesHeader, mealsHeader } from '@/lib/movement';
+import { useHomeSections } from '@/lib/useHomeSections';
+import { useWorkoutActions } from '@/lib/useWorkouts';
 import { MEAL_LABEL, MEAL_ORDER } from '@/lib/labels';
 import { useQuickMeals } from '@/lib/quickMeals';
 import { useSharedSave } from '@/lib/sharedMeals';
@@ -20,6 +23,7 @@ import { Kcal } from './Kcal';
 import { ConsistencyCard } from './ConsistencyCard';
 import { FoodPortionSheet } from './FoodPortionSheet';
 import { CloseDayCard } from './CloseDayCard';
+import { CollapsibleSection } from './CollapsibleSection';
 import { PlusIcon, PotIcon, RepeatIcon } from './Icons';
 import { type DraftItem, toMealPayload } from './ItemsEditor';
 import { ItemSheet } from './ItemSheet';
@@ -28,6 +32,7 @@ import { RecipePickerSheet } from './RecipePickerSheet';
 import { OfferCards } from './OfferCards';
 import type { SplitState } from './SplitPicker';
 import { GaugeCluster } from './GaugeCluster';
+import { useQuickSheets } from './QuickSheets';
 import { DayPills } from './DayPills';
 import { WeeklyCard } from './WeeklyCard';
 import { WorkoutLine } from './WorkoutLine';
@@ -68,6 +73,14 @@ export function TodayView() {
   // "Da receita": primeiro escolhe a receita, depois a porção (já com a refeição e a data do card)
   const [recipeFor, setRecipeFor] = useState<MealType | null>(null);
   const [portion, setPortion] = useState<{ type: MealType; food: FoodResult } | null>(null);
+  const { data: me } = useMe();
+  const workouts = data?.workouts ?? [];
+  const sections = useHomeSections(me?.id, { hasWorkouts: workouts.length > 0 });
+  const [suggestionReady, setSuggestionReady] = useState(false);
+  const onSuggestion = useCallback((v: boolean) => setSuggestionReady(v), []);
+  const { openWorkout, openMovement } = useQuickSheets();
+  const { data: lastWorkout } = useLastWorkout();
+  const workoutActions = useWorkoutActions();
   const cardContext = (type: MealType) => `${MEAL_LABEL[type]} · ${dayTitle(date)}`;
 
   const saveShared = useSharedSave();
@@ -164,7 +177,7 @@ export function TodayView() {
 
         {/* key por dia: o bloco remonta e entra deslizando do lado da troca */}
         <section key={date} className="card glass day-slide gauge-card" aria-label="Resumo do dia">
-          <GaugeCluster date={date} today={today} targets={targets ?? undefined} totals={totals} meals={data?.meals ?? []} hideCalories={hide} />
+          <GaugeCluster date={date} targets={targets ?? undefined} totals={totals} meals={data?.meals ?? []} hideCalories={hide} />
           {/* Soma do treino ligada: a meta base e o bônus aparecem separados */}
           {!hide && data?.goalBonusKcal ? (
             <p className="caption num" style={{ textAlign: 'center' }}>
@@ -177,112 +190,153 @@ export function TodayView() {
 
         {hide && <ConsistencyCard today={today} />}
 
-        <WorkoutLine date={date} workouts={data?.workouts ?? []} />
-
         <WeeklyCard today={today} isToday={date === today} />
       </div>
 
       <div className="today-main">
-        <h2 className="section-title">Refeições</h2>
-        {data && data.meals.length === 0 && <p className="caption">Nada registrado neste dia</p>}
+        <CollapsibleSection
+          title={mealsHeader({
+            items: data?.meals.reduce((s, m) => s + m.items.length, 0) ?? 0,
+            kcal: totals.kcal,
+            protein: totals.protein,
+            hideCalories: hide,
+          })}
+          badge={
+            !sections.mealsOpen && suggestionReady ? (
+              <span className="collapsible-badge">
+                <span className="collapsible-dot" aria-hidden />
+                Sugestão
+              </span>
+            ) : null
+          }
+          open={sections.mealsOpen}
+          onToggle={(open) => sections.toggle('meals', open)}
+        >
+          {data && data.meals.length === 0 && <p className="caption">Nada registrado neste dia</p>}
 
-        <div className="meal-grid">
-          {MEAL_ORDER.map((type) => {
-            const meals = data?.meals.filter((m) => m.type === type) ?? [];
-            const kcal = meals.reduce((s, m) => s + m.totals.kcal, 0);
-            const protein = meals.reduce((s, m) => s + m.totals.protein, 0);
-            return (
-              <section key={`${type}-${date}`} className="card glass day-slide" aria-label={MEAL_LABEL[type]}>
-                <div className="meal-head">
-                  <h3 className="headline">{MEAL_LABEL[type]}</h3>
-                  {meals.length > 0 &&
-                    (hide ? (
-                      <span className="list-row-end num">{fmtInt(protein)} g de proteína</span>
-                    ) : (
-                      <span className="list-row-end">
-                        <Kcal value={kcal} />
-                      </span>
-                    ))}
-                </div>
-
-                {isLoading && !data ? (
-                  <div className="skeleton" style={{ height: 40 }} />
-                ) : meals.length === 0 ? (
-                  <div className="empty-actions">
-                    {(() => {
-                      const prev = yesterdayMeal(type);
-                      return prev ? (
-                        <button
-                          type="button"
-                          className="empty-add"
-                          onClick={() => void repeatYesterday(type, prev)}
-                          disabled={repeating !== null}
-                        >
-                          <RepeatIcon width={18} height={18} />
-                          Repetir ontem{hide ? ` · ${fmtInt(prev.totals.protein)} g de proteína` : ` · ${fmtInt(prev.totals.kcal)} kcal`}
-                        </button>
-                      ) : null;
-                    })()}
-                    <Link href={`/add?type=${type}&date=${date}`} className="empty-add">
-                      <PlusIcon width={18} height={18} />
-                      Adicionar
-                    </Link>
-                    <button type="button" className="empty-add" onClick={() => setRecipeFor(type)}>
-                      <PotIcon width={18} height={18} />
-                      Da receita
-                    </button>
+          <div className="meal-grid">
+            {MEAL_ORDER.map((type) => {
+              const meals = data?.meals.filter((m) => m.type === type) ?? [];
+              const kcal = meals.reduce((s, m) => s + m.totals.kcal, 0);
+              const protein = meals.reduce((s, m) => s + m.totals.protein, 0);
+              return (
+                <section key={`${type}-${date}`} className="card glass day-slide" aria-label={MEAL_LABEL[type]}>
+                  <div className="meal-head">
+                    <h3 className="headline">{MEAL_LABEL[type]}</h3>
+                    {meals.length > 0 &&
+                      (hide ? (
+                        <span className="list-row-end num">{fmtInt(protein)} g de proteína</span>
+                      ) : (
+                        <span className="list-row-end">
+                          <Kcal value={kcal} />
+                        </span>
+                      ))}
                   </div>
-                ) : (
-                  <div className="list">
-                    {meals.map((meal) => <SharedBadge key={`badge-${meal.id}`} meal={meal} />)}
-                    {meals.flatMap((meal) =>
-                      meal.items.map((item) => (
-                        <button
-                          key={item.id}
-                          className="list-row"
-                          onClick={() => setSelected({ meal, item })}
-                        >
-                          <span className="list-row-main">
-                            <span className="list-row-title" style={{ display: 'block' }}>
-                              {item.name}
-                            </span>
-                            <span className="list-row-sub">
-                              {item.grams > 0 && <span style={{ marginRight: 10 }}>{fmtInt(item.grams)} g</span>}
-                              <MacroDots m={item} />
-                              {/* Só o selo aqui (a linha inteira já é um botão); a explicação fica na ItemSheet */}
-                              {item.estimated && <span className="badge badge-estimate badge-inline">estimativa</span>}
-                            </span>
-                          </span>
-                          <span className="list-row-end">{hide ? `${fmtInt(item.protein)} g` : fmtInt(item.kcal)}</span>
-                        </button>
-                      )),
-                    )}
-                    <div className="empty-actions" style={{ marginTop: 6 }}>
+
+                  {isLoading && !data ? (
+                    <div className="skeleton" style={{ height: 40 }} />
+                  ) : meals.length === 0 ? (
+                    <div className="empty-actions">
+                      {(() => {
+                        const prev = yesterdayMeal(type);
+                        return prev ? (
+                          <button
+                            type="button"
+                            className="empty-add"
+                            onClick={() => void repeatYesterday(type, prev)}
+                            disabled={repeating !== null}
+                          >
+                            <RepeatIcon width={18} height={18} />
+                            Repetir ontem{hide ? ` · ${fmtInt(prev.totals.protein)} g de proteína` : ` · ${fmtInt(prev.totals.kcal)} kcal`}
+                          </button>
+                        ) : null;
+                      })()}
                       <Link href={`/add?type=${type}&date=${date}`} className="empty-add">
                         <PlusIcon width={18} height={18} />
-                        Adicionar mais
+                        Adicionar
                       </Link>
                       <button type="button" className="empty-add" onClick={() => setRecipeFor(type)}>
                         <PotIcon width={18} height={18} />
                         Da receita
                       </button>
                     </div>
-                  </div>
-                )}
-              </section>
-            );
-          })}
-        </div>
+                  ) : (
+                    <div className="list">
+                      {meals.map((meal) => <SharedBadge key={`badge-${meal.id}`} meal={meal} />)}
+                      {meals.flatMap((meal) =>
+                        meal.items.map((item) => (
+                          <button
+                            key={item.id}
+                            className="list-row"
+                            onClick={() => setSelected({ meal, item })}
+                          >
+                            <span className="list-row-main">
+                              <span className="list-row-title" style={{ display: 'block' }}>
+                                {item.name}
+                              </span>
+                              <span className="list-row-sub">
+                                {item.grams > 0 && <span style={{ marginRight: 10 }}>{fmtInt(item.grams)} g</span>}
+                                <MacroDots m={item} />
+                                {/* Só o selo aqui (a linha inteira já é um botão); a explicação fica na ItemSheet */}
+                                {item.estimated && <span className="badge badge-estimate badge-inline">estimativa</span>}
+                              </span>
+                            </span>
+                            <span className="list-row-end">{hide ? `${fmtInt(item.protein)} g` : fmtInt(item.kcal)}</span>
+                          </button>
+                        )),
+                      )}
+                      <div className="empty-actions" style={{ marginTop: 6 }}>
+                        <Link href={`/add?type=${type}&date=${date}`} className="empty-add">
+                          <PlusIcon width={18} height={18} />
+                          Adicionar mais
+                        </Link>
+                        <button type="button" className="empty-add" onClick={() => setRecipeFor(type)}>
+                          <PotIcon width={18} height={18} />
+                          Da receita
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+          </div>
 
-        {/* Depois do Jantar, como último bloco das refeições (no desktop, no fim da coluna das refeições) */}
-        {targets && (
-          <CloseDayCard
-            date={date}
-            isToday={date === today}
-            eatenKcal={totals.kcal}
-            dinnerLogged={data?.meals.some((m) => m.type === 'DINNER' && m.items.length > 0) ?? false}
-          />
-        )}
+          {/* Depois do Jantar, como último bloco das refeições (no desktop, no fim da coluna das refeições) */}
+          {targets && (
+            <CloseDayCard
+              date={date}
+              isToday={date === today}
+              eatenKcal={totals.kcal}
+              dinnerLogged={data?.meals.some((m) => m.type === 'DINNER' && m.items.length > 0) ?? false}
+              onAvailability={onSuggestion}
+            />
+          )}
+        </CollapsibleSection>
+
+        <CollapsibleSection
+          title={activitiesHeader({ workouts, hideCalories: hide, isToday: date === today })}
+          open={sections.activitiesOpen}
+          onToggle={(open) => sections.toggle('activities', open)}
+          className="activities-section"
+        >
+          <WorkoutLine date={date} workouts={workouts} />
+          <div className="empty-actions">
+            <button type="button" className="empty-add" onClick={() => openWorkout({ date })}>
+              <PlusIcon width={18} height={18} />
+              Registrar treino
+            </button>
+            {lastWorkout && (
+              <button type="button" className="empty-add" onClick={() => void workoutActions.repeat(lastWorkout.id, date)}>
+                <RepeatIcon width={18} height={18} />
+                Repetir último treino
+              </button>
+            )}
+          </div>
+          <button type="button" className="text-link activities-week-link" onClick={() => openMovement(date)}>
+            Ver movimento da semana
+          </button>
+        </CollapsibleSection>
       </div>
 
       {recipeFor && (
