@@ -3,7 +3,7 @@
 import useSWR from 'swr';
 import { todayISO } from './date';
 import type { AiQuota } from './aiQuota';
-import type { WaterDay, WaterRangeDay } from './types';
+import type { MovementWeek, WaterDay, WaterRangeDay } from './types';
 import type { AdaptiveStatus, Household, SharedOffer, WeightSummary, Workout, DaySummary, Favorite, MealType, Me, Profile, RecentMeal, WeekStart } from './types';
 
 export function useMe() {
@@ -65,6 +65,11 @@ export function useAiQuota() {
 /** O dia de água: meta que valia, total e registros. `enabled` false pausa a busca (contador desligado). */
 export function useWaterDay(date: string, enabled = true) {
   return useSWR<WaterDay>(enabled ? `/water?date=${date}` : null, { revalidateOnFocus: true });
+}
+
+/** Movimento da semana que contém `date`. */
+export function useMovementWeek(date: string, enabled = true) {
+  return useSWR<MovementWeek>(enabled ? `/workouts/week?today=${date}` : null);
 }
 
 export function useWaterRange(from: string, to: string, enabled = true) {

@@ -54,6 +54,9 @@
   /* Água: azul-ciano neutro (nunca vermelho) */
   --water: #1aa7d8;
   --water-2: #6fd6f2;
+  /* Medidor de movimento: chama, do laranja ao âmbar (nunca vermelho) */
+  --flame: #f2711c;
+  --flame-2: #ffb62e;
   --danger: #e5384a;
   --success: #12a37f;
 
@@ -101,6 +104,8 @@
     --ring-kcal: #ff5a55;
     --water: #3bbfea;
     --water-2: #86dff6;
+    --flame: #ff8a3d;
+    --flame-2: #ffc94d;
     --ring-protein: #5b85ff;
     --ring-carbs: #ffb52e;
     --ring-fat: #22d3bd;
@@ -1068,6 +1073,181 @@ img {
   display: flex;
   flex-wrap: wrap;
   column-gap: 22px;
+}
+
+/* --------------------------------------------------------------------------
+   Medidores em meia-lua (GaugeCluster / HalfGauge)
+   O tamanho vem do espaço do CARD (container query), não da tela. Constantes espelhadas em lib/gauge.ts (CLUSTER):
+   gap 14px, centro 1,7x o lateral, empilha abaixo de 340px, máx. 130px (lateral) e 240px (centro).
+   -------------------------------------------------------------------------- */
+
+.gauge-cluster {
+  container-type: inline-size;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.gauge-row {
+  --g-gap: 14px;
+  --sides: 2;
+  --u: calc((100cqw - var(--g-gap) * var(--sides)) / (1.7 + var(--sides)));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  gap: var(--g-gap);
+}
+
+.gauge-cell {
+  min-width: 0;
+}
+
+.gauge-cell-side {
+  width: min(var(--u), 130px);
+}
+
+.gauge-cell-center {
+  width: min(calc(var(--u) * 1.7), 240px);
+}
+
+@container (max-width: 339px) {
+  .gauge-row:not([data-sides='0']) .gauge-cell-center {
+    order: -1;
+    width: min(100cqw, 240px);
+  }
+  .gauge-row:not([data-sides='0']) .gauge-cell-side {
+    width: min(calc((100cqw - var(--g-gap)) / 2), 130px);
+  }
+}
+
+.gauge-card {
+  /* Padding lateral curto: o cluster precisa de ~340px úteis em 390px de tela (ver CLUSTER em lib/gauge.ts) */
+  padding: 18px 6px 18px;
+}
+
+.gauge-card .legend {
+  padding: 0 14px;
+  width: auto;
+}
+
+.gauge-skeleton {
+  aspect-ratio: 2 / 1.1;
+  border-radius: var(--radius-md);
+}
+
+.gauge-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 4px 8px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.gauge-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.gauge-btn-center {
+  padding: 10px 8px 12px;
+  background: var(--glass-strong);
+  box-shadow: var(--glass-shadow);
+}
+
+.gauge-empty {
+  cursor: default;
+  justify-content: center;
+  color: var(--text-2);
+}
+
+.gauge-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.gauge-caption {
+  font-size: 11px;
+  line-height: 1.25;
+  color: var(--text-2);
+  text-align: center;
+  text-wrap: balance;
+}
+
+.half-gauge {
+  position: relative;
+  width: 100%;
+}
+
+.half-gauge-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.half-arc-anim {
+  transition: stroke-dashoffset 1100ms var(--ease);
+}
+
+.half-over-dot {
+  fill: var(--glass-strong);
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+
+.half-gauge-slot {
+  position: absolute;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.gauge-slot-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.gauge-slot-top {
+  font-size: 10px;
+  line-height: 1.1;
+  color: var(--text-2);
+}
+
+.gauge-slot-main {
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.gauge-slot-main-lg {
+  font-size: 15px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .half-arc-anim {
+    transition: none;
+  }
 }
 
 /* --------------------------------------------------------------------------

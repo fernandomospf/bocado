@@ -23,15 +23,13 @@ import { CloseDayCard } from './CloseDayCard';
 import { PlusIcon, PotIcon, RepeatIcon } from './Icons';
 import { type DraftItem, toMealPayload } from './ItemsEditor';
 import { ItemSheet } from './ItemSheet';
-import { MacroDots, MacroLegend } from './MacroLegend';
+import { MacroDots } from './MacroLegend';
 import { RecipePickerSheet } from './RecipePickerSheet';
 import { OfferCards } from './OfferCards';
 import type { SplitState } from './SplitPicker';
-import { Rings } from './Rings';
-import { ringSpecs } from './ringSpecs';
+import { GaugeCluster } from './GaugeCluster';
 import { DayPills } from './DayPills';
 import { WeeklyCard } from './WeeklyCard';
-import { WaterLine } from './WaterLine';
 import { WorkoutLine } from './WorkoutLine';
 
 /** Distância mínima (px) do arraste horizontal que troca de dia. */
@@ -138,8 +136,6 @@ export function TodayView() {
 
   const targets = data?.targets;
   const totals = data?.totals ?? { kcal: 0, protein: 0, carbs: 0, fat: 0 };
-  const remaining = targets ? targets.kcal - totals.kcal : 0;
-  const proteinLeft = targets ? Math.round(targets.protein - totals.protein) : 0;
 
   return (
     <main
@@ -167,45 +163,14 @@ export function TodayView() {
         )}
 
         {/* key por dia: o bloco remonta e entra deslizando do lado da troca */}
-        <section key={date} className="card glass day-slide" aria-label="Resumo do dia">
-          {targets ? (
-            <>
-              <div className="rings-card">
-                <Rings rings={ringSpecs(totals, targets, hide)} size={212} stroke={20} gap={5} />
-                <MacroLegend totals={totals} targets={targets} hideKcal={hide} />
-              </div>
-              {hide ? (
-                <div className="remaining">
-                  <span className="body-2">Proteína</span>
-                  <span className="title num">{proteinLeft > 0 ? `faltam ${fmtInt(proteinLeft)} g` : 'meta batida'}</span>
-                </div>
-              ) : (
-                <div className="remaining">
-                  {/* Meta é referência, não prova: passar dela é um dado (mesma cor do resto, sem alerta) */}
-                  <span className="body-2">{remaining >= 0 ? 'Restam' : 'Além da meta'}</span>
-                  <span className="title num">{fmtInt(Math.abs(remaining))} kcal</span>
-                  {/* Soma do treino ligada: a meta base e o bônus aparecem separados */}
-                  {data?.goalBonusKcal ? (
-                    <span className="caption num">
-                      Meta do dia: {fmtInt(data.baseTargetKcal ?? 0)} + {fmtInt(data.goalBonusKcal)} do treino
-                    </span>
-                  ) : null}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="rings-card">
-              <div
-                className="skeleton"
-                style={{ width: 'var(--rings-size, 212px)', height: 'var(--rings-size, 212px)', borderRadius: '50%' }}
-              />
-              <div className="legend">
-                {[0, 1, 2, 3].map((i) => (
-                  <div key={i} className="skeleton" style={{ height: 42 }} />
-                ))}
-              </div>
-            </div>
-          )}
+        <section key={date} className="card glass day-slide gauge-card" aria-label="Resumo do dia">
+          <GaugeCluster date={date} today={today} targets={targets ?? undefined} totals={totals} meals={data?.meals ?? []} hideCalories={hide} />
+          {/* Soma do treino ligada: a meta base e o bônus aparecem separados */}
+          {!hide && data?.goalBonusKcal ? (
+            <p className="caption num" style={{ textAlign: 'center' }}>
+              Meta do dia: {fmtInt(data.baseTargetKcal ?? 0)} + {fmtInt(data.goalBonusKcal)} do treino
+            </p>
+          ) : null}
         </section>
 
         <OfferCards />
@@ -213,9 +178,6 @@ export function TodayView() {
         {hide && <ConsistencyCard today={today} />}
 
         <WorkoutLine date={date} workouts={data?.workouts ?? []} />
-
-        {/* Contador de água (some se a pessoa o desligou); fica na coluna dos anéis no desktop */}
-        <WaterLine date={date} isToday={date === today} />
 
         <WeeklyCard today={today} isToday={date === today} />
       </div>

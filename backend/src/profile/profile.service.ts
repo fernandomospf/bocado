@@ -60,7 +60,8 @@ export class ProfileService {
     };
     const profile = await this.prisma.profile.upsert({
       where: { userId },
-      create: { userId, ...fields },
+      // Menores de 18 anos não recebem a meta padrão de movimento (a pessoa define a própria)
+      create: { userId, ...fields, ...(ageFrom(data.birthDate) < 18 ? { movementGoalMin: null } : {}) },
       update: fields,
     });
     return this.serialize(profile);
@@ -125,6 +126,8 @@ export class ProfileService {
         ...(dto.waterGoalMode !== undefined ? { waterGoalMode: dto.waterGoalMode } : {}),
         ...(dto.waterGoalManualMl !== undefined ? { waterGoalManualMl: dto.waterGoalManualMl } : {}),
         ...(dto.waterBottleMl !== undefined ? { waterBottleMl: dto.waterBottleMl } : {}),
+        ...(dto.movementEnabled !== undefined ? { movementEnabled: dto.movementEnabled } : {}),
+        ...(dto.movementGoalMin !== undefined ? { movementGoalMin: dto.movementGoalMin } : {}),
       },
     });
     if (dto.waterGoalMode !== undefined || dto.waterGoalManualMl !== undefined) await this.water?.recalcToday(userId);
@@ -156,6 +159,8 @@ export class ProfileService {
       waterGoalManualMl: p.waterGoalManualMl,
       waterBottleMl: p.waterBottleMl,
       goalWeightKg: p.goalWeightKg,
+      movementEnabled: p.movementEnabled,
+      movementGoalMin: p.movementGoalMin,
       adaptiveEnabled: p.adaptiveEnabled,
       workoutEstimateEnabled: p.workoutEstimateEnabled,
       workoutAddToGoal: p.workoutAddToGoal,

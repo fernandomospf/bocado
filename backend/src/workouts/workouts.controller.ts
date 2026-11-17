@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { CreateWorkoutDto, RepeatWorkoutDto, RestoreWorkoutDto, UpdateWorkoutDto, WorkoutRangeQueryDto } from './dto/workout.dto';
+import { CreateWorkoutDto, RepeatWorkoutDto, RestoreWorkoutDto, UpdateWorkoutDto, WeekQueryDto, WorkoutRangeQueryDto } from './dto/workout.dto';
 import { WorkoutsService } from './workouts.service';
 
 /** Registro rápido de treino: contexto do dia. As rotas fixas (last, restore) vêm antes das com :id. */
@@ -12,6 +12,11 @@ export class WorkoutsController {
   @Get()
   list(@CurrentUser() user: AuthUser, @Query() { from, to }: WorkoutRangeQueryDto) {
     return this.workouts.list(user.id, from, to);
+  }
+
+  @Get('week')
+  week(@CurrentUser() user: AuthUser, @Query() { today }: WeekQueryDto) {
+    return this.workouts.week(user.id, today);
   }
 
   @Get('last')

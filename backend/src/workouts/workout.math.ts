@@ -1,4 +1,6 @@
-import type { WorkoutIntensity, WorkoutType } from '@prisma/client';
+import type { WeekStart, WorkoutIntensity, WorkoutType } from '@prisma/client';
+import { weekEndOf, weekStartOf } from '../reports/weekly.math';
+import { addDays, dayNumber } from '../weight/weight.math';
 
 /**
  * Estimativa de gasto dos treinos. O treino é CONTEXTO do dia, não "calorias para comer": por padrão não mexe na
@@ -105,4 +107,57 @@ export function summarizeWeek(workouts: Pick<WorkoutLike, 'type' | 'durationMin'
     byType[w.type] = { count: cur.count + 1, minutes: cur.minutes + w.durationMin };
   }
   return { count: workouts.length, totalMinutes: workouts.reduce((s, w) => s + w.durationMin, 0), byType };
+}
+
+export const MOVEMENT_GOAL_MIN = 30;
+export const MOVEMENT_GOAL_MAX = 600;
+export const MOVEMENT_GOAL_DEFAULT = 150;
+export const MOVEMENT_GOAL_STEP = 5;
+
+export interface MovementWeek {
+  weekStart: string;
+  weekEnd: string;
+  goalMin: number | null;
+  doneMin: number;
+  workoutsCount: number;
+  reached: boolean;
+  remainingMin: number | null;
+  /** Dias que ainda restam na semana, contando o próprio dia de `today` (0 se a semana já passou). */
+  daysLeft: number;
+  byDay: { date: string; minutes: number; count: number }[];
+  /** Soma das estimativas líquidas; nulo sem a preferência ligada ou com "esconder calorias". */
+  estimateKcal: number | null;
+}
+
+/** Resumo da semana de movimento (datas locais "YYYY-MM-DD"). O treino é contexto: a meta é só referência. */
+export function summarizeMovementWeek(input: {
+  workouts: (WorkoutLike & { date: string })[];
+  today: string;
+  weekStartsOn: WeekStart;
+  goalMin: number | null;
+  weightKg: number;
+  showEstimate: boolean;
+}): MovementWeek {
+  const weekStart = weekStartOf(input.today, input.weekStartsOn);
+  const weekEnd = weekEndOf(weekStart);
+  const inWeek = input.workouts.filter((w) => w.date >= weekStart && w.date <= weekEnd);
+  const byDay = Array.from({ length: 7 }, (_, i) => {
+    const date = addDays(weekStart, i);
+    const day = inWeek.filter((w) => w.date === date);
+    return { date, minutes: day.reduce((s, w) => s + w.durationMin, 0), count: day.length };
+  });
+  const doneMin = byDay.reduce((s, d) => s + d.minutes, 0);
+  const goalMin = input.goalMin;
+  return {
+    weekStart,
+    weekEnd,
+    goalMin,
+    doneMin,
+    workoutsCount: inWeek.length,
+    reached: goalMin !== null && doneMin >= goalMin,
+    remainingMin: goalMin === null ? null : Math.max(0, goalMin - doneMin),
+    daysLeft: Math.max(0, Math.min(7, dayNumber(weekEnd) - dayNumber(input.today) + 1)),
+    byDay,
+    estimateKcal: input.showEstimate ? inWeek.reduce((s, w) => s + estimateKcal(w, input.weightKg), 0) : null,
+  };
 }

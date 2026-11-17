@@ -157,8 +157,12 @@ model Profile {
   adaptiveEnabled     Boolean   @default(true)
   /// Sem novas sugestões até esta data (depois de "manter" ou "lembrar depois")
   adaptiveSnoozedUntil DateTime? @db.Date
-  /// Treino como contexto: mostra a estimativa de gasto (desligada por padrão; é aproximada)
-  workoutEstimateEnabled Boolean @default(false)
+  /// Treino como contexto: mostra a estimativa de gasto (padrão ligado só para contas novas; é aproximada)
+  workoutEstimateEnabled Boolean @default(true)
+  /// Medidor de movimento semanal (minutos). Meta só de referência: não altera metas de calorias nem de água
+  movementEnabled        Boolean @default(true)
+  /// Meta semanal em minutos (30 a 600, múltiplo de 5). Nulo para menores de 18 até a pessoa definir a sua
+  movementGoalMin        Int?    @default(150)
   /// Soma 50% do gasto estimado (líquido) à meta do dia. Só pode ficar ligada com a estimativa ligada
   workoutAddToGoal       Boolean @default(false)
   createdAt       DateTime      @default(now())

@@ -56,6 +56,9 @@ export interface Profile extends BodyData {
   waterGoalMode: 'AUTO' | 'MANUAL';
   waterGoalManualMl: number | null;
   waterBottleMl: number | null;
+  /** Medidor de movimento semanal e a meta em minutos (null = só os minutos, sem meta). */
+  movementEnabled: boolean;
+  movementGoalMin: number | null;
   /** Meta de peso (kg), se houver. */
   goalWeightKg: number | null;
   updatedAt: string;
@@ -140,6 +143,21 @@ export interface DayWorkout {
 export interface Workout extends DayWorkout {
   date: string;
   createdAt: string;
+}
+
+/** Resumo da semana de movimento (GET /workouts/week). */
+export interface MovementWeek {
+  weekStart: string;
+  weekEnd: string;
+  goalMin: number | null;
+  doneMin: number;
+  workoutsCount: number;
+  reached: boolean;
+  remainingMin: number | null;
+  daysLeft: number;
+  byDay: { date: string; minutes: number; count: number }[];
+  /** Só com a estimativa ligada e sem "esconder calorias". */
+  estimateKcal: number | null;
 }
 
 export interface WorkoutSnapshot {

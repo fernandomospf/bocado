@@ -187,3 +187,10 @@ export const DropIcon = (p: IconProps) => (
     <path d="M9.2 14.2a3 3 0 002.4 2.6" />
   </svg>
 );
+
+/** Chama: medidor de movimento. `lit` preenche; sem ele é só o contorno (o FlameIcon animado da Etapa 3 usa o mesmo desenho). */
+export const FlameIcon = ({ lit, ...p }: IconProps & { lit?: boolean }) => (
+  <svg {...base(p)} fill={lit ? 'currentColor' : 'none'}>
+    <path d="M12 2.8c.6 3 3.2 4.6 4.6 7.2a6.2 6.2 0 11-11.2.4c.9-1.2 1.7-2.2 2.2-3.8 1 .8 1.6 1.8 1.8 2.8 1.2-2.2 2.2-4.1 2.6-6.6z" />
+  </svg>
+);

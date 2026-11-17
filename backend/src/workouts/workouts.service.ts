@@ -6,7 +6,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { dayNumber } from '../weight/weight.math';
 import { WaterService } from '../water/water.service';
 import { CreateWorkoutDto, RestoreWorkoutDto, UpdateWorkoutDto } from './dto/workout.dto';
-import { estimateKcal } from './workout.math';
+import { estimateKcal, summarizeMovementWeek } from './workout.math';
+import { weekEndOf, weekStartOf } from '../reports/weekly.math';
 
 const MAX_RANGE_DAYS = 93;
 const CLOCK_SKEW_MS = 60_000;
@@ -60,6 +61,29 @@ export class WorkoutsService {
       this.estimator(userId),
     ]);
     return { from, to, workouts: rows.map(ser) };
+  }
+
+  /** Movimento da semana (início pela preferência do usuário). Só dados da sessão; estimativa só com a preferência e sem "esconder calorias". */
+  async week(userId: string, today: string) {
+    if (Number.isNaN(dayNumber(today))) throw new BadRequestException('Data inválida');
+    const p = await this.prisma.profile.findUnique({
+      where: { userId },
+      select: { weekStartsOn: true, movementGoalMin: true, weightKg: true, workoutEstimateEnabled: true, hideCalories: true },
+    });
+    const weekStartsOn = p?.weekStartsOn ?? 'MONDAY';
+    const start = weekStartOf(today, weekStartsOn);
+    const rows = await this.prisma.workout.findMany({
+      where: { userId, date: { gte: parseDay(start), lte: parseDay(weekEndOf(start)) } },
+      select: { date: true, type: true, intensity: true, durationMin: true },
+    });
+    return summarizeMovementWeek({
+      workouts: rows.map((r) => ({ ...r, date: formatDay(r.date) })),
+      today,
+      weekStartsOn,
+      goalMin: p?.movementGoalMin ?? null,
+      weightKg: p?.weightKg ?? 0,
+      showEstimate: !!p && p.workoutEstimateEnabled && !p.hideCalories,
+    });
   }
 
   /** O último treino do usuário (para "repetir o último"), ou null. */

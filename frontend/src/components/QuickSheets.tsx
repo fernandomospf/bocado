@@ -6,6 +6,7 @@ import { isValidISO, todayISO } from '@/lib/date';
 import { useWeightSummary } from '@/lib/hooks';
 import type { DayWorkout } from '@/lib/types';
 import { isWeightKey } from './WeightSection';
+import { MovementSheet } from './MovementSheet';
 import { WaterSheet } from './WaterSheet';
 import { WeightSheet } from './WeightSheet';
 import { WorkoutSheet } from './WorkoutSheet';
@@ -16,6 +17,8 @@ interface QuickSheetsApi {
   openWeight: () => void;
   /** Abre a folha "Água" (do dia da Hoje, ou de hoje; ou de `date`). */
   openWater: (date?: string) => void;
+  /** Abre a folha "Movimento da semana" (da semana do dia mostrado, ou do dia dado). */
+  openMovement: (date?: string) => void;
   /** Dia padrão para registros rápidos: o da Hoje se a pessoa está nela; nas outras telas, hoje. */
   defaultDate: () => string;
 }
@@ -45,6 +48,7 @@ export function WorkoutSheetProvider({ children }: { children: ReactNode }) {
   const [workout, setWorkout] = useState<{ date: string; workout: DayWorkout | null } | null>(null);
   const [weightOpen, setWeightOpen] = useState(false);
   const [waterDate, setWaterDate] = useState<string | null>(null);
+  const [movementDate, setMovementDate] = useState<string | null>(null);
   const { data: summary, isLoading: summaryLoading } = useWeightSummary(weightOpen);
 
   const openWorkout = useCallback((opts?: { date?: string; workout?: DayWorkout }) => {
@@ -53,7 +57,12 @@ export function WorkoutSheetProvider({ children }: { children: ReactNode }) {
   const openWeight = useCallback(() => setWeightOpen(true), []);
   const openWater = useCallback((date?: string) => setWaterDate(date ?? currentScreenDate()), []);
 
-  const api = useMemo(() => ({ openWorkout, openWeight, openWater, defaultDate: currentScreenDate }), [openWorkout, openWeight, openWater]);
+  const openMovement = useCallback((date?: string) => setMovementDate(date ?? currentScreenDate()), []);
+
+  const api = useMemo(
+    () => ({ openWorkout, openWeight, openWater, openMovement, defaultDate: currentScreenDate }),
+    [openWorkout, openWeight, openWater, openMovement],
+  );
 
   return (
     <QuickSheetsContext.Provider value={api}>
@@ -62,6 +71,7 @@ export function WorkoutSheetProvider({ children }: { children: ReactNode }) {
         <WorkoutSheet key={workout.workout?.id ?? 'new'} date={workout.date} workout={workout.workout} onClose={() => setWorkout(null)} />
       )}
       {waterDate && <WaterSheet key={waterDate} date={waterDate} onClose={() => setWaterDate(null)} />}
+      {movementDate && <MovementSheet key={movementDate} date={movementDate} onClose={() => setMovementDate(null)} />}
       {weightOpen && !summaryLoading && (
         <WeightSheet
           defaultWeight={summary?.latest?.weightKg}

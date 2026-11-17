@@ -88,3 +88,8 @@ export class RestoreWorkoutDto {
   @Type(() => WorkoutSnapshotDto)
   snapshot: WorkoutSnapshotDto;
 }
+
+export class WeekQueryDto {
+  @Matches(ISO_DATE, { message: 'Data inválida' })
+  today: string;
+}
