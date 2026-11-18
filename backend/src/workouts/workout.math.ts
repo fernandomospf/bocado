@@ -109,13 +109,6 @@ export function summarizeWeek(workouts: Pick<WorkoutLike, 'type' | 'durationMin'
   return { count: workouts.length, totalMinutes: workouts.reduce((s, w) => s + w.durationMin, 0), byType };
 }
 
-/** @deprecated Meta SEMANAL antiga (coluna `movementGoalMin`, sem uso). Valem as constantes da meta diária abaixo. */
-export const MOVEMENT_GOAL_MIN = 30;
-/** @deprecated ver MOVEMENT_GOAL_MIN */
-export const MOVEMENT_GOAL_MAX = 600;
-/** @deprecated ver MOVEMENT_GOAL_MIN */
-export const MOVEMENT_GOAL_DEFAULT = 150;
-
 /** Meta DIÁRIA de movimento em minutos (15 a 240, de 5 em 5). Só referência: não altera metas de calorias nem de água. */
 export const MOVEMENT_DAILY_MIN = 15;
 export const MOVEMENT_DAILY_MAX = 240;

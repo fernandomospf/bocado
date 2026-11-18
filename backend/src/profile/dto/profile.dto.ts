@@ -114,20 +114,10 @@ export class PreferencesDto {
   @Max(2000, { message: 'A garrafa pode ter no máximo 2.000 ml' })
   waterBottleMl?: number | null;
 
-  /** Medidor de movimento semanal: ligar/desligar (null não vale). */
+  /** Medidor de movimento: ligar/desligar (null não vale). */
   @ValidateIf((o: PreferencesDto) => o.movementEnabled !== undefined)
   @IsBoolean()
   movementEnabled?: boolean;
-
-  /**
-   * @deprecated Meta SEMANAL antiga (30 a 600). Sem uso desde a meta diária; aceita só para não quebrar clientes antigos.
-   */
-  @ValidateIf((o: PreferencesDto) => o.movementGoalMin !== undefined && o.movementGoalMin !== null)
-  @IsInt({ message: 'Informe a meta de movimento em minutos' })
-  @IsDivisibleBy(5, { message: 'A meta de movimento deve ser um múltiplo de 5 minutos' })
-  @Min(30, { message: 'A meta de movimento precisa ser de pelo menos 30 minutos' })
-  @Max(600, { message: 'A meta de movimento pode ter no máximo 600 minutos' })
-  movementGoalMin?: number | null;
 
   /** Meta DIÁRIA em minutos (15 a 240, múltiplo de 5); null limpa (só os minutos, sem meta). */
   @ValidateIf((o: PreferencesDto) => o.movementDailyGoalMin !== undefined && o.movementDailyGoalMin !== null)
