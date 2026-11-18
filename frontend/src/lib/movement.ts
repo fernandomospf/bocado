@@ -47,23 +47,23 @@ const int = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
 const n0 = (n: number) => int.format(Math.round(n));
 const plural = (n: number, one: string, many: string) => `${n0(n)} ${n === 1 ? one : many}`;
 
-/** "Refeições · 4 itens · 1.591 kcal" (sem calorias: "· P 167 g"). Sem itens: só "Refeições". */
-export function mealsHeader(input: { items: number; kcal: number; protein: number; hideCalories: boolean }): string {
-  if (input.items === 0) return 'Refeições';
+/** Resumo à direita de "Refeições": "4 itens · 1.591 kcal" (sem calorias: "4 itens · P 167 g"). Sem itens: vazio. */
+export function mealsSummary(input: { items: number; kcal: number; protein: number; hideCalories: boolean }): string {
+  if (input.items === 0) return '';
   const tail = input.hideCalories ? `P ${n0(input.protein)} g` : `${n0(input.kcal)} kcal`;
-  return `Refeições · ${plural(input.items, 'item', 'itens')} · ${tail}`;
+  return `${plural(input.items, 'item', 'itens')} · ${tail}`;
 }
 
-/** "Atividades · 1 treino · 60 min · ≈ 280 kcal (estimativa)"; sem treino, "Atividades · nenhum treino hoje". */
-export function activitiesHeader(input: {
+/** Resumo à direita de "Atividades": "1 treino · 60 min · ≈ 280 kcal (estimativa)"; sem treino, "nenhum treino hoje". */
+export function activitiesSummary(input: {
   workouts: { durationMin: number; estimateKcal?: number }[];
   hideCalories: boolean;
   isToday: boolean;
 }): string {
   const { workouts, hideCalories } = input;
-  if (workouts.length === 0) return `Atividades · nenhum treino ${input.isToday ? 'hoje' : 'neste dia'}`;
+  if (workouts.length === 0) return `nenhum treino ${input.isToday ? 'hoje' : 'neste dia'}`;
   const minutes = workouts.reduce((s, w) => s + w.durationMin, 0);
-  const parts = ['Atividades', plural(workouts.length, 'treino', 'treinos'), `${n0(minutes)} min`];
+  const parts = [plural(workouts.length, 'treino', 'treinos'), `${n0(minutes)} min`];
   // A estimativa só chega do servidor com a preferência ligada; com "esconder calorias" nunca aparece
   const withEstimate = workouts.filter((w) => typeof w.estimateKcal === 'number');
   if (!hideCalories && withEstimate.length > 0) {

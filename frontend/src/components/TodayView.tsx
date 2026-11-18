@@ -9,7 +9,7 @@ import { addDays, dayTitle, isValidISO, todayISO } from '@/lib/date';
 import { fmtInt } from '@/lib/format';
 import { tap } from '@/lib/haptics';
 import { useDay, useLastWorkout, useMe, useWeekStartsOn } from '@/lib/hooks';
-import { activitiesHeader, mealsHeader } from '@/lib/movement';
+import { activitiesSummary, mealsSummary } from '@/lib/movement';
 import { useHomeSections } from '@/lib/useHomeSections';
 import { useWorkoutActions } from '@/lib/useWorkouts';
 import { MEAL_LABEL, MEAL_ORDER } from '@/lib/labels';
@@ -195,7 +195,8 @@ export function TodayView() {
 
       <div className="today-main">
         <CollapsibleSection
-          title={mealsHeader({
+          title="Refeições"
+          summary={mealsSummary({
             items: data?.meals.reduce((s, m) => s + m.items.length, 0) ?? 0,
             kcal: totals.kcal,
             protein: totals.protein,
@@ -315,7 +316,8 @@ export function TodayView() {
         </CollapsibleSection>
 
         <CollapsibleSection
-          title={activitiesHeader({ workouts, hideCalories: hide, isToday: date === today })}
+          title="Atividades"
+          summary={activitiesSummary({ workouts, hideCalories: hide, isToday: date === today })}
           open={sections.activitiesOpen}
           onToggle={(open) => sections.toggle('activities', open)}
           className="activities-section"

@@ -101,16 +101,17 @@ describe('memória do valor anterior (sessionStorage)', () => {
 });
 
 describe('layout do cluster', () => {
-  // Largura útil do card na Hoje: tela − 2×18 (padding da tela) − 2×6 (padding do .gauge-card); no desktop, a coluna de 380px − 2×6
-  const inner = (screen) => Math.min(screen, 560) - 36 - 12;
-  const desktop = 380 - 12;
+  // Largura útil do card na Hoje: tela − 2×18 (padding da tela) − 2×16 (padding do .gauge-card); no desktop, a coluna de 380px − 2×16
+  const inner = (screen) => Math.min(screen, 560) - 36 - 32;
+  const desktop = 380 - 32;
 
-  it('390px: três medidores em linha, centro 1,7x o lateral, dentro do card', () => {
+  it('402 e 390px: três medidores em linha, centro 1,7x o lateral, dentro do card', () => {
+    assert.equal(clusterLayout(inner(402), 2).mode, 'row');
     const l = clusterLayout(inner(390), 2);
     assert.equal(l.mode, 'row');
     close(l.center / l.side, CLUSTER.centerRatio);
-    assert.ok(l.side >= 85 && l.side <= 95, `lateral ${l.side}`);
-    assert.ok(l.center >= 145 && l.center <= 160, `centro ${l.center}`);
+    assert.ok(l.side >= 80 && l.side <= 95, `lateral ${l.side}`);
+    assert.ok(l.center >= 135 && l.center <= 160, `centro ${l.center}`);
     close(l.side * 2 + l.center + CLUSTER.gap * 2, inner(390), 1e-6); // ocupa exatamente o card, sem estourar
   });
 
@@ -126,7 +127,7 @@ describe('layout do cluster', () => {
   it('coluna sticky do desktop: em linha, dentro do espaço', () => {
     const l = clusterLayout(desktop, 2);
     assert.equal(l.mode, 'row');
-    assert.ok(l.side >= 90 && l.center >= 155, `${l.side} / ${l.center}`);
+    assert.ok(l.side >= 88 && l.center >= 150, `${l.side} / ${l.center}`);
     assert.ok(l.side * 2 + l.center + CLUSTER.gap * 2 <= desktop + 0.001);
   });
 
@@ -140,7 +141,7 @@ describe('layout do cluster', () => {
   it('o CSS espelha as constantes (gap, colunas, ponto de quebra, tetos, altura do texto)', () => {
     const css = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');
     assert.match(css, new RegExp(`--g-gap: ${CLUSTER.gap}px`));
-    assert.match(css, new RegExp(`grid-template-columns: 1fr ${CLUSTER.centerRatio}fr 1fr`));
+    assert.match(css, new RegExp(`grid-template-columns: minmax\\(0, 1fr\\) minmax\\(0, ${CLUSTER.centerRatio}fr\\) minmax\\(0, 1fr\\)`));
     assert.match(css, new RegExp(`@container \\(max-width: ${CLUSTER.stackBelow - 1}px\\)`));
     assert.match(css, new RegExp(`width: min\\(100%, ${CLUSTER.stackedCenter}px\\)`));
     assert.match(css, new RegExp(`width: min\\(100%, ${CLUSTER.stackedSide}px\\)`));

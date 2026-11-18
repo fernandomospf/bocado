@@ -101,8 +101,8 @@ export const CLUSTER = {
   gap: 8,
   /** Largura da coluna central em relação a uma lateral (grid 1fr 1.7fr 1fr). */
   centerRatio: 1.7,
-  /** Abaixo desta largura do cluster (px), macros em cima e os laterais embaixo. */
-  stackBelow: 340,
+  /** Abaixo desta largura do cluster (px), macros em cima e os laterais embaixo (390px de tela: 322px, em linha). */
+  stackBelow: 320,
   /** Tetos no modo empilhado (px). */
   stackedCenter: 190,
   stackedSide: 104,

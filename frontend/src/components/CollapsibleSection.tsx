@@ -5,6 +5,8 @@ import { ChevronRight } from './Icons';
 
 interface CollapsibleSectionProps {
   title: ReactNode;
+  /** Resumo curto à direita, numa linha só (com reticências se faltar espaço). */
+  summary?: ReactNode;
   /** Algo discreto ao lado do título (ex.: o ponto "Sugestão" com o painel fechado). */
   badge?: ReactNode;
   open: boolean;
@@ -19,7 +21,7 @@ interface CollapsibleSectionProps {
  * a altura animar e para cards internos continuarem sabendo se têm algo a mostrar.
  * A animação é da altura (grid 0fr → 1fr) e some com prefers-reduced-motion.
  */
-export function CollapsibleSection({ title, badge, open, onToggle, children, className }: CollapsibleSectionProps) {
+export function CollapsibleSection({ title, summary, badge, open, onToggle, children, className }: CollapsibleSectionProps) {
   const id = useId();
   const headId = `${id}-head`;
   const panelId = `${id}-panel`;
@@ -37,6 +39,7 @@ export function CollapsibleSection({ title, badge, open, onToggle, children, cla
         >
           <span className="collapsible-title">{title}</span>
           {badge}
+          <span className="collapsible-summary num">{summary}</span>
           <ChevronRight className="collapsible-chevron" width={18} height={18} />
         </button>
       </h2>

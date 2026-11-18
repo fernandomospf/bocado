@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import {
-  activitiesHeader,
+  activitiesSummary,
   easeOutCubic,
   flameState,
   isSectionOpen,
-  mealsHeader,
+  mealsSummary,
   moveFromKey,
   moveGoalToastKey,
   readSections,
@@ -61,20 +61,20 @@ describe('stepper da meta (15 em 15, de 30 a 600)', () => {
 });
 
 describe('cabeçalhos dos dropdowns', () => {
-  it('Refeições com kcal e, sem calorias, com proteína', () => {
-    assert.equal(mealsHeader({ items: 4, kcal: 1591, protein: 167, hideCalories: false }), 'Refeições · 4 itens · 1.591 kcal');
-    assert.equal(mealsHeader({ items: 4, kcal: 1591, protein: 167, hideCalories: true }), 'Refeições · 4 itens · P 167 g');
-    assert.equal(mealsHeader({ items: 1, kcal: 90, protein: 4, hideCalories: false }), 'Refeições · 1 item · 90 kcal');
-    assert.equal(mealsHeader({ items: 0, kcal: 0, protein: 0, hideCalories: false }), 'Refeições');
+  it('Refeições: resumo com kcal e, sem calorias, com proteína', () => {
+    assert.equal(mealsSummary({ items: 12, kcal: 1538, protein: 111, hideCalories: false }), '12 itens · 1.538 kcal');
+    assert.equal(mealsSummary({ items: 12, kcal: 1538, protein: 111, hideCalories: true }), '12 itens · P 111 g');
+    assert.equal(mealsSummary({ items: 1, kcal: 90, protein: 4, hideCalories: false }), '1 item · 90 kcal');
+    assert.equal(mealsSummary({ items: 0, kcal: 0, protein: 0, hideCalories: false }), '');
   });
 
   it('Atividades: treinos, minutos e estimativa só quando existe e sem "esconder calorias"', () => {
     const one = [{ durationMin: 60, estimateKcal: 280 }];
-    assert.equal(activitiesHeader({ workouts: one, hideCalories: false, isToday: true }), 'Atividades · 1 treino · 60 min · ≈ 280 kcal (estimativa)');
-    assert.equal(activitiesHeader({ workouts: one, hideCalories: true, isToday: true }), 'Atividades · 1 treino · 60 min');
-    assert.equal(activitiesHeader({ workouts: [{ durationMin: 30 }, { durationMin: 45 }], hideCalories: false, isToday: true }), 'Atividades · 2 treinos · 75 min');
-    assert.equal(activitiesHeader({ workouts: [], hideCalories: false, isToday: true }), 'Atividades · nenhum treino hoje');
-    assert.equal(activitiesHeader({ workouts: [], hideCalories: false, isToday: false }), 'Atividades · nenhum treino neste dia');
+    assert.equal(activitiesSummary({ workouts: one, hideCalories: false, isToday: true }), '1 treino · 60 min · ≈ 280 kcal (estimativa)');
+    assert.equal(activitiesSummary({ workouts: one, hideCalories: true, isToday: true }), '1 treino · 60 min');
+    assert.equal(activitiesSummary({ workouts: [{ durationMin: 30 }, { durationMin: 45 }], hideCalories: false, isToday: true }), '2 treinos · 75 min');
+    assert.equal(activitiesSummary({ workouts: [], hideCalories: false, isToday: true }), 'nenhum treino hoje');
+    assert.equal(activitiesSummary({ workouts: [], hideCalories: false, isToday: false }), 'nenhum treino neste dia');
   });
 });
 
