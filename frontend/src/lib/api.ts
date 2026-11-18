@@ -32,7 +32,8 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => null);
   if (!res.ok && data === null) {
-    console.error(`[api] ${init.method ?? 'GET'} ${path} → ${res.status} (resposta não-JSON)`);
+    // Sem a query string: ela pode carregar ids e datas (nada de dados pessoais em log)
+    console.error(`[api] ${init.method ?? 'GET'} ${path.split('?')[0]} → ${res.status} (resposta não-JSON)`);
   }
   if (!res.ok) {
     const raw = data?.message;

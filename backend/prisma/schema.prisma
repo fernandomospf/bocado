@@ -107,6 +107,8 @@ model User {
   favoriteMeals FavoriteMeal[]
   adaptiveAdjustments AdaptiveAdjustment[]
   workouts     Workout[]
+  supplementPlans SupplementPlan[]
+  intakeLogs   IntakeLog[]
   /// Multiplicador dos limites de IA (0 = IA bloqueada para a pessoa, 2 = dobro). Só o admin altera
   aiLimitFactor Float @default(1)
   householdMember HouseholdMember?
@@ -169,6 +171,10 @@ model Profile {
   movementRestDays       Int[]   @default([])
   /// Soma 50% do gasto estimado (líquido) à meta do dia. Só pode ficar ligada com a estimativa ligada
   workoutAddToGoal       Boolean @default(false)
+  /// Registro pessoal de suplementos e medicações (dado sensível, desligado por padrão; indisponível a menores de 18)
+  supplementsEnabled     Boolean @default(false)
+  /// Na tela Hoje, mostra "Medicação 1" / "Suplemento 2" em vez do nome
+  supplementsMaskNamesOnHome Boolean @default(false)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -610,4 +616,122 @@ model WaterDay {
 
   @@id([userId, date])
   @@map("water_days")
+}
+
+// ---------------------------------------------------------------------------
+// Suplementos e medicações: SÓ registra o que a pessoa informa (nada é recomendado, calculado ou validado).
+// Dado sensível: privado por padrão, isolado do resto do app (nunca entra em relatórios, casa, admin, IA nem logs).
+// ---------------------------------------------------------------------------
+
+enum SupplementCategory {
+  MEDICATION
+  SUPPLEMENT
+  VITAMIN
+  OTHER
+}
+
+enum DoseUnit {
+  ML
+  MG
+  MCG
+  G
+  UI
+  TABLET
+  CAPSULE
+  SCOOP
+  DROP
+  OTHER
+}
+
+enum Administration {
+  ORAL
+  INJECTION
+  OTHER
+}
+
+enum ScheduleType {
+  DAILY
+  WEEKDAYS
+  EVERY_N_DAYS
+}
+
+enum Slot {
+  ANY
+  MORNING
+  AFTERNOON
+  NIGHT
+}
+
+enum InjectionSite {
+  ABDOMEN_L
+  ABDOMEN_R
+  THIGH_L
+  THIGH_R
+  GLUTE_L
+  GLUTE_R
+  DELTOID_L
+  DELTOID_R
+  OTHER
+}
+
+enum IntakeStatus {
+  TAKEN
+  SKIPPED
+}
+
+model SupplementPlan {
+  id             String             @id @default(uuid()) @db.Uuid
+  userId         String             @db.Uuid
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  category       SupplementCategory
+  administration Administration     @default(ORAL)
+  /// Exatamente o que a pessoa digitou: o app não valida faixa nem converte unidades
+  doseAmount     Float
+  doseUnit       DoseUnit
+  /// Texto livre da unidade (obrigatório com doseUnit = OTHER)
+  doseUnitLabel  String?
+  scheduleType   ScheduleType
+  /// 0 = domingo … 6 = sábado (scheduleType = WEEKDAYS)
+  weekdays       Int[]
+  /// 2 a 90 (scheduleType = EVERY_N_DAYS, "rolling": conta a partir do último registro)
+  intervalDays   Int?
+  slots          Slot[]             @default([ANY])
+  startDate      DateTime           @db.Date
+  endDate        DateTime?          @db.Date
+  notes          String?
+  /// Só vale com administration = INJECTION
+  trackSite      Boolean            @default(false)
+  showOnWeightChart Boolean         @default(false)
+  archivedAt     DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  logs           IntakeLog[]
+
+  @@index([userId, archivedAt])
+  @@map("supplement_plans")
+}
+
+model IntakeLog {
+  id             String         @id @default(uuid()) @db.Uuid
+  userId         String         @db.Uuid
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId         String         @db.Uuid
+  plan           SupplementPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  /// Dia local PREVISTO (não o dia em que foi tocado o botão; para isso há `takenAt`)
+  date           DateTime       @db.Date
+  slot           Slot           @default(ANY)
+  status         IntakeStatus
+  takenAt        DateTime?
+  /// Snapshot da dose da época: mudar a dose do plano NÃO altera o histórico
+  doseAmount     Float
+  doseUnit       DoseUnit
+  doseUnitLabel  String?
+  site           InjectionSite?
+  note           String?
+  createdAt      DateTime       @default(now())
+
+  @@unique([planId, date, slot])
+  @@index([userId, date])
+  @@map("intake_logs")
 }

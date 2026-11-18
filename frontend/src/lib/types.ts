@@ -61,6 +61,10 @@ export interface Profile extends BodyData {
   movementDailyGoalMin: number | null;
   /** Dias de descanso: 0 = domingo … 6 = sábado. */
   movementRestDays: number[];
+  /** Registro de suplementos e medicações (dado sensível; desligado por padrão; indisponível a menores de 18 anos). */
+  supplementsEnabled: boolean;
+  /** Na tela Hoje, mostra "Medicação 1" / "Suplemento 2" em vez do nome. */
+  supplementsMaskNamesOnHome: boolean;
   /** Meta de peso (kg), se houver. */
   goalWeightKg: number | null;
   updatedAt: string;
@@ -547,4 +551,82 @@ export interface WaterRangeDay {
   date: string;
   goalMl: number | null;
   totalMl: number;
+}
+
+// --- Suplementos e medicações (o app só registra o que a pessoa informa) -------------------------------
+
+export type SupplementCategory = 'MEDICATION' | 'SUPPLEMENT' | 'VITAMIN' | 'OTHER';
+export type DoseUnit = 'ML' | 'MG' | 'MCG' | 'G' | 'UI' | 'TABLET' | 'CAPSULE' | 'SCOOP' | 'DROP' | 'OTHER';
+export type Administration = 'ORAL' | 'INJECTION' | 'OTHER';
+export type ScheduleType = 'DAILY' | 'WEEKDAYS' | 'EVERY_N_DAYS';
+export type Slot = 'ANY' | 'MORNING' | 'AFTERNOON' | 'NIGHT';
+export type InjectionSite = 'ABDOMEN_L' | 'ABDOMEN_R' | 'THIGH_L' | 'THIGH_R' | 'GLUTE_L' | 'GLUTE_R' | 'DELTOID_L' | 'DELTOID_R' | 'OTHER';
+
+export interface SupplementPlan {
+  id: string;
+  name: string;
+  category: SupplementCategory;
+  administration: Administration;
+  doseAmount: number;
+  doseUnit: DoseUnit;
+  doseUnitLabel: string | null;
+  scheduleType: ScheduleType;
+  /** 0 = domingo … 6 = sábado. */
+  weekdays: number[];
+  intervalDays: number | null;
+  slots: Slot[];
+  startDate: string;
+  endDate: string | null;
+  notes: string | null;
+  trackSite: boolean;
+  showOnWeightChart: boolean;
+  archived: boolean;
+  nextDate: string | null;
+  createdAt: string;
+}
+
+export type SupplementItemStatus = 'pending' | 'taken' | 'skipped' | 'unlogged';
+
+export interface SupplementItem {
+  planId: string;
+  name: string;
+  category: SupplementCategory;
+  administration: Administration;
+  trackSite: boolean;
+  doseAmount: number;
+  doseUnit: DoseUnit;
+  doseUnitLabel: string | null;
+  slot: Slot;
+  status: SupplementItemStatus;
+  logId?: string;
+  takenAt?: string | null;
+  site?: InjectionSite | null;
+  /** Dia previsto da dose (nas pendências dos dias anteriores, é o dia original). */
+  dueDate: string;
+}
+
+export interface SupplementDay {
+  items: SupplementItem[];
+  next: { planId: string; name: string; nextDate: string }[];
+  suggestedSites: Record<string, InjectionSite>;
+}
+
+export interface IntakeLog {
+  id: string;
+  planId: string;
+  date: string;
+  slot: Slot;
+  status: 'TAKEN' | 'SKIPPED';
+  takenAt: string | null;
+  doseAmount: number;
+  doseUnit: DoseUnit;
+  doseUnitLabel: string | null;
+  site: InjectionSite | null;
+  note: string | null;
+}
+
+export interface WeightMarker {
+  date: string;
+  planId: string;
+  label: string;
 }

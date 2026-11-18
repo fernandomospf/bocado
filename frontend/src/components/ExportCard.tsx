@@ -4,9 +4,11 @@ import { useId, useState } from 'react';
 import { api, ApiError, errorMessage } from '@/lib/api';
 import { addDays, todayISO } from '@/lib/date';
 import { tap } from '@/lib/haptics';
+import { saveFile } from '@/lib/saveFile';
+import { useSupplementsEnabled } from '@/lib/useSupplements';
 import { useToast } from './Toast';
 
-type Kind = 'meals' | 'weight' | 'water';
+type Kind = 'meals' | 'weight' | 'water' | 'supplements';
 type Period = '7d' | '15d' | '30d' | '90d' | '180d' | '365d';
 
 const KINDS: { value: Kind; label: string }[] = [
@@ -28,37 +30,17 @@ const EMPTY: Record<Kind, string> = {
   meals: 'Nenhuma refeição nesse período',
   weight: 'Nenhum registro de peso nesse período',
   water: 'Nenhum registro de água nesse período',
+  supplements: 'Nenhum registro de suplementos e medicações nesse período',
 };
 
 const FILE: Record<Kind, { path: string; name: string }> = {
   meals: { path: 'meals', name: 'refeicoes' },
   weight: { path: 'weight', name: 'peso' },
   water: { path: 'water', name: 'agua' },
+  supplements: { path: 'supplements', name: 'suplementos' },
 };
 
 const br = (iso: string) => iso.split('-').reverse().join('/');
-
-/** iPhone/iPad (inclusive iPad que se apresenta como Mac): lá o <a download> não salva o arquivo num PWA. */
-const isIOS = () =>
-  typeof navigator !== 'undefined' &&
-  (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
-
-/** Salva o arquivo: no iOS, pela folha de compartilhar (quando disponível); no resto, com um link de download. */
-async function saveFile(blob: Blob, filename: string) {
-  const file = new File([blob], filename, { type: 'text/csv' });
-  if (isIOS() && navigator.canShare?.({ files: [file] })) {
-    await navigator.share({ files: [file], title: filename });
-    return;
-  }
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 /** Exportar refeições, peso ou água em CSV (para o Excel/LibreOffice em português). */
 export function ExportCard({ hasWeight = true }: { hasWeight?: boolean }) {
@@ -68,10 +50,14 @@ export function ExportCard({ hasWeight = true }: { hasWeight?: boolean }) {
   const [period, setPeriod] = useState<Period>('30d');
   const [busy, setBusy] = useState(false);
   const [empty, setEmpty] = useState<string | null>(null);
+  // Dado sensível: só existe com o módulo ativo, começa DESLIGADO e nunca é marcado sozinho (nem lembrado)
+  const supplementsOn = useSupplementsEnabled();
+  const [includeSupplements, setIncludeSupplements] = useState(false);
 
   const to = todayISO();
   const from = addDays(to, -((PERIODS.find((p) => p.value === period)?.days ?? 30) - 1));
-  const kinds = hasWeight ? KINDS : KINDS.filter((k) => k.value !== 'weight');
+  const baseKinds = hasWeight ? KINDS : KINDS.filter((k) => k.value !== 'weight');
+  const kinds = supplementsOn && includeSupplements ? [...baseKinds, { value: 'supplements' as const, label: 'Suplementos' }] : baseKinds;
 
   async function download() {
     setBusy(true);
@@ -79,8 +65,13 @@ export function ExportCard({ hasWeight = true }: { hasWeight?: boolean }) {
     try {
       const query = `period=${period}&to=${to}`;
       // Antes de baixar: o período tem registros?
-      const count = await api<{ items: number; weights: number; water?: number }>(`/export/summary?${query}`);
-      if ((kind === 'meals' ? count.items : kind === 'weight' ? count.weights : (count.water ?? 0)) === 0) {
+      const total =
+        kind === 'supplements'
+          ? (await api<{ supplements: number }>(`/export/supplements/summary?${query}`)).supplements
+          : await api<{ items: number; weights: number; water?: number }>(`/export/summary?${query}`).then((count) =>
+              kind === 'meals' ? count.items : kind === 'weight' ? count.weights : (count.water ?? 0),
+            );
+      if (total === 0) {
         setEmpty(EMPTY[kind]);
         return;
       }
@@ -117,12 +108,32 @@ export function ExportCard({ hasWeight = true }: { hasWeight?: boolean }) {
         <p className="caption">Arquivo CSV, abre no Excel, LibreOffice ou Google Planilhas.</p>
       </div>
 
+      {supplementsOn && (
+        <div className="stack-sm">
+          <label className="switch-row">
+            <span>Incluir suplementos e medicações (dado sensível)</span>
+            <input
+              type="checkbox"
+              role="switch"
+              className="switch"
+              checked={includeSupplements}
+              onChange={(e) => {
+                setIncludeSupplements(e.target.checked);
+                setEmpty(null);
+                setKind(e.target.checked ? 'supplements' : 'meals');
+              }}
+            />
+          </label>
+          {includeSupplements && <p className="caption">O arquivo sai com os nomes que você cadastrou e fica só no seu aparelho.</p>}
+        </div>
+      )}
+
       {kinds.length > 1 && (
         <div className="field">
           <span className="field-label" id={`${id}-kind`}>
             O que exportar
           </span>
-          <div className="segmented" role="group" aria-labelledby={`${id}-kind`}>
+          <div className={kinds.length > 3 ? 'segmented segmented-2col' : 'segmented'} role="group" aria-labelledby={`${id}-kind`}>
             {kinds.map((k) => (
               <button
                 key={k.value}

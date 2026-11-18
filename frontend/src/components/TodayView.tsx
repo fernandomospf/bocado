@@ -32,6 +32,7 @@ import { RecipePickerSheet } from './RecipePickerSheet';
 import { OfferCards } from './OfferCards';
 import type { SplitState } from './SplitPicker';
 import { GaugeCluster } from './GaugeCluster';
+import { SupplementsSection, useSupplementsToday } from './SupplementsSection';
 import { useQuickSheets } from './QuickSheets';
 import { DayPills } from './DayPills';
 import { WeeklyCard } from './WeeklyCard';
@@ -75,7 +76,8 @@ export function TodayView() {
   const [portion, setPortion] = useState<{ type: MealType; food: FoodResult } | null>(null);
   const { data: me } = useMe();
   const workouts = data?.workouts ?? [];
-  const sections = useHomeSections(me?.id, { hasWorkouts: workouts.length > 0 });
+  const supp = useSupplementsToday(date);
+  const sections = useHomeSections(me?.id, { hasWorkouts: workouts.length > 0, hasPendingSupplements: supp.pending });
   const [suggestionReady, setSuggestionReady] = useState(false);
   const onSuggestion = useCallback((v: boolean) => setSuggestionReady(v), []);
   const { openWorkout, openMovement } = useQuickSheets();
@@ -347,6 +349,9 @@ export function TodayView() {
             Ver movimento da semana
           </button>
         </CollapsibleSection>
+
+        {/* Só com o módulo ativo e ao menos um item ativo (dado sensível: nada aparece antes disso) */}
+        <SupplementsSection date={date} supp={supp} open={sections.supplementsOpen} onToggle={(open) => sections.toggle('supplements', open)} />
       </div>
 
       {recipeFor && (

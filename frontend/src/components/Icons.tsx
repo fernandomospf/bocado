@@ -220,3 +220,11 @@ export const FlameIcon = ({
     </svg>
   );
 };
+
+/** Cápsula: suplementos e medicações. */
+export const CapsuleIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M10.5 20.5a4.95 4.95 0 0 1-7-7l9-9a4.95 4.95 0 0 1 7 7z" />
+    <path d="m8.5 8.5 7 7" />
+  </svg>
+);

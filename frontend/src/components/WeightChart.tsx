@@ -65,10 +65,17 @@ interface WeightChartProps {
   label: string;
   /** Meta de peso: linha tracejada horizontal (o eixo Y sempre a inclui, com folga). */
   goalKg?: number | null;
+  /** Doses registradas (um traço por dia, numa faixa própria abaixo do gráfico: nunca sobre a linha de tendência). */
+  markers?: { date: string; labels: string[] }[];
+  selectedMarker?: string | null;
+  onSelectMarker?: (date: string | null) => void;
 }
 
+/** Altura extra reservada para a faixa dos marcadores (só quando há algum). */
+const MARKER_LANE = 14;
+
 /** Pontos = pesagens; linha = média de 7 dias. Escala Y com folga automática. */
-export function WeightChart({ entries, from, to, label, goalKg }: WeightChartProps) {
+export function WeightChart({ entries, from, to, label, goalKg, markers = [], selectedMarker, onSelectMarker }: WeightChartProps) {
   const start = dayIndex(from);
   const span = Math.max(1, dayIndex(to) - start);
 
@@ -81,6 +88,10 @@ export function WeightChart({ entries, from, to, label, goalKg }: WeightChartPro
   const yMin = min - pad;
   const yMax = max + pad;
 
+  const shown = markers.filter((m) => m.date >= from && m.date <= to);
+  const lane = shown.length > 0 ? MARKER_LANE : 0;
+  const height = H + lane;
+  const laneY = PAD.top + PLOT_H + 3;
   const x = (iso: string) => PAD.left + ((dayIndex(iso) - start) / span) * PLOT_W;
   const y = (v: number) => PAD.top + ((yMax - v) / (yMax - yMin)) * PLOT_H;
   const r = (n: number) => Math.round(n * 10) / 10;
@@ -102,7 +113,7 @@ export function WeightChart({ entries, from, to, label, goalKg }: WeightChartPro
     .map((s) => smoothPath(s.map((e) => ({ x: r(x(e.date)), y: r(y(e.trendKg)) }))));
 
   return (
-    <svg className="weight-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
+    <svg className="weight-chart" viewBox={`0 0 ${W} ${height}`} role={shown.length > 0 ? 'group' : 'img'} aria-label={label}>
       {ticks.map((t) => (
         <g key={t}>
           <line className="weight-chart-grid" x1={PAD.left} x2={W - PAD.right} y1={r(y(t))} y2={r(y(t))} />
@@ -112,10 +123,10 @@ export function WeightChart({ entries, from, to, label, goalKg }: WeightChartPro
         </g>
       ))}
 
-      <text x={PAD.left} y={H - 6} textAnchor="start">
+      <text x={PAD.left} y={height - 6} textAnchor="start">
         {dayMonth(from)}
       </text>
-      <text x={W - PAD.right} y={H - 6} textAnchor="end">
+      <text x={W - PAD.right} y={height - 6} textAnchor="end">
         {dayMonth(to)}
       </text>
 
@@ -133,6 +144,36 @@ export function WeightChart({ entries, from, to, label, goalKg }: WeightChartPro
       {entries.map((e) => (
         <circle key={e.date} className="weight-chart-point" cx={r(x(e.date))} cy={r(y(e.weightKg))} r={3} />
       ))}
+      {shown.map((m) => {
+        const mx = r(x(m.date));
+        const text = `${dayMonth(m.date)}: ${m.labels.join(', ')}`;
+        return (
+          <g key={m.date}>
+            <line className="weight-chart-marker" data-selected={selectedMarker === m.date || undefined} x1={mx} x2={mx} y1={laneY} y2={laneY + 9} />
+            {/* Área de toque maior que o traço (o gráfico é pequeno) */}
+            <rect
+              className="weight-chart-marker-hit"
+              x={mx - 11}
+              y={laneY - 4}
+              width={22}
+              height={lane + 4}
+              role="button"
+              tabIndex={0}
+              aria-label={text}
+              aria-pressed={selectedMarker === m.date}
+              onClick={() => onSelectMarker?.(selectedMarker === m.date ? null : m.date)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectMarker?.(selectedMarker === m.date ? null : m.date);
+                }
+              }}
+            >
+              <title>{text}</title>
+            </rect>
+          </g>
+        );
+      })}
     </svg>
   );
 }

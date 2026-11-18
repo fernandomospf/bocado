@@ -7,6 +7,7 @@ import { addDays, dayMonth, todayISO } from '@/lib/date';
 import { fmtDec } from '@/lib/format';
 import type { Profile, WeightEntry, WeightList, WeightSummary } from '@/lib/types';
 import { ChevronRight, PlusIcon } from './Icons';
+import { useSupplementNames, useSupplementsEnabled, useWeightMarkers } from '@/lib/useSupplements';
 import { WeightChart } from './WeightChart';
 import { WeightGoalCard } from './WeightGoalCard';
 import { WeightSheet } from './WeightSheet';
@@ -39,6 +40,7 @@ export function WeightSection() {
   const { data: list } = useSWR<WeightList>(`/weight?from=${yearAgo}&to=${today}`);
 
   const [period, setPeriod] = useState<Period>(30);
+  const [markerDay, setMarkerDay] = useState<string | null>(null);
   const [sheet, setSheet] = useState<{ entry?: WeightEntry } | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [recalc, setRecalc] = useState<{ busy: boolean; error: string | null }>({ busy: false, error: null });
@@ -48,6 +50,21 @@ export function WeightSection() {
   const periodStart = addDays(today, -(period - 1));
   const inPeriod = useMemo(() => entries.filter((e) => e.date >= periodStart), [entries, periodStart]);
   const recent = useMemo(() => [...entries].reverse(), [entries]);
+
+  // Doses registradas (só dos itens com "Mostrar marcador no gráfico de peso"); nomes genéricos se a pessoa os ocultou
+  const supplementsOn = useSupplementsEnabled();
+  const { data: markerRows } = useWeightMarkers(periodStart, today, supplementsOn);
+  const { name: markerName } = useSupplementNames();
+  const markers = useMemo(() => {
+    const byDay = new Map<string, Set<string>>();
+    for (const m of markerRows ?? []) {
+      const set = byDay.get(m.date) ?? new Set<string>();
+      set.add(markerName({ id: m.planId, name: m.label }));
+      byDay.set(m.date, set);
+    }
+    return [...byDay].map(([date, labels]) => ({ date, labels: [...labels] }));
+  }, [markerRows, markerName]);
+  const markedDay = markers.find((m) => m.date === markerDay);
 
   const chartLabel = useMemo(() => {
     if (inPeriod.length === 0) return `Peso nos últimos ${period} dias: sem registros.`;
@@ -120,7 +137,16 @@ export function WeightSection() {
 
             {inPeriod.length > 0 ? (
               <figure className="weight-chart-wrap">
-                <WeightChart entries={inPeriod} from={periodStart} to={today} label={chartLabel} goalKg={goalKg} />
+                <WeightChart
+                  entries={inPeriod}
+                  from={periodStart}
+                  to={today}
+                  label={chartLabel + (markers.length > 0 ? ` Doses registradas em ${markers.length} ${markers.length === 1 ? 'dia' : 'dias'}.` : '')}
+                  goalKg={goalKg}
+                  markers={markers}
+                  selectedMarker={markerDay}
+                  onSelectMarker={setMarkerDay}
+                />
                 <figcaption className="caption weight-chart-legend">
                   <span>
                     <i className="weight-legend-point" /> Pesagens
@@ -129,7 +155,17 @@ export function WeightSection() {
                     <i className="weight-legend-trend" /> Média de 7 dias
                   </span>
                   {goalKg != null && <span>- - Meta</span>}
+                  {markers.length > 0 && (
+                    <span>
+                      <i className="weight-legend-marker" /> Doses
+                    </span>
+                  )}
                 </figcaption>
+                {markedDay && (
+                  <p className="caption weight-marker-note" role="status">
+                    {dayMonth(markedDay.date)} · {markedDay.labels.join(', ')}
+                  </p>
+                )}
               </figure>
             ) : (
               <p className="caption" style={{ textAlign: 'center' }}>

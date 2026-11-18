@@ -26,6 +26,7 @@ import { fromDraft, TargetsEditor, type TargetsDraft, toDraft } from './TargetsE
 import { WeightSection } from './WeightSection';
 import { WaterPrefs } from './WaterPrefs';
 import { MovementPrefs } from './MovementPrefs';
+import { SupplementsPrefs } from './SupplementsPrefs';
 import { WorkoutPrefs } from './WorkoutPrefs';
 
 const WEEK_START_OPTIONS: { value: WeekStart; label: string }[] = [
@@ -269,6 +270,7 @@ export function ProfileView() {
               <MovementPrefs />
               <WorkoutPrefs />
               <WaterPrefs />
+              <SupplementsPrefs />
             </section>
           </div>
         )}

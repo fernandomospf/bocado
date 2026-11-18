@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { Profile } from '@prisma/client';
 import { WaterService } from '../water/water.service';
 import { formatDay, parseDay } from '../common/dates';
@@ -106,6 +106,10 @@ export class ProfileService {
   async updatePreferences(userId: string, dto: PreferencesDto) {
     const existing = await this.prisma.profile.findUnique({ where: { userId } });
     if (!existing) throw new NotFoundException('Perfil ainda não criado');
+    // Suplementos e medicações: indisponível para menores de 18 anos (403 neutro)
+    if (dto.supplementsEnabled === true && ageFrom(existing.birthDate) < 18) {
+      throw new ForbiddenException('Este recurso não está disponível para menores de 18 anos.');
+    }
     // A soma à meta só existe com a estimativa ligada: desligar a estimativa desliga a soma junto
     const estimate = dto.workoutEstimateEnabled ?? existing.workoutEstimateEnabled;
     const addToGoal = estimate ? (dto.workoutAddToGoal ?? existing.workoutAddToGoal) : false;
@@ -127,6 +131,8 @@ export class ProfileService {
         ...(dto.waterGoalManualMl !== undefined ? { waterGoalManualMl: dto.waterGoalManualMl } : {}),
         ...(dto.waterBottleMl !== undefined ? { waterBottleMl: dto.waterBottleMl } : {}),
         ...(dto.movementEnabled !== undefined ? { movementEnabled: dto.movementEnabled } : {}),
+        ...(dto.supplementsEnabled !== undefined ? { supplementsEnabled: dto.supplementsEnabled } : {}),
+        ...(dto.supplementsMaskNamesOnHome !== undefined ? { supplementsMaskNamesOnHome: dto.supplementsMaskNamesOnHome } : {}),
         ...(dto.movementDailyGoalMin !== undefined ? { movementDailyGoalMin: dto.movementDailyGoalMin } : {}),
         ...(dto.movementRestDays !== undefined ? { movementRestDays: [...dto.movementRestDays].sort((a, b) => a - b) } : {}),
       },
@@ -163,6 +169,8 @@ export class ProfileService {
       movementEnabled: p.movementEnabled,
       movementDailyGoalMin: p.movementDailyGoalMin,
       movementRestDays: p.movementRestDays,
+      supplementsEnabled: p.supplementsEnabled,
+      supplementsMaskNamesOnHome: p.supplementsMaskNamesOnHome,
       adaptiveEnabled: p.adaptiveEnabled,
       workoutEstimateEnabled: p.workoutEstimateEnabled,
       workoutAddToGoal: p.workoutAddToGoal,

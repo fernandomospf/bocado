@@ -8,7 +8,8 @@ import { tap } from '@/lib/haptics';
 import { useLastWorkout, useProfile } from '@/lib/hooks';
 import { useWorkoutActions } from '@/lib/useWorkouts';
 import { workoutSummary } from '@/lib/workouts';
-import { DropIcon, DumbbellIcon, PlusIcon, PotIcon, RepeatIcon, ScaleIcon } from './Icons';
+import { useHasActiveSupplements } from '@/lib/useSupplements';
+import { CapsuleIcon, DropIcon, DumbbellIcon, PlusIcon, PotIcon, RepeatIcon, ScaleIcon } from './Icons';
 import { useQuickSheets } from './QuickSheets';
 
 /**
@@ -17,7 +18,8 @@ import { useQuickSheets } from './QuickSheets';
  */
 export function QuickAddMenu() {
   const pathname = usePathname();
-  const { openWorkout, openWeight, openWater, defaultDate } = useQuickSheets();
+  const { openWorkout, openWeight, openWater, openSupplements, defaultDate } = useQuickSheets();
+  const hasSupplements = useHasActiveSupplements();
   const { data: profile } = useProfile();
   const { data: last } = useLastWorkout();
   const { repeat } = useWorkoutActions();
@@ -133,6 +135,19 @@ export function QuickAddMenu() {
               <span className="quick-text">
                 <strong>Água</strong>
                 <span className="caption">Registrar um copo ou uma garrafa</span>
+              </span>
+            </button>
+          )}
+
+          {/* Dado sensível: o atalho só existe com o módulo ativo e ao menos um item cadastrado */}
+          {hasSupplements && (
+            <button type="button" role="menuitem" className="quick-item" onClick={() => choose(openSupplements)}>
+              <span className="quick-icon">
+                <CapsuleIcon width={22} height={22} />
+              </span>
+              <span className="quick-text">
+                <strong>Suplementos</strong>
+                <span className="caption">Registrar o que você toma hoje</span>
               </span>
             </button>
           )}

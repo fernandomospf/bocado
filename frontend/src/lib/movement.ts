@@ -95,7 +95,7 @@ export function activitiesSummary(input: {
 // Dropdowns da Home: aberto/fechado por usuário, no aparelho
 // ---------------------------------------------------------------------------
 
-export type HomeSection = 'meals' | 'activities';
+export type HomeSection = 'meals' | 'activities' | 'supplements';
 export type SectionState = Partial<Record<HomeSection, boolean>>;
 
 export const sectionsKey = (userId: string) => `bocado:home:sections:${userId}`;
@@ -105,7 +105,7 @@ export function readSections(storage: Pick<Storage, 'getItem'> | undefined, key:
     const parsed: unknown = JSON.parse(storage?.getItem(key) ?? 'null');
     if (!parsed || typeof parsed !== 'object') return {};
     const out: SectionState = {};
-    for (const k of ['meals', 'activities'] as const) {
+    for (const k of ['meals', 'activities', 'supplements'] as const) {
       const v = (parsed as Record<string, unknown>)[k];
       if (typeof v === 'boolean') out[k] = v;
     }
@@ -123,8 +123,16 @@ export function writeSection(storage: Pick<Storage, 'getItem' | 'setItem'> | und
   }
 }
 
-/** O estado manual (se houver) vale sobre o padrão: Refeições aberto; Atividades aberto só com treino no dia. */
-export function isSectionOpen(section: HomeSection, manual: SectionState, ctx: { hasWorkouts: boolean }): boolean {
+/**
+ * O estado manual (se houver) vale sobre o padrão: Refeições aberto; Atividades aberto só com treino no dia;
+ * Suplementos e medicações aberto só com item pendente.
+ */
+export function isSectionOpen(
+  section: HomeSection,
+  manual: SectionState,
+  ctx: { hasWorkouts: boolean; hasPendingSupplements?: boolean },
+): boolean {
   if (typeof manual[section] === 'boolean') return manual[section]!;
-  return section === 'meals' ? true : ctx.hasWorkouts;
+  if (section === 'meals') return true;
+  return section === 'activities' ? ctx.hasWorkouts : !!ctx.hasPendingSupplements;
 }

@@ -27,7 +27,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="Política de Privacidade"
-      updatedAt="16 de novembro de 2026"
+      updatedAt="18 de novembro de 2026"
       toc={TOC}
       otherPage={{ href: '/termos', label: 'Termos de Uso' }}
     >
@@ -93,6 +93,18 @@ export default function PrivacyPage() {
         Os treinos que você registrar: data, tipo, duração, intensidade e uma nota opcional. Eles servem só de contexto
         para o seu dia e para o relatório semanal, e são apagados junto com a conta. A estimativa de gasto dos treinos,
         se você ligá-la, é calculada na hora e não fica guardada.
+      </p>
+      <h3>Suplementos e medicações</h3>
+      <p>
+        Os suplementos e medicações que você registrar (nome, dose, frequência e os registros de cada dose, com data, horário e,
+        nos injetáveis, o local da aplicação, se você optar por anotá-lo). Eles ficam só com você: não são enviados à IA, não
+        aparecem para a casa nem em relatórios, entram em exportações só se você marcar essa opção, e são apagados junto com a
+        conta. O recurso fica desligado até você ativá-lo e não está disponível para menores de 18 anos.
+      </p>
+      <p>
+        O Bocado só guarda o que você informa: não recomenda, calcula nem ajusta doses. Esses dados podem ser considerados dados
+        de saúde pela LGPD e são tratados com base no seu consentimento, dado ao ativar o registro. Se você gerar um arquivo de
+        calendário com lembretes, ele é criado na hora para o seu aparelho e não fica guardado nem publicado pelo Bocado.
       </p>
       <h3>Uso da IA e denúncias</h3>
       <p>

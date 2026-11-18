@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { movingAverages, TREND_WINDOW_DAYS } from '../weight/weight.math';
 import { estimateKcal } from '../workouts/workout.math';
 import { BOM, dateCell, numCell, row, textCell } from './csv';
+import { amountText, SITE_LABEL, unitText } from '../supplements/supplements.format';
 import { dayBatches, shiftDay } from './period';
 
 const MEAL_ORDER: MealType[] = ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER'];
@@ -47,6 +48,7 @@ export const WORKOUT_TYPE_LABEL: Record<string, string> = {
   OTHER: 'Outro',
 };
 export const WORKOUT_INTENSITY_LABEL: Record<string, string> = { LIGHT: 'Leve', MODERATE: 'Moderada', HARD: 'Forte' };
+export const SUPPLEMENT_HEADER = ['Data', 'Item', 'Dose', 'Unidade', 'Status', 'Local'];
 export const WEIGHT_HEADER = ['Data', 'Peso (kg)', 'Média de 7 dias (kg)', 'Nota'];
 
 interface DayTotals {
@@ -182,6 +184,39 @@ export class ExportService {
       body += row([dateCell(day), numCell(totals.get(day) ?? 0, 0), numCell(goal, 0)]);
     }
     if (body) yield body;
+  }
+
+  /** Registros de suplementos e medicações no período (só para quem ativou o módulo; o controller confere). */
+  async supplementsSummary(userId: string, from: string, to: string) {
+    const supplements = await this.prisma.intakeLog.count({ where: { userId, date: { gte: parseDay(from), lte: parseDay(to) } } });
+    return { from, to, supplements };
+  }
+
+  /**
+   * Dado sensível: só sai se a pessoa pedir este arquivo (nunca junto dos demais por padrão). Usa o nome que a pessoa
+   * cadastrou e a dose da época do registro, exatamente como digitada.
+   */
+  async *supplementsCsv(userId: string, from: string, to: string): AsyncGenerator<string> {
+    yield BOM + row(SUPPLEMENT_HEADER.map(textCell));
+    for (const [start, end] of dayBatches(from, to)) {
+      const rows = await this.prisma.intakeLog.findMany({
+        where: { userId, date: { gte: parseDay(start), lte: parseDay(end) } },
+        include: { plan: { select: { name: true } } },
+        orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
+      });
+      let chunk = '';
+      for (const l of rows) {
+        chunk += row([
+          dateCell(formatDay(l.date)),
+          textCell(l.plan.name),
+          amountText(l.doseAmount),
+          textCell(unitText(l.doseUnit, l.doseUnitLabel)),
+          l.status === 'TAKEN' ? 'Registrado' : 'Pulado',
+          textCell(l.site ? SITE_LABEL[l.site] : ''),
+        ]);
+      }
+      if (chunk) yield chunk;
+    }
   }
 
   /** Treinos do período. A coluna de estimativa só existe se a pessoa ligou a estimativa (nunca por padrão). */

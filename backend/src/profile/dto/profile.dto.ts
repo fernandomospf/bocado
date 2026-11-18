@@ -136,4 +136,14 @@ export class PreferencesDto {
   @Min(0, { each: true, message: 'Dia de descanso inválido' })
   @Max(6, { each: true, message: 'Dia de descanso inválido' })
   movementRestDays?: number[];
+
+  /** Registro de suplementos e medicações (null não vale). Menores de 18 anos não podem ligar. */
+  @ValidateIf((o: PreferencesDto) => o.supplementsEnabled !== undefined)
+  @IsBoolean()
+  supplementsEnabled?: boolean;
+
+  /** Na tela Hoje, mostra nomes genéricos em vez do nome (null não vale). */
+  @ValidateIf((o: PreferencesDto) => o.supplementsMaskNamesOnHome !== undefined)
+  @IsBoolean()
+  supplementsMaskNamesOnHome?: boolean;
 }
