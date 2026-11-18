@@ -63,12 +63,12 @@ export class WorkoutsService {
     return { from, to, workouts: rows.map(ser) };
   }
 
-  /** Movimento da semana (início pela preferência do usuário). Só dados da sessão; estimativa só com a preferência e sem "esconder calorias". */
+  /** Movimento da semana (início pela preferência do usuário): minutos, e meta diária batida em N dos dias ativos. Só dados da sessão; estimativa só com a preferência e sem "esconder calorias". */
   async week(userId: string, today: string) {
     if (Number.isNaN(dayNumber(today))) throw new BadRequestException('Data inválida');
     const p = await this.prisma.profile.findUnique({
       where: { userId },
-      select: { weekStartsOn: true, movementGoalMin: true, weightKg: true, workoutEstimateEnabled: true, hideCalories: true },
+      select: { weekStartsOn: true, movementDailyGoalMin: true, movementRestDays: true, weightKg: true, workoutEstimateEnabled: true, hideCalories: true },
     });
     const weekStartsOn = p?.weekStartsOn ?? 'MONDAY';
     const start = weekStartOf(today, weekStartsOn);
@@ -80,7 +80,8 @@ export class WorkoutsService {
       workouts: rows.map((r) => ({ ...r, date: formatDay(r.date) })),
       today,
       weekStartsOn,
-      goalMin: p?.movementGoalMin ?? null,
+      dailyGoalMin: p ? p.movementDailyGoalMin : null,
+      restDays: p?.movementRestDays ?? [],
       weightKg: p?.weightKg ?? 0,
       showEstimate: !!p && p.workoutEstimateEnabled && !p.hideCalories,
     });

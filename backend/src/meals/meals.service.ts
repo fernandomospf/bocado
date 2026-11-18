@@ -10,7 +10,7 @@ import { formatDay, parseDay } from '../common/dates';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfileService } from '../profile/profile.service';
 import { CreateMealDto, MealSnapshotDto, MoveMealItemDto, RepeatMealDto, UpdateMealItemDto } from './dto/meal.dto';
-import { summarizeDayWorkouts } from '../workouts/workout.math';
+import { summarizeDayWorkouts, summarizeMovementDay } from '../workouts/workout.math';
 import { groupRecentMeals } from './recent';
 
 export interface Totals {
@@ -318,7 +318,14 @@ export class MealsService {
       this.prisma.workout.findMany({ where: { userId, date: parseDay(date) }, orderBy: { createdAt: 'asc' } }),
       this.prisma.profile.findUnique({
         where: { userId },
-        select: { weightKg: true, workoutEstimateEnabled: true, workoutAddToGoal: true, hideCalories: true },
+        select: {
+          weightKg: true,
+          workoutEstimateEnabled: true,
+          workoutAddToGoal: true,
+          hideCalories: true,
+          movementDailyGoalMin: true,
+          movementRestDays: true,
+        },
       }),
     ]);
     const sorted = [...meals].sort(
@@ -333,12 +340,22 @@ export class MealsService {
       prefs && !prefs.hideCalories ? prefs : { workoutEstimateEnabled: false, workoutAddToGoal: false },
     );
     const bonus = w.goalBonusKcal;
+    // Movimento do dia: minutos x meta diária (só referência). Estimativa só com a preferência e sem "esconder calorias"
+    const movement = summarizeMovementDay({
+      workouts: workoutRows,
+      date,
+      goalMin: prefs ? prefs.movementDailyGoalMin : null,
+      restDays: prefs?.movementRestDays ?? [],
+      weightKg: prefs?.weightKg ?? 0,
+      showEstimate: !!prefs && prefs.workoutEstimateEnabled && !prefs.hideCalories,
+    });
     const sharing = await this.sharingInfo(userId, meals);
     return {
       date,
       targets: targets && bonus ? { ...targets, kcal: targets.kcal + bonus } : targets,
       ...(targets && bonus ? { baseTargetKcal: targets.kcal, goalBonusKcal: bonus } : {}),
       workouts: w.workouts,
+      movement,
       totals: sumItems(meals.flatMap((m) => m.items)),
       meals: sorted.map((m) => ({ ...this.serializeMeal(m), ...sharing.get(m.id) })),
     };

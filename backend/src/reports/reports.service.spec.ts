@@ -75,9 +75,9 @@ describe('ReportsService: treinos no relatório', () => {
     const without = await setup({ meals }).service.weekly('user-1', '2026-11-09');
     const { service, prisma } = setup({ meals });
     prisma.workout.findMany.mockResolvedValue([
-      { type: 'STRENGTH', durationMin: 60 },
-      { type: 'STRENGTH', durationMin: 50 },
-      { type: 'RUN', durationMin: 40 },
+      { date: new Date('2026-11-09T00:00:00Z'), type: 'STRENGTH', intensity: 'MODERATE', durationMin: 60 },
+      { date: new Date('2026-11-10T00:00:00Z'), type: 'STRENGTH', intensity: 'MODERATE', durationMin: 50 },
+      { date: new Date('2026-11-11T00:00:00Z'), type: 'RUN', intensity: 'MODERATE', durationMin: 40 },
     ]);
     const r = await service.weekly('user-1', '2026-11-09');
     expect(r.workouts).toEqual({ count: 3, totalMinutes: 150, byType: { STRENGTH: { count: 2, minutes: 110 }, RUN: { count: 1, minutes: 40 } } });
@@ -89,6 +89,23 @@ describe('ReportsService: treinos no relatório', () => {
   it('semana sem treino: zeros', async () => {
     const r = await setup({ meals: ['09', '10', '11', '12'].map((d) => mealRow(`2026-11-${d}`, 1800)) }).service.weekly('user-1', '2026-11-09');
     expect(r.workouts).toEqual({ count: 0, totalMinutes: 0, byType: {} });
+  });
+
+  it('movimento: "meta batida em N de M dias ativos" (descanso não conta); treinos e minutos iguais', async () => {
+    const { service, prisma } = setup({ over: { movementEnabled: true, movementDailyGoalMin: 30, movementRestDays: [0, 6] } });
+    const at = (date: string, durationMin: number) => ({ date: new Date(`${date}T00:00:00Z`), type: 'WALK', intensity: 'LIGHT', durationMin });
+    // seg 09: 30 (batida) · ter 10: 29 (não) · qua 11: 45 (batida) · sáb 14: 60 (descanso)
+    prisma.workout.findMany.mockResolvedValue([at('2026-11-09', 30), at('2026-11-10', 29), at('2026-11-11', 45), at('2026-11-14', 60)]);
+    const r = await service.weekly('user-1', '2026-11-12');
+    expect(r.movement).toEqual({ dailyGoalMin: 30, daysReached: 2, activeDays: 5 });
+    expect(r.workouts).toMatchObject({ count: 4, totalMinutes: 164 });
+  });
+
+  it('movimento nulo com o medidor desligado ou sem meta diária', async () => {
+    const off = await setup({ over: { movementEnabled: false, movementDailyGoalMin: 30, movementRestDays: [] } }).service.weekly('user-1', '2026-11-09');
+    const noGoal = await setup({ over: { movementEnabled: true, movementDailyGoalMin: null, movementRestDays: [] } }).service.weekly('user-1', '2026-11-09');
+    expect(off.movement).toBeNull();
+    expect(noGoal.movement).toBeNull();
   });
 
   it('também vem na semana com poucos dias registrados', async () => {

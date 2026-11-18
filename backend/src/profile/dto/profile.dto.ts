@@ -1,6 +1,9 @@
 import { ActivityLevel, GoalType, Sex, WaterGoalMode, WeekStart } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsDivisibleBy,
   IsEnum,
@@ -116,11 +119,31 @@ export class PreferencesDto {
   @IsBoolean()
   movementEnabled?: boolean;
 
-  /** Meta semanal em minutos (30 a 600, múltiplo de 5); null limpa (só os minutos, sem meta). */
+  /**
+   * @deprecated Meta SEMANAL antiga (30 a 600). Sem uso desde a meta diária; aceita só para não quebrar clientes antigos.
+   */
   @ValidateIf((o: PreferencesDto) => o.movementGoalMin !== undefined && o.movementGoalMin !== null)
   @IsInt({ message: 'Informe a meta de movimento em minutos' })
   @IsDivisibleBy(5, { message: 'A meta de movimento deve ser um múltiplo de 5 minutos' })
   @Min(30, { message: 'A meta de movimento precisa ser de pelo menos 30 minutos' })
   @Max(600, { message: 'A meta de movimento pode ter no máximo 600 minutos' })
   movementGoalMin?: number | null;
+
+  /** Meta DIÁRIA em minutos (15 a 240, múltiplo de 5); null limpa (só os minutos, sem meta). */
+  @ValidateIf((o: PreferencesDto) => o.movementDailyGoalMin !== undefined && o.movementDailyGoalMin !== null)
+  @IsInt({ message: 'Informe a meta diária de movimento em minutos' })
+  @IsDivisibleBy(5, { message: 'A meta diária de movimento deve ser um múltiplo de 5 minutos' })
+  @Min(15, { message: 'A meta diária de movimento precisa ser de pelo menos 15 minutos' })
+  @Max(240, { message: 'A meta diária de movimento pode ter no máximo 240 minutos' })
+  movementDailyGoalMin?: number | null;
+
+  /** Dias de descanso (0 = domingo … 6 = sábado), sem repetidos; [] = nenhum. null não vale. */
+  @ValidateIf((o: PreferencesDto) => o.movementRestDays !== undefined)
+  @IsArray({ message: 'Escolha os dias de descanso' })
+  @ArrayMaxSize(7)
+  @ArrayUnique({ message: 'Dia de descanso repetido' })
+  @IsInt({ each: true, message: 'Dia de descanso inválido' })
+  @Min(0, { each: true, message: 'Dia de descanso inválido' })
+  @Max(6, { each: true, message: 'Dia de descanso inválido' })
+  movementRestDays?: number[];
 }

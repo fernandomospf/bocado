@@ -5,7 +5,7 @@ import { latestAllowedDay } from '../meals/meals.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { suggestTargets } from '../profile/nutrition';
 import { addDays, movingAverages } from '../weight/weight.math';
-import { summarizeWeek } from '../workouts/workout.math';
+import { summarizeMovementWeek, summarizeWeek } from '../workouts/workout.math';
 import { buildWeeklyReport, type DayInput, pendingWeekStart, weekEndOf, weekStartOf } from './weekly.math';
 
 const LIST_SCAN_DAYS = 400;
@@ -42,7 +42,7 @@ export class ReportsService {
       }),
       this.prisma.workout.findMany({
         where: { userId, date: { gte: parseDay(weekStart), lte: parseDay(weekEnd) } },
-        select: { type: true, durationMin: true },
+        select: { date: true, type: true, intensity: true, durationMin: true },
       }),
       this.prisma.waterDay.findMany({ where: { userId, date: { gte: parseDay(weekStart), lte: parseDay(weekEnd) } } }),
       this.prisma.waterEntry.groupBy({
@@ -71,6 +71,19 @@ export class ReportsService {
     // Treinos: só contexto (contagem e minutos). Não entram no balanço, que usa a meta BASE do perfil (sem o bônus
     // do treino do dia) e o gasto por fórmula; também não alteram a meta adaptativa.
     const workouts = summarizeWeek(workoutRows);
+    // Movimento: "meta batida em N de M dias ativos" (com o medidor ligado e uma meta diária). Treinos e minutos acima
+    const mv = profile.movementEnabled
+      ? summarizeMovementWeek({
+          workouts: workoutRows.map((r) => ({ ...r, date: formatDay(r.date) })),
+          today: weekStart,
+          weekStartsOn: profile.weekStartsOn,
+          dailyGoalMin: profile.movementDailyGoalMin ?? null,
+          restDays: profile.movementRestDays ?? [],
+          weightKg: 0,
+          showEstimate: false,
+        })
+      : null;
+    const movement = mv && mv.daysReached !== null ? { dailyGoalMin: mv.dailyGoalMin, daysReached: mv.daysReached, activeDays: mv.activeDays } : null;
 
     const report = buildWeeklyReport({
       weekStart,
@@ -101,7 +114,7 @@ export class ReportsService {
         ? { targetKg: profile.goalWeightKg, remainingKg: Math.round(Math.abs(movingAverages(weights.map((w) => ({ date: formatDay(w.date), weightKg: w.weightKg }))).at(-1)!.trendKg - profile.goalWeightKg) * 10) / 10 }
         : null;
 
-    return { ...report, workouts, water, weightGoal };
+    return { ...report, workouts, movement, water, weightGoal };
   }
 
   /** Dias com ao menos uma refeição com alimentos, do mais recente para o mais antigo. */

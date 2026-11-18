@@ -60,8 +60,8 @@ export class ProfileService {
     };
     const profile = await this.prisma.profile.upsert({
       where: { userId },
-      // Menores de 18 anos não recebem a meta padrão de movimento (a pessoa define a própria)
-      create: { userId, ...fields, ...(ageFrom(data.birthDate) < 18 ? { movementGoalMin: null } : {}) },
+      // Menores de 18 anos não recebem a meta padrão de movimento: só os minutos, até a pessoa definir a sua
+      create: { userId, ...fields, ...(ageFrom(data.birthDate) < 18 ? { movementDailyGoalMin: null, movementGoalMin: null } : {}) },
       update: fields,
     });
     return this.serialize(profile);
@@ -127,7 +127,10 @@ export class ProfileService {
         ...(dto.waterGoalManualMl !== undefined ? { waterGoalManualMl: dto.waterGoalManualMl } : {}),
         ...(dto.waterBottleMl !== undefined ? { waterBottleMl: dto.waterBottleMl } : {}),
         ...(dto.movementEnabled !== undefined ? { movementEnabled: dto.movementEnabled } : {}),
+        // Obsoleto (meta semanal): ainda aceito para não quebrar clientes antigos, mas nada mais o lê
         ...(dto.movementGoalMin !== undefined ? { movementGoalMin: dto.movementGoalMin } : {}),
+        ...(dto.movementDailyGoalMin !== undefined ? { movementDailyGoalMin: dto.movementDailyGoalMin } : {}),
+        ...(dto.movementRestDays !== undefined ? { movementRestDays: [...dto.movementRestDays].sort((a, b) => a - b) } : {}),
       },
     });
     if (dto.waterGoalMode !== undefined || dto.waterGoalManualMl !== undefined) await this.water?.recalcToday(userId);
@@ -160,7 +163,10 @@ export class ProfileService {
       waterBottleMl: p.waterBottleMl,
       goalWeightKg: p.goalWeightKg,
       movementEnabled: p.movementEnabled,
+      /** @deprecated meta semanal antiga, sem uso */
       movementGoalMin: p.movementGoalMin,
+      movementDailyGoalMin: p.movementDailyGoalMin,
+      movementRestDays: p.movementRestDays,
       adaptiveEnabled: p.adaptiveEnabled,
       workoutEstimateEnabled: p.workoutEstimateEnabled,
       workoutAddToGoal: p.workoutAddToGoal,
