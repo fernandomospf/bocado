@@ -4,7 +4,7 @@ import { useDisplayPrefs } from '@/lib/display-prefs';
 import { useMovementPrefs } from '@/lib/useMovement';
 import { MovementGoalControls } from './MovementGoalControls';
 
-/** Perfil > Preferências > Movimento: medidor, meta semanal e a estimativa de gasto (aproximada). */
+/** Perfil > Preferências > Movimento: medidor, meta diária, dias de descanso e a estimativa de gasto (aproximada). */
 export function MovementPrefs() {
   const { profile, save } = useMovementPrefs();
   const { hideCalories } = useDisplayPrefs();

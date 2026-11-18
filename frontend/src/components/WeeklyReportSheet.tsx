@@ -74,7 +74,7 @@ function ReportBody({ report: r, hide }: { report: WeeklyReport; hide: boolean }
             O relatório completo aparece quando há pelo menos 4 dias registrados na semana. Dias sem registro não entram nas médias.
           </p>
         </section>
-        <WorkoutsSection workouts={r.workouts} />
+        <WorkoutsSection workouts={r.workouts} movement={r.movement} />
         <WaterReportLine water={r.water} />
       </>
     );
@@ -151,7 +151,7 @@ function ReportBody({ report: r, hide }: { report: WeeklyReport; hide: boolean }
         </section>
       )}
 
-      <WorkoutsSection workouts={r.workouts} />
+      <WorkoutsSection workouts={r.workouts} movement={r.movement} />
       <WaterReportLine water={r.water} />
 
       {highlights.length > 0 && (
@@ -211,12 +211,17 @@ function AdaptiveHint() {
 }
 
 /** "3 treinos, 160 min", com o detalhamento por tipo ao abrir. Semana sem treino: tom neutro. */
-function WorkoutsSection({ workouts }: { workouts: WeeklyReport['workouts'] }) {
+function WorkoutsSection({ workouts, movement }: { workouts: WeeklyReport['workouts']; movement?: WeeklyReport['movement'] }) {
   if (!workouts) return null;
   const types = Object.entries(workouts.byType) as [WorkoutType, { count: number; minutes: number }][];
   return (
     <section className="card glass stack-sm" aria-label="Treinos">
       <h3 className="headline">Treinos</h3>
+      {movement && (
+        <p className="body-2 num">
+          Meta de movimento batida em {movement.daysReached} de {movement.activeDays} {movement.activeDays === 1 ? 'dia ativo' : 'dias ativos'}
+        </p>
+      )}
       {workouts.count === 0 ? (
         <p className="body-2">Nenhum treino registrado</p>
       ) : (

@@ -56,9 +56,11 @@ export interface Profile extends BodyData {
   waterGoalMode: 'AUTO' | 'MANUAL';
   waterGoalManualMl: number | null;
   waterBottleMl: number | null;
-  /** Medidor de movimento semanal e a meta em minutos (null = só os minutos, sem meta). */
+  /** Medidor de movimento e a meta DIÁRIA em minutos (15 a 240; null = só os minutos, sem meta). */
   movementEnabled: boolean;
-  movementGoalMin: number | null;
+  movementDailyGoalMin: number | null;
+  /** Dias de descanso: 0 = domingo … 6 = sábado. */
+  movementRestDays: number[];
   /** Meta de peso (kg), se houver. */
   goalWeightKg: number | null;
   updatedAt: string;
@@ -149,14 +151,27 @@ export interface Workout extends DayWorkout {
 export interface MovementWeek {
   weekStart: string;
   weekEnd: string;
-  goalMin: number | null;
   doneMin: number;
   workoutsCount: number;
-  reached: boolean;
-  remainingMin: number | null;
   daysLeft: number;
-  byDay: { date: string; minutes: number; count: number }[];
+  byDay: { date: string; minutes: number; count: number; restDay: boolean; reached: boolean }[];
   /** Só com a estimativa ligada e sem "esconder calorias". */
+  estimateKcal: number | null;
+  dailyGoalMin: number | null;
+  /** 7 menos os dias de descanso. */
+  activeDays: number;
+  /** Dias ativos com a meta diária batida; null sem meta. */
+  daysReached: number | null;
+}
+
+/** Movimento de um dia (GET /days/:date). */
+export interface DayMovement {
+  minutes: number;
+  goalMin: number | null;
+  restDay: boolean;
+  /** minutes >= goalMin, fora de dia de descanso. */
+  reached: boolean;
+  /** Só com a estimativa ligada, sem "esconder calorias" e com treino no dia. */
   estimateKcal: number | null;
 }
 
@@ -172,6 +187,7 @@ export interface DaySummary {
   baseTargetKcal?: number;
   goalBonusKcal?: number;
   workouts: DayWorkout[];
+  movement: DayMovement;
   totals: Macros;
   meals: Meal[];
 }
@@ -402,6 +418,8 @@ export interface WeeklyReport {
   lowIntakeNote?: boolean;
   /** Só contexto (não entra no balanço): contagem e minutos de treino da semana. */
   workouts: { count: number; totalMinutes: number; byType: Partial<Record<WorkoutType, { count: number; minutes: number }>> };
+  /** Movimento: meta diária batida em N de M dias ativos (null com o medidor desligado ou sem meta). */
+  movement?: { dailyGoalMin: number; daysReached: number; activeDays: number } | null;
   /** Água: dias com registro e dias com a meta batida (null com o contador desligado ou sem registro). */
   water?: { loggedDays: number; goalDays: number } | null;
   /** Meta de peso: quanto falta (só com o peso visível nos relatórios). */

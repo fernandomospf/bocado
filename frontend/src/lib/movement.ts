@@ -4,19 +4,38 @@
  * Roda com: npm test (movement.test.mjs)
  */
 
-export const MOVEMENT_GOAL_MIN = 30;
-export const MOVEMENT_GOAL_MAX = 600;
-export const MOVEMENT_GOAL_STEP = 15;
-export const MOVEMENT_GOAL_DEFAULT = 150;
+/** Meta DIÁRIA de movimento (minutos): 15 a 240, de 5 em 5; padrão 30. */
+export const MOVEMENT_GOAL_MIN = 15;
+export const MOVEMENT_GOAL_MAX = 240;
+export const MOVEMENT_GOAL_STEP = 5;
+export const MOVEMENT_GOAL_DEFAULT = 30;
+/** Ordem dos chips de descanso (Seg a Dom) com o número do dia (0 = domingo … 6 = sábado). */
+export const REST_DAY_CHIPS = [
+  { day: 1, short: 'Seg', long: 'segunda' },
+  { day: 2, short: 'Ter', long: 'terça' },
+  { day: 3, short: 'Qua', long: 'quarta' },
+  { day: 4, short: 'Qui', long: 'quinta' },
+  { day: 5, short: 'Sex', long: 'sexta' },
+  { day: 6, short: 'Sáb', long: 'sábado' },
+  { day: 0, short: 'Dom', long: 'domingo' },
+] as const;
+
+/** Liga/desliga um dia de descanso, sem repetidos e em ordem. */
+export function toggleRestDay(days: readonly number[], day: number): number[] {
+  const set = new Set(days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6));
+  if (set.has(day)) set.delete(day);
+  else set.add(day);
+  return [...set].sort((a, b) => a - b);
+}
 /** Duração da chama viajando na ponta do arco. */
 export const FLAME_TRAVEL_MS = 1400;
 
-/** Valor anterior do medidor (a Home grava a cada desenho; vale também ao voltar de outra rota). */
-export const moveFromKey = (weekStart: string) => `bocado:moveFrom:${weekStart}`;
-/** Toast + vibração da meta batida: uma vez por semana. */
-export const moveGoalToastKey = (weekStart: string) => `bocado:moveGoal:${weekStart}`;
+/** Valor anterior do medidor, por dia (a Home grava a cada desenho; vale também ao voltar de outra rota). */
+export const moveFromKey = (date: string) => `bocado:moveFrom:${date}`;
+/** Aviso + vibração da meta do dia batida: uma vez por dia, neste aparelho. */
+export const moveReachedKey = (date: string) => `bocado:move:reached:${date}`;
 
-/** Próxima meta no stepper (de 15 em 15, entre 30 e 600). Valores fora do passo encaixam no próximo múltiplo. */
+/** Próxima meta no stepper (de 5 em 5, entre 15 e 240). Valores fora do passo encaixam no próximo múltiplo. */
 export function stepGoal(current: number | null, direction: 1 | -1): number {
   const base = current ?? MOVEMENT_GOAL_DEFAULT;
   const next = direction > 0 ? Math.floor(base / MOVEMENT_GOAL_STEP) * MOVEMENT_GOAL_STEP + MOVEMENT_GOAL_STEP : Math.ceil(base / MOVEMENT_GOAL_STEP) * MOVEMENT_GOAL_STEP - MOVEMENT_GOAL_STEP;
@@ -26,12 +45,12 @@ export function stepGoal(current: number | null, direction: 1 | -1): number {
 export type FlameState = 'off' | 'burning' | 'lit';
 
 /**
- * "Apagada" sem nada na semana; "queimando" entre 0 e 100% (a cor esquenta de forma contínua com `heat`); "acesa" só
- * quando a meta da semana fecha. Sem meta: queimando com os minutos, mas nunca "acesa".
+ * Chama do DIA mostrado: "apagada" sem minutos; "queimando" entre 0 e 100% (a cor esquenta de forma contínua com
+ * `heat`); "acesa" só com a meta do dia batida. Sem meta ou em dia de descanso: queimando com os minutos, nunca acesa.
  */
-export function flameState(doneMin: number, goalMin: number | null): { state: FlameState; heat: number } {
+export function flameState(doneMin: number, goalMin: number | null, restDay = false): { state: FlameState; heat: number } {
   if (doneMin <= 0) return { state: 'off', heat: 0 };
-  if (goalMin === null || goalMin <= 0) return { state: 'burning', heat: 0.6 };
+  if (restDay || goalMin === null || goalMin <= 0) return { state: 'burning', heat: 0.6 };
   if (doneMin >= goalMin) return { state: 'lit', heat: 1 };
   return { state: 'burning', heat: Math.min(1, Math.max(0.15, doneMin / goalMin)) };
 }

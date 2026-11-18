@@ -1,7 +1,7 @@
 /**
  * Textos e arcos de cada medidor da Home (puro, testável). Tom sem culpa: passar da meta é um dado, nunca um alerta.
- * Nenhum texto fica dentro das meias-luas: cada medidor tem um bloco de UMA linha de rótulo e UMA de valor abaixo do
- * arco. Com "esconder calorias" nenhuma kcal sai daqui (nem no texto nem no aria-label).
+ * Nenhum texto fica dentro das meias-luas: cada medidor tem um bloco de DUAS linhas abaixo do arco (valor e rótulo),
+ * cada uma em uma linha só. Com "esconder calorias" nenhuma kcal sai daqui (nem no texto nem no aria-label).
  */
 
 export interface GaugeArc {
@@ -17,22 +17,38 @@ export interface GaugeArc {
 
 export interface GaugeView {
   arcs: GaugeArc[];
-  /** Linha curta (12px) e valor (15 a 20px), sempre em uma linha cada. */
-  label: string;
+  /** Linha 1: o valor ("271"), seguido de `total` em tom muted (" / 2.400"), se houver. */
   value: string;
+  total?: string;
+  /** Linha 2 (12px, secundária). */
+  label: string;
+  /** Texto longo: a fonte reduz por container query (nunca quebra linha). */
+  fit: 'normal' | 'long';
   /** Frase completa: leitura por voz e tooltip. */
   sentence: string;
   ariaLabel: string;
 }
 
 const int = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
+const dec1 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 });
 const dec2 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });
 const n0 = (n: number) => int.format(Math.round(n));
 
 /** 1200 → "1,2 L"; 800 → "800 ml". */
 export const fmtLiters = (ml: number) => (ml >= 1000 ? `${dec2.format(ml / 1000)} L` : `${n0(ml)} ml`);
 
+/** Água do cluster, consumido / meta na MESMA unidade: "1,2 / 2,6 L"; abaixo de 1 L, "800 / 2.600 ml". */
+export function waterPair(totalMl: number, goalMl: number | null): { value: string; total?: string } {
+  const liters = totalMl >= 1000;
+  const fmt = (ml: number) => (liters ? dec1.format(ml / 1000) : n0(ml));
+  const unit = liters ? 'L' : 'ml';
+  if (goalMl === null || goalMl <= 0) return { value: `${fmt(totalMl)} ${unit}` };
+  return { value: fmt(totalMl), total: ` / ${fmt(goalMl)} ${unit}` };
+}
+
 const pct = (value: number, target: number) => Math.round(target > 0 ? (value / target) * 100 : 0);
+/** Limiar (caracteres) a partir do qual a linha usa a fonte menor. */
+const fitOf = (text: string, max: number): GaugeView['fit'] => (text.length > max ? 'long' : 'normal');
 
 // --- macros -----------------------------------------------------------------
 
@@ -58,24 +74,18 @@ export function macroView({ arcs, totals, targets, hideCalories }: MacroInput): 
   if (hideCalories) {
     const left = Math.round(targets.protein - totals.protein);
     const hit = left <= 0;
-    const sentence = hit ? 'Meta de proteína batida' : `Proteína: faltam ${n0(left)} g`;
-    return {
-      arcs: withOver,
-      label: hit ? 'Proteína' : 'Proteína · faltam',
-      value: hit ? 'batida' : `${n0(left)} g`,
-      sentence,
-      ariaLabel: `Macros. ${sentence}. ${description}`,
-    };
+    const label = hit ? 'Proteína · meta batida' : `Proteína · faltam ${n0(left)} g`;
+    const sentence = `Proteína: ${n0(totals.protein)} de ${n0(targets.protein)} g; ${hit ? 'meta batida' : `faltam ${n0(left)} g`}`;
+    const value = n0(totals.protein);
+    const total = ` / ${n0(targets.protein)} g`;
+    return { arcs: withOver, value, total, label, fit: fitOf(value + total, 13), sentence, ariaLabel: `Macros. ${sentence}. ${description}` };
   }
-  const remaining = targets.kcal - totals.kcal;
-  const sentence = remaining >= 0 ? `Restam ${n0(remaining)} kcal` : `${n0(-remaining)} kcal além da meta`;
-  return {
-    arcs: withOver,
-    label: remaining >= 0 ? 'Restam' : 'Além da meta',
-    value: `${n0(Math.abs(remaining))} kcal`,
-    sentence,
-    ariaLabel: `Macros. ${sentence}. ${description}`,
-  };
+  const remaining = Math.round(targets.kcal - totals.kcal);
+  const label = remaining >= 0 ? `kcal · restam ${n0(remaining)}` : `kcal · ${n0(-remaining)} além da meta`;
+  const sentence = `Energia: ${n0(totals.kcal)} de ${n0(targets.kcal)} kcal; ${remaining >= 0 ? `restam ${n0(remaining)} kcal` : `${n0(-remaining)} kcal além da meta`}`;
+  const value = n0(totals.kcal);
+  const total = ` / ${n0(targets.kcal)}`;
+  return { arcs: withOver, value, total, label, fit: fitOf(value + total, 13), sentence, ariaLabel: `Macros. ${sentence}. ${description}` };
 }
 
 // --- água -------------------------------------------------------------------
@@ -98,38 +108,62 @@ export function waterView({ totalMl, goalMl }: WaterInput): GaugeView {
     to: 'var(--water-2)',
     ...(over > 0 ? { overLabel: `${fmtLiters(over)} além da meta` } : {}),
   };
-  const value = fmtLiters(totalMl);
-  const sentence = `Água: ${value}${hasGoal ? ` de ${fmtLiters(goalMl)}` : ''}${arc.overLabel ? `, ${arc.overLabel}` : ''}`;
-  return { arcs: [arc], label: 'Água', value, sentence, ariaLabel: sentence };
+  const pair = waterPair(totalMl, hasGoal ? goalMl : null);
+  const sentence = `Água: ${fmtLiters(totalMl)}${hasGoal ? ` de ${fmtLiters(goalMl)}` : ''}${arc.overLabel ? `, ${arc.overLabel}` : ''}`;
+  return { arcs: [arc], ...pair, label: 'Água', fit: fitOf(pair.value + (pair.total ?? ''), 11), sentence, ariaLabel: sentence };
 }
 
 // --- movimento --------------------------------------------------------------
 
 export interface MovementInput {
-  doneMin: number;
+  /** Minutos do dia mostrado. */
+  minutes: number;
+  /** Meta DIÁRIA (null = sem meta, só os minutos). */
   goalMin: number | null;
+  restDay: boolean;
+  /** Gasto estimado do dia (já nulo do servidor sem a preferência ou com "esconder calorias"). */
+  estimateKcal: number | null;
+  hideCalories: boolean;
+  isToday: boolean;
 }
 
-/** "90/150" e "Movimento". A unidade e a semana vão no aria-label, no tooltip e na folha; a estimativa não entra aqui. */
-export function movementView({ doneMin, goalMin }: MovementInput): GaugeView {
-  const hasGoal = goalMin !== null && goalMin > 0;
-  const over = hasGoal ? Math.max(0, doneMin - goalMin) : 0;
+/**
+ * "60/30 min" (minutos do dia / meta diária) e "≈ 370 kcal" (ou "Movimento"). Dia de descanso sem treino:
+ * "Descanso", arco neutro. Descanso COM treino: só os minutos, sem meta.
+ */
+export function movementView({ minutes, goalMin, restDay, estimateKcal, hideCalories, isToday }: MovementInput): GaugeView {
+  const hasGoal = !restDay && goalMin !== null && goalMin > 0;
+  const resting = restDay && minutes <= 0;
+  const over = hasGoal ? Math.max(0, minutes - goalMin) : 0;
   const arc: GaugeArc = {
     key: 'move',
     label: 'Movimento',
-    value: doneMin,
-    target: hasGoal ? goalMin : 0, // sem meta: só a trilha, sem progresso
-    from: 'var(--flame)',
-    to: 'var(--flame-2)',
+    value: minutes,
+    target: hasGoal ? goalMin : 0, // sem meta (ou descanso): só a trilha, sem progresso
+    // Descanso sem treino: arco neutro (cinza), sem progresso
+    from: resting ? 'var(--text-3)' : 'var(--flame)',
+    to: resting ? 'var(--text-3)' : 'var(--flame-2)',
     ...(over > 0 ? { overLabel: `${n0(over)} min além da meta` } : {}),
   };
-  const sentence = hasGoal
-    ? `Movimento da semana: ${n0(doneMin)} de ${n0(goalMin)} min${arc.overLabel ? `, ${arc.overLabel}` : ''}`
-    : `Movimento da semana: ${n0(doneMin)} min`;
+  const estimate = !hideCalories && estimateKcal !== null && estimateKcal > 0 ? estimateKcal : null;
+  const when = isToday ? 'de hoje' : 'do dia';
+  const parts = [
+    resting
+      ? `Movimento ${when}: dia de descanso`
+      : hasGoal
+        ? `Movimento ${when}: ${n0(minutes)} de ${n0(goalMin)} minutos`
+        : `Movimento ${when}: ${n0(minutes)} minutos${restDay ? ', dia de descanso' : ''}`,
+  ];
+  if (estimate !== null) parts.push(`gasto estimado de ${n0(estimate)} calorias`);
+  const sentence = parts.join('; ');
+  const value = resting ? 'Descanso' : n0(minutes);
+  const total = resting ? undefined : hasGoal ? `/${n0(goalMin)} min` : ' min';
   return {
     arcs: [arc],
-    label: 'Movimento',
-    value: hasGoal ? `${n0(doneMin)}/${n0(goalMin)}` : `${n0(doneMin)} min`,
+    value,
+    total,
+    label: estimate !== null ? `≈ ${n0(estimate)} kcal` : 'Movimento',
+    fit: fitOf(value + (total ?? ''), 10),
     sentence,
     ariaLabel: sentence,
   };

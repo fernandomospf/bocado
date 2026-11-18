@@ -1191,14 +1191,16 @@ img {
   filter: drop-shadow(0 3px 8px rgb(38 54 92 / 0.14));
 }
 
-/* Bloco de texto: altura mínima IGUAL nas três colunas, uma linha por texto */
+/* Bloco de texto: duas linhas (valor e rótulo), altura mínima IGUAL nas três colunas, uma linha por texto.
+   É o contêiner das fontes fluidas (cqw = largura da coluna) */
 .gauge-text {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
+  width: 100%;
   min-height: 42px;
-  max-width: 100%;
   text-align: center;
 }
 
@@ -1216,16 +1218,35 @@ img {
   color: var(--text-2);
 }
 
+/* Rótulo longo ("kcal · 10.345 além da meta") reduz com a coluna, sem quebrar */
+.gauge-label[data-fit='long'] {
+  font-size: clamp(10px, 7.6cqw, 12px);
+}
+
+/* Laterais: 15px; texto longo ("800 / 2.600 ml") reduz com a coluna */
 .gauge-value {
-  font-size: clamp(13px, 4.4cqw, 15px);
+  font-size: clamp(12px, 18cqw, 15px);
   font-weight: 500;
   line-height: 20px;
   letter-spacing: -0.01em;
 }
 
-.gauge-value-lg {
-  font-size: clamp(13px, 5.8cqw, 20px);
+.gauge-value[data-fit='long'] {
+  font-size: clamp(11px, 15.5cqw, 15px);
+}
+
+/* Centro: 20px; números grandes ("12.345 / 12.000") reduzem até 15px */
+.gauge-value-lg,
+.gauge-value-lg[data-fit='long'] {
+  font-size: clamp(15px, 13.5cqw, 20px);
   line-height: 24px;
+}
+
+/* "/ 2.400": a meta em tom muted e um pouco menor */
+.gauge-total {
+  font-size: 0.8em;
+  font-weight: 400;
+  color: var(--text-3);
 }
 
 .half-gauge {
@@ -1339,12 +1360,6 @@ img {
   }
   .gauge-cluster[data-sides='1'] .gauge-cell-side {
     grid-column: 1 / -1;
-  }
-  .gauge-value-lg {
-    font-size: 20px;
-  }
-  .gauge-value {
-    font-size: 15px;
   }
 }
 
@@ -1497,7 +1512,26 @@ img {
   color: var(--text-2);
 }
 
-/* Stepper da meta semanal */
+/* Dias de descanso: 7 chips de largura igual, cabem em 320px */
+.rest-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.rest-day-chip {
+  justify-content: center;
+  min-width: 0;
+  padding: 0;
+  font-size: 14px;
+}
+
+/* Barra de um dia de descanso na semana: tom mais discreto */
+.move-bar-rest .move-bar-track {
+  opacity: 0.55;
+}
+
+/* Stepper da meta diária */
 .stepper {
   display: inline-flex;
   align-items: center;

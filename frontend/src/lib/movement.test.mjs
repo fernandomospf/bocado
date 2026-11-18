@@ -9,7 +9,8 @@ import {
   isSectionOpen,
   mealsSummary,
   moveFromKey,
-  moveGoalToastKey,
+  moveReachedKey,
+  toggleRestDay,
   readSections,
   sectionsKey,
   stepGoal,
@@ -39,24 +40,41 @@ describe('chama', () => {
     assert.ok(easeOutCubic(0.5) > 0.5);
   });
 
-  it('chaves de armazenamento por semana', () => {
-    assert.equal(moveFromKey('2026-11-16'), 'bocado:moveFrom:2026-11-16');
-    assert.notEqual(moveGoalToastKey('2026-11-16'), moveGoalToastKey('2026-11-23'));
+  it('chama do DIA: descanso ou sem meta nunca acende', () => {
+    assert.equal(flameState(30, 30).state, 'lit');
+    assert.equal(flameState(29, 30).state, 'burning');
+    assert.equal(flameState(90, 30, true).state, 'burning');
+    assert.equal(flameState(0, 30, true).state, 'off');
+  });
+
+  it('chaves de armazenamento por dia', () => {
+    assert.equal(moveFromKey('2026-11-18'), 'bocado:moveFrom:2026-11-18');
+    assert.equal(moveReachedKey('2026-11-18'), 'bocado:move:reached:2026-11-18');
+    assert.notEqual(moveReachedKey('2026-11-18'), moveReachedKey('2026-11-19'));
   });
 });
 
-describe('stepper da meta (15 em 15, de 30 a 600)', () => {
-  it('sobe e desce 15 e respeita os limites', () => {
-    assert.equal(stepGoal(150, 1), 165);
-    assert.equal(stepGoal(150, -1), 135);
-    assert.equal(stepGoal(30, -1), 30);
-    assert.equal(stepGoal(600, 1), 600);
-    assert.equal(stepGoal(595, 1), 600);
+describe('stepper da meta diária (5 em 5, de 15 a 240)', () => {
+  it('sobe e desce 5 e respeita os limites', () => {
+    assert.equal(stepGoal(30, 1), 35);
+    assert.equal(stepGoal(30, -1), 25);
+    assert.equal(stepGoal(15, -1), 15);
+    assert.equal(stepGoal(240, 1), 240);
+    assert.equal(stepGoal(238, 1), 240);
   });
-  it('valor fora do passo encaixa no próximo múltiplo de 15; sem meta parte de 150', () => {
-    assert.equal(stepGoal(155, 1), 165);
-    assert.equal(stepGoal(155, -1), 150);
-    assert.equal(stepGoal(null, 1), 165);
+  it('valor fora do passo encaixa no próximo múltiplo de 5; sem meta parte de 30', () => {
+    assert.equal(stepGoal(32, 1), 35);
+    assert.equal(stepGoal(32, -1), 30);
+    assert.equal(stepGoal(null, 1), 35);
+  });
+});
+
+describe('dias de descanso', () => {
+  it('liga e desliga, sem repetidos e em ordem; ignora lixo', () => {
+    assert.deepEqual(toggleRestDay([], 6), [6]);
+    assert.deepEqual(toggleRestDay([6], 0), [0, 6]);
+    assert.deepEqual(toggleRestDay([0, 6], 6), [0]);
+    assert.deepEqual(toggleRestDay([0, 0, 9], 3), [0, 3]);
   });
 });
 

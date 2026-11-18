@@ -6,7 +6,9 @@
 //   - a borda direita de todo card visível == a do card dos medidores (±1px);
 //   - nenhum elemento visível com right > clientWidth + 1 (fora a faixa de chips, que rola de propósito);
 //   - cabeçalho em uma linha: "Refeições" à esquerda e "12 itens · 12.345 kcal" (ou "· P … g" sem calorias) à direita;
-//   - topo 100% transparente com scrollY = 0 (sem blur, sem máscara) e vidro leve depois de rolar.
+//   - topo 100% transparente com scrollY = 0 (sem blur, sem máscara) e vidro leve depois de rolar;
+//   - textos dos três medidores: duas linhas por coluna, cada uma sem quebrar nem cortar, mesma altura nas três;
+//     sem calorias, nenhuma "kcal" no cluster.
 //
 // Precisa do app no ar (API + Next). Uso:
 //   E2E_BASE_URL=http://localhost:3000 node --test e2e/home-width.e2e.mjs
@@ -50,7 +52,7 @@ async function session(key) {
     });
   }
   await req.patch(`${BASE}/api/profile/preferences`, {
-    data: { hideCalories: user.hideCalories, waterEnabled: true, movementEnabled: true, movementGoalMin: 150 },
+    data: { hideCalories: user.hideCalories, waterEnabled: true, movementEnabled: true, movementDailyGoalMin: 30 },
   });
   const day = await (await req.get(`${BASE}/api/days/${today}`)).json();
   if (day.meals.length === 0) {
@@ -115,6 +117,14 @@ function measure() {
     summary: summary.textContent,
     headOneLine: head.getBoundingClientRect().height < 56 && Math.abs(title.getBoundingClientRect().top - summary.getBoundingClientRect().top) < 12,
     top: { scrolled: bar.hasAttribute('data-scrolled'), backdrop: bs.backdropFilter, mask: bs.maskImage, bg: bs.backgroundColor },
+    gaugeText: [...document.querySelectorAll('.gauge-cluster .gauge-text')].map((t) => ({
+      height: Math.round(t.getBoundingClientRect().height),
+      lines: [...t.children].map((el) => ({
+        text: el.textContent,
+        bad: el.getBoundingClientRect().height > parseFloat(getComputedStyle(el).lineHeight) * 1.5 || el.scrollWidth > el.clientWidth + 0.5,
+      })),
+    })),
+    clusterText: document.querySelector('.gauge-cluster').innerText,
   };
 }
 
@@ -170,6 +180,14 @@ for (const key of Object.keys(USERS)) {
               assert.match(m.summary, USERS[key].summary);
               assert.ok(m.headOneLine, `${where}: cabeçalho do dropdown em uma linha`);
               if (USERS[key].hideCalories) assert.doesNotMatch(m.summary, /kcal/);
+              // Medidores: 3 colunas de 2 linhas, nenhuma quebra/corte, mesma altura
+              assert.equal(m.gaugeText.length, 3, `${where}: três blocos de texto`);
+              for (const g of m.gaugeText) {
+                assert.equal(g.lines.length, 2);
+                for (const l of g.lines) assert.ok(!l.bad, `${where}: "${l.text}" quebrou ou foi cortado`);
+              }
+              assert.equal(new Set(m.gaugeText.map((g) => g.height)).size, 1, `${where}: alturas dos textos ${m.gaugeText.map((g) => g.height)}`);
+              if (USERS[key].hideCalories) assert.doesNotMatch(m.clusterText, /kcal/i);
               // Topo: transparente com scrollY = 0
               assert.equal(m.top.scrolled, false, `${where}: topo acendeu sem rolar`);
               assert.equal(m.top.backdrop, 'none');

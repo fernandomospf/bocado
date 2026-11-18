@@ -4,25 +4,36 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { readFrom } from '@/lib/gauge';
 import { movementView } from '@/lib/gaugeModel';
 import { success } from '@/lib/haptics';
-import { FLAME_TRAVEL_MS, flameState, moveFromKey, moveGoalToastKey } from '@/lib/movement';
-import type { MovementWeek } from '@/lib/types';
+import { FLAME_TRAVEL_MS, flameState, moveFromKey, moveReachedKey } from '@/lib/movement';
+import type { DayMovement } from '@/lib/types';
+import { GaugeText } from './GaugeText';
 import { HalfGauge } from './HalfGauge';
 import { FlameIcon } from './Icons';
 import { useToast } from './Toast';
 
 const BURST_MS = 600;
 
+interface MovementGaugeProps {
+  date: string;
+  movement: DayMovement;
+  hideCalories: boolean;
+  isToday: boolean;
+  onOpen: () => void;
+}
+
 /**
- * Medidor de movimento da semana (direita do cluster). Ao subir, o arco preenche em ~1,4 s com uma chama pequena
- * viajando na ponta; ao fechar a meta da semana: brilho curto, chama acesa, toast e vibração uma vez por semana.
- * Com movimento reduzido, nada viaja nem tremula: o arco só muda de valor e a chama acesa fica estática.
+ * Medidor de movimento do DIA mostrado (direita do cluster): minutos / meta diária. Ao subir, o arco preenche em
+ * ~1,4 s com uma chama pequena viajando na ponta; ao bater a meta do dia: brilho curto, chama acesa, aviso e vibração
+ * uma vez por dia. Com movimento reduzido, nada viaja nem tremula: o arco só muda de valor e a chama acesa fica parada.
  */
-export function MovementGauge({ week, onOpen }: { week: MovementWeek; onOpen: () => void }) {
+export function MovementGauge({ date, movement, hideCalories, isToday, onOpen }: MovementGaugeProps) {
   const gid = useId().replace(/:/g, '');
   const toast = useToast();
-  const view = movementView({ doneMin: week.doneMin, goalMin: week.goalMin });
-  const { state, heat } = flameState(week.doneMin, week.goalMin);
-  const memoryKey = moveFromKey(week.weekStart);
+  const view = movementView({ ...movement, hideCalories, isToday });
+  // Acesa só com a meta do DIA batida (o mesmo que `movement.reached`)
+  const { state, heat } = flameState(movement.minutes, movement.goalMin, movement.restDay);
+  const lit = state === 'lit';
+  const memoryKey = moveFromKey(date);
 
   // A meta já estava batida no último desenho? Lido ANTES de o medidor gravar o valor novo (null = sem histórico)
   const [initialReached] = useState<boolean | null>(() => {
@@ -32,8 +43,8 @@ export function MovementGauge({ week, onOpen }: { week: MovementWeek; onOpen: ()
   });
   const prevReached = useRef(initialReached);
   const [burst, setBurst] = useState(false);
-  const reachedRef = useRef(week.reached);
-  reachedRef.current = week.reached;
+  const reachedRef = useRef(lit);
+  reachedRef.current = lit;
 
   const celebrate = useCallback(() => {
     if (!reachedRef.current) return;
@@ -43,23 +54,24 @@ export function MovementGauge({ week, onOpen }: { week: MovementWeek; onOpen: ()
       setBurst(true);
       window.setTimeout(() => setBurst(false), BURST_MS + 50);
     }
-    // Toast e vibração: uma vez por semana, neste aparelho
+    // Aviso e vibração: uma vez por dia, neste aparelho, e só no dia de hoje
+    if (!crossed || !isToday) return;
     try {
-      const key = moveGoalToastKey(week.weekStart);
-      if (crossed && !window.localStorage.getItem(key)) {
+      const key = moveReachedKey(date);
+      if (!window.localStorage.getItem(key)) {
         window.localStorage.setItem(key, '1');
-        toast.show({ message: 'Meta de movimento da semana batida', durationMs: 3500 });
+        toast.show({ message: 'Meta de movimento de hoje batida', durationMs: 3500 });
         success();
       }
     } catch {
-      /* sem armazenamento: sem toast */
+      /* sem armazenamento: sem aviso */
     }
-  }, [toast, week.weekStart]);
+  }, [toast, date, isToday]);
 
-  // Meta reduzida/aumentada ou treino apagado: deixou de estar batida, volta ao normal
+  // Meta subiu ou treino apagado: deixou de estar batida, a chama volta ao normal
   useEffect(() => {
-    if (!week.reached) prevReached.current = false;
-  }, [week.reached, week.goalMin]);
+    if (!lit) prevReached.current = false;
+  }, [lit, movement.goalMin]);
 
   return (
     <button type="button" className={`gauge-btn move-${state}`} aria-label={view.ariaLabel} title={view.sentence} onClick={onOpen}>
@@ -84,10 +96,7 @@ export function MovementGauge({ week, onOpen }: { week: MovementWeek; onOpen: ()
         <FlameIcon state={state} heat={heat} gradientId={`${gid}-flame`} className="gauge-slot-icon" />
       </HalfGauge>
       {burst && <span className="move-burst" aria-hidden />}
-      <span className="gauge-text">
-        <span className="gauge-value num">{view.value}</span>
-        <span className="gauge-label">{view.label}</span>
-      </span>
+      <GaugeText view={view} />
     </button>
   );
 }

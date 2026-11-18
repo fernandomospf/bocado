@@ -17,7 +17,7 @@ import {
   slotBox,
   writeFrom,
 } from './gauge.ts';
-import { fmtLiters, macroView, movementView, waterView } from './gaugeModel.ts';
+import { fmtLiters, macroView, movementView, waterPair, waterView } from './gaugeModel.ts';
 import { ringSpecs } from '../components/ringSpecs.ts';
 
 const close = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps, `${a} ≠ ${b}`);
@@ -150,73 +150,129 @@ describe('layout do cluster', () => {
   });
 });
 
-describe('macros (centro)', () => {
-  const targets = { kcal: 2000, protein: 150, carbs: 220, fat: 70 };
+describe('energia (centro)', () => {
+  const targets = { kcal: 2400, protein: 194, carbs: 220, fat: 70 };
   const view = (totals, hideCalories) => macroView({ arcs: ringSpecs(totals, targets, hideCalories), totals, targets, hideCalories });
 
-  it('quatro arcos, do externo ao interno: Energia, Proteína, Carboidratos, Gorduras', () => {
-    const v = view({ kcal: 1191, protein: 102, carbs: 100, fat: 30 }, false);
+  it('quatro arcos (Energia no externo); "271 / 2.400" e "kcal · restam 2.129"', () => {
+    const v = view({ kcal: 271, protein: 34, carbs: 30, fat: 10 }, false);
     assert.deepEqual(v.arcs.map((a) => a.key), ['kcal', 'protein', 'carbs', 'fat']);
-    assert.equal(v.sentence, 'Restam 809 kcal');
-    assert.equal(v.label, 'Restam');
-    assert.equal(v.value, '809 kcal');
+    assert.equal(v.value, '271');
+    assert.equal(v.total, ' / 2.400');
+    assert.equal(v.label, 'kcal · restam 2.129');
+    assert.equal(v.fit, 'normal');
   });
 
-  it('passou da meta: dado neutro, "X kcal além da meta" e marcador só nos arcos que passaram', () => {
-    const v = view({ kcal: 2300, protein: 100, carbs: 100, fat: 30 }, false);
-    assert.equal(v.sentence, '300 kcal além da meta');
-    assert.equal(v.arcs[0].overLabel, '300 kcal além da meta');
-    assert.equal(v.arcs[1].overLabel, undefined);
+  it('faixas: zero, exatamente na meta, acima da meta (cor normal, "além da meta")', () => {
+    assert.equal(view({ kcal: 0, protein: 0, carbs: 0, fat: 0 }, false).label, 'kcal · restam 2.400');
+    assert.equal(view({ kcal: 2400, protein: 0, carbs: 0, fat: 0 }, false).label, 'kcal · restam 0');
+    const over = view({ kcal: 2520, protein: 100, carbs: 100, fat: 30 }, false);
+    assert.equal(over.label, 'kcal · 120 além da meta');
+    assert.equal(over.arcs[0].overLabel, '120 kcal além da meta');
+    assert.equal(over.arcs[1].overLabel, undefined);
   });
 
-  it('sem calorias: 3 arcos (Proteína no externo) e nenhuma kcal em lugar nenhum', () => {
-    const v = view({ kcal: 3000, protein: 102, carbs: 100, fat: 30 }, true);
+  it('números grandes: "12.345 / 12.000", marcados como longos (a fonte reduz)', () => {
+    const t = { kcal: 12000, protein: 194, carbs: 220, fat: 70 };
+    const v = macroView({ arcs: ringSpecs({ kcal: 12345, protein: 1, carbs: 1, fat: 1 }, t, false), totals: { kcal: 12345, protein: 1 }, targets: t, hideCalories: false });
+    assert.equal(`${v.value}${v.total}`, '12.345 / 12.000');
+    assert.equal(v.fit, 'long');
+    assert.equal(v.label, 'kcal · 345 além da meta');
+  });
+
+  it('sem calorias: proteína no centro ("34 / 194 g", "Proteína · faltam 160 g") e nenhuma kcal', () => {
+    const v = view({ kcal: 3000, protein: 34, carbs: 100, fat: 30 }, true);
     assert.deepEqual(v.arcs.map((a) => a.key), ['protein', 'carbs', 'fat']);
-    assert.equal(v.sentence, 'Proteína: faltam 48 g');
-    assert.equal(v.value, '48 g');
+    assert.equal(`${v.value}${v.total}`, '34 / 194 g');
+    assert.equal(v.label, 'Proteína · faltam 160 g');
     assert.doesNotMatch(JSON.stringify(v), /kcal|Energia|calor/i);
-    assert.equal(view({ kcal: 0, protein: 150, carbs: 0, fat: 0 }, true).sentence, 'Meta de proteína batida');
-    assert.doesNotMatch(JSON.stringify(view({ kcal: 0, protein: 190, carbs: 0, fat: 0 }, true)), /kcal|Energia|calor/i);
+    const hit = view({ kcal: 0, protein: 200, carbs: 0, fat: 0 }, true);
+    assert.equal(hit.label, 'Proteína · meta batida');
+    assert.doesNotMatch(JSON.stringify(hit), /kcal|Energia|calor/i);
   });
 });
 
-describe('água e movimento', () => {
+describe('água', () => {
   it('litros: 1200 → "1,2 L", 800 → "800 ml"', () => {
     assert.equal(fmtLiters(1200), '1,2 L');
-    assert.equal(fmtLiters(2600), '2,6 L');
     assert.equal(fmtLiters(800), '800 ml');
   });
 
-  it('água: valor e rótulo curtos, sem status no cluster; excesso neutro', () => {
+  it('par consumido / meta na mesma unidade: L a partir de 1 L, ml abaixo', () => {
+    assert.deepEqual(waterPair(1200, 2600), { value: '1,2', total: ' / 2,6 L' });
+    assert.deepEqual(waterPair(800, 2600), { value: '800', total: ' / 2.600 ml' });
+    assert.deepEqual(waterPair(0, 2600), { value: '0', total: ' / 2.600 ml' });
+    assert.deepEqual(waterPair(1000, 2000), { value: '1', total: ' / 2 L' });
+    assert.deepEqual(waterPair(3050, 2600), { value: '3,1', total: ' / 2,6 L' });
+    assert.deepEqual(waterPair(500, null), { value: '500 ml' });
+  });
+
+  it('rótulo "Água", sem status no cluster; excesso neutro', () => {
     const w = waterView({ totalMl: 1200, goalMl: 2600 });
-    assert.equal(w.value, '1,2 L');
     assert.equal(w.label, 'Água');
-    assert.equal(waterView({ totalMl: 800, goalMl: 2600 }).value, '800 ml');
     assert.doesNotMatch(JSON.stringify(w), /ritmo|copo/);
+    assert.equal(waterView({ totalMl: 800, goalMl: 2600 }).fit, 'long');
     assert.equal(waterView({ totalMl: 3000, goalMl: 2600 }).arcs[0].overLabel, '400 ml além da meta');
     assert.equal(waterView({ totalMl: 500, goalMl: null }).arcs[0].target, 0);
   });
+});
 
-  it('movimento: "90/150" e "Movimento"; unidade e semana só no aria-label; nunca kcal no cluster', () => {
-    const m = movementView({ doneMin: 90, goalMin: 150 });
-    assert.equal(m.value, '90/150');
-    assert.equal(m.label, 'Movimento');
-    assert.equal(m.ariaLabel, 'Movimento da semana: 90 de 150 min');
-    assert.doesNotMatch(JSON.stringify(m), /kcal/i);
+describe('movimento (dia)', () => {
+  const base = { minutes: 60, goalMin: 30, restDay: false, estimateKcal: 370, hideCalories: false, isToday: true };
+
+  it('"60/30 min" e "≈ 370 kcal"; aria-label completo', () => {
+    const m = movementView(base);
+    assert.equal(`${m.value}${m.total}`, '60/30 min');
+    assert.equal(m.label, '≈ 370 kcal');
+    assert.equal(m.ariaLabel, 'Movimento de hoje: 60 de 30 minutos; gasto estimado de 370 calorias');
+    assert.equal(m.arcs[0].target, 30);
+    assert.equal(m.arcs[0].overLabel, '30 min além da meta');
   });
 
-  it('movimento sem meta: só os minutos, sem progresso; acima da meta: "X min além da meta"', () => {
-    const none = movementView({ doneMin: 45, goalMin: null });
-    assert.equal(none.value, '45 min');
-    assert.equal(none.arcs[0].target, 0);
-    assert.equal(movementView({ doneMin: 180, goalMin: 150 }).arcs[0].overLabel, '30 min além da meta');
+  it('estimativa desligada (null do servidor) ou com "esconder calorias": "Movimento", sem kcal', () => {
+    assert.equal(movementView({ ...base, estimateKcal: null }).label, 'Movimento');
+    const hidden = movementView({ ...base, hideCalories: true });
+    assert.equal(hidden.label, 'Movimento');
+    assert.doesNotMatch(JSON.stringify(hidden), /kcal|calorias/i);
   });
 
-  it('nenhum texto novo usa vocabulário de culpa', () => {
+  it('sem meta: só os minutos, sem progresso', () => {
+    const m = movementView({ ...base, goalMin: null, estimateKcal: null });
+    assert.equal(`${m.value}${m.total}`, '60 min');
+    assert.equal(m.arcs[0].target, 0);
+    assert.equal(m.ariaLabel, 'Movimento de hoje: 60 minutos');
+  });
+
+  it('descanso sem treino: "Descanso" / "Movimento", arco neutro; descanso com treino: minutos sem meta', () => {
+    const rest = movementView({ ...base, minutes: 0, restDay: true, estimateKcal: null });
+    assert.equal(rest.value, 'Descanso');
+    assert.equal(rest.total, undefined);
+    assert.equal(rest.label, 'Movimento');
+    assert.equal(rest.arcs[0].target, 0);
+    assert.equal(rest.arcs[0].from, 'var(--text-3)');
+    const restWith = movementView({ ...base, restDay: true });
+    assert.equal(`${restWith.value}${restWith.total}`, '60 min');
+    assert.equal(restWith.arcs[0].target, 0);
+    assert.match(restWith.ariaLabel, /dia de descanso/);
+  });
+
+  it('dia passado: "do dia" em vez de "de hoje"', () => {
+    assert.match(movementView({ ...base, isToday: false }).ariaLabel, /^Movimento do dia: 60 de 30 minutos/);
+  });
+
+  it('números grandes ("240/240 min") marcados como longos', () => {
+    assert.equal(movementView({ ...base, minutes: 240, goalMin: 240 }).fit, 'long');
+    assert.equal(movementView(base).fit, 'normal');
+  });
+});
+
+describe('vocabulário', () => {
+  it('nenhum texto dos medidores usa vocabulário de culpa', () => {
     const all = JSON.stringify([
       macroView({ arcs: ringSpecs({ kcal: 9, protein: 9, carbs: 9, fat: 9 }, { kcal: 1, protein: 1, carbs: 1, fat: 1 }), totals: { kcal: 9, protein: 9 }, targets: { kcal: 1, protein: 1 }, hideCalories: false }),
       waterView({ totalMl: 5000, goalMl: 2000 }),
-      movementView({ doneMin: 900, goalMin: 150 }),
+      movementView({ minutes: 900, goalMin: 30, restDay: false, estimateKcal: 900, hideCalories: false, isToday: true }),
+      movementView({ minutes: 0, goalMin: 30, restDay: true, estimateKcal: null, hideCalories: false, isToday: true }),
     ]);
     assert.doesNotMatch(all, /queimou|queimad|compensar|falhou|vermelho|red/i);
   });

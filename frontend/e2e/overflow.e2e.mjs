@@ -31,8 +31,8 @@ const LONG_FOOD = 'Feijoadacompletacomcouvelaranjafarofabaconlinguicacalabresaet
 const LONG_RECIPE = 'Escondidinhodemandiocacomcarnesecadesfiadaqueijocoalhoemanteigadegarrafa';
 
 const USERS = {
-  bad: { email: 'e2e-overflow@example.test', prefs: { hideCalories: false, workoutEstimateEnabled: true, waterEnabled: true, movementEnabled: true, movementGoalMin: 150 } },
-  hide: { email: 'e2e-overflow-hide@example.test', prefs: { hideCalories: true, workoutEstimateEnabled: true, waterEnabled: true, movementEnabled: true, movementGoalMin: 150 } },
+  bad: { email: 'e2e-overflow@example.test', prefs: { hideCalories: false, workoutEstimateEnabled: true, waterEnabled: true, movementEnabled: true, movementDailyGoalMin: 30 } },
+  hide: { email: 'e2e-overflow-hide@example.test', prefs: { hideCalories: true, workoutEstimateEnabled: true, waterEnabled: true, movementEnabled: true, movementDailyGoalMin: 30 } },
 };
 
 const today = (() => {

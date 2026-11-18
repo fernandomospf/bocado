@@ -8,10 +8,10 @@ import { tap } from './haptics';
 import { useProfile } from './hooks';
 import type { Profile } from './types';
 
-export type MovementPatch = Partial<Pick<Profile, 'movementEnabled' | 'movementGoalMin' | 'workoutEstimateEnabled'>>;
+export type MovementPatch = Partial<Pick<Profile, 'movementEnabled' | 'movementDailyGoalMin' | 'movementRestDays' | 'workoutEstimateEnabled'>>;
 
 /**
- * Salva preferências de movimento (otimista) e revalida o resumo da semana e os dias. A meta de movimento não muda
+ * Salva preferências de movimento (otimista) e revalida a semana, os dias e os relatórios. A meta de movimento não muda
  * nenhuma meta de calorias, nem a adaptativa, nem a de água.
  */
 export function useMovementPrefs() {
@@ -34,7 +34,15 @@ export function useMovementPrefs() {
           rollbackOnError: true,
           revalidate: false,
         });
-        void globalMutate((key) => typeof key === 'string' && (key.startsWith('/workouts') || (patch.workoutEstimateEnabled !== undefined && (key.startsWith('/days') || key.startsWith('/suggestions')))));
+        // A meta diária, os descansos e a estimativa mudam o `movement` de cada dia e o relatório da semana
+        void globalMutate(
+          (key) =>
+            typeof key === 'string' &&
+            (key.startsWith('/workouts') ||
+              key.startsWith('/days') ||
+              key.startsWith('/reports') ||
+              (patch.workoutEstimateEnabled !== undefined && key.startsWith('/suggestions'))),
+        );
         return true;
       } catch (err) {
         toast.show({ message: errorMessage(err), tone: 'error' });

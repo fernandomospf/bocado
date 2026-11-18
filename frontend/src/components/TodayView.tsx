@@ -177,7 +177,15 @@ export function TodayView() {
 
         {/* key por dia: o bloco remonta e entra deslizando do lado da troca */}
         <section key={date} className="card glass day-slide gauge-card" aria-label="Resumo do dia">
-          <GaugeCluster date={date} targets={targets ?? undefined} totals={totals} meals={data?.meals ?? []} hideCalories={hide} />
+          <GaugeCluster
+            date={date}
+            targets={targets ?? undefined}
+            totals={totals}
+            meals={data?.meals ?? []}
+            hideCalories={hide}
+            movement={data?.movement}
+            isToday={date === today}
+          />
           {/* Soma do treino ligada: a meta base e o bônus aparecem separados */}
           {!hide && data?.goalBonusKcal ? (
             <p className="caption num" style={{ textAlign: 'center' }}>

@@ -4,9 +4,10 @@ import { type CSSProperties, useState } from 'react';
 import { fmtInt } from '@/lib/format';
 import { ringsFromKey } from '@/lib/gauge';
 import { macroView, waterView } from '@/lib/gaugeModel';
-import { useMovementWeek, useProfile, useWaterDay } from '@/lib/hooks';
-import type { Macros, Meal } from '@/lib/types';
+import { useProfile, useWaterDay } from '@/lib/hooks';
+import type { DayMovement, Macros, Meal } from '@/lib/types';
 import { DayCompositionSheet } from './DayCompositionSheet';
+import { GaugeText } from './GaugeText';
 import { HalfGauge } from './HalfGauge';
 import { DropIcon } from './Icons';
 import { MovementGauge } from './MovementGauge';
@@ -20,6 +21,9 @@ interface GaugeClusterProps {
   totals: Macros;
   meals: Meal[];
   hideCalories: boolean;
+  /** Movimento do dia mostrado (GET /days/:date). */
+  movement?: DayMovement;
+  isToday: boolean;
 }
 
 /** Legenda curta (a Energia já está no centro; sem calorias, a Proteína também). */
@@ -35,7 +39,7 @@ const STRIP = [
  * O tamanho vem do espaço do CARD (container query em globals.css, `.gauge-cluster`), não da tela. Medidores
  * desligados somem; macros fica sempre presente e no centro.
  */
-export function GaugeCluster({ date, targets, totals, meals, hideCalories }: GaugeClusterProps) {
+export function GaugeCluster({ date, targets, totals, meals, hideCalories, movement, isToday }: GaugeClusterProps) {
   const { data: profile } = useProfile();
   const { openWater, openMovement } = useQuickSheets();
   const [compositionOpen, setCompositionOpen] = useState(false);
@@ -44,7 +48,6 @@ export function GaugeCluster({ date, targets, totals, meals, hideCalories }: Gau
   const waterOn = profile ? profile.waterEnabled : true;
   const moveOn = profile ? profile.movementEnabled : true;
   const water = useWaterDay(date, !!profile?.waterEnabled);
-  const week = useMovementWeek(date, !!profile?.movementEnabled);
   const sides = (waterOn ? 1 : 0) + (moveOn ? 1 : 0);
   const memoryKey = ringsFromKey(date);
 
@@ -75,10 +78,7 @@ export function GaugeCluster({ date, targets, totals, meals, hideCalories }: Gau
                 <HalfGauge arcs={waterModel.arcs} size={100} strokeWidth={8} memoryKey={memoryKey}>
                   <DropIcon className="gauge-slot-icon" style={{ color: 'var(--water)' }} />
                 </HalfGauge>
-                <span className="gauge-text">
-                  <span className="gauge-value num">{waterModel.value}</span>
-                  <span className="gauge-label">{waterModel.label}</span>
-                </span>
+                <GaugeText view={waterModel} />
               </button>
             ) : (
               <SideFallback label="Água" failed={!!water.error} />
@@ -89,19 +89,16 @@ export function GaugeCluster({ date, targets, totals, meals, hideCalories }: Gau
         <div className="gauge-cell gauge-cell-center">
           <button type="button" className="gauge-btn" aria-label={macro.ariaLabel} title={macro.sentence} onClick={() => setCompositionOpen(true)}>
             <HalfGauge arcs={macro.arcs} size={150} strokeWidth={10} gap={3} memoryKey={memoryKey} />
-            <span className="gauge-text">
-              <span className="gauge-label">{macro.label}</span>
-              <span className="gauge-value gauge-value-lg num">{macro.value}</span>
-            </span>
+            <GaugeText view={macro} large />
           </button>
         </div>
 
         {moveOn && (
           <div className="gauge-cell gauge-cell-move gauge-cell-side">
-            {profile?.movementEnabled && week.data ? (
-              <MovementGauge week={week.data} onOpen={() => openMovement(date)} />
+            {profile?.movementEnabled && movement ? (
+              <MovementGauge date={date} movement={movement} hideCalories={hideCalories} isToday={isToday} onOpen={() => openMovement(date)} />
             ) : (
-              <SideFallback label="Movimento" failed={!!week.error} />
+              <SideFallback label="Movimento" failed={false} />
             )}
           </div>
         )}
@@ -141,10 +138,7 @@ function SideFallback({ label, failed }: { label: string; failed: boolean }) {
   if (!failed) return <div className="skeleton gauge-skeleton" />;
   return (
     <div className="gauge-btn gauge-empty">
-      <span className="gauge-text">
-        <span className="gauge-value">—</span>
-        <span className="gauge-label">{label}</span>
-      </span>
+      <GaugeText view={{ value: '—', label, fit: 'normal' }} />
     </div>
   );
 }
