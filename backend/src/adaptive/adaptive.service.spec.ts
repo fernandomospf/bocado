@@ -49,6 +49,18 @@ function setup({ over = {}, lastDecision = null as Date | null, firstMeal = day(
 }
 
 // firstMeal padrão: day(-13) = 40 dias atrás
+describe('AdaptiveService com o modo GLP-1', () => {
+  it('a meta adaptativa fica pausada (nenhuma sugestão) e não dá para aplicar', async () => {
+    const { service } = setup({ over: { glp1Mode: true } });
+    expect(await service.status('user-1', TODAY)).toMatchObject({ enabled: false, state: 'disabled' });
+    await expect(service.apply('user-1', { today: TODAY, expectedKcal: 2050 })).rejects.toBeInstanceOf(ConflictException);
+  });
+  it('sem o modo GLP-1 a sugestão continua igual', async () => {
+    const { service } = setup({ over: { glp1Mode: false } });
+    expect(await service.status('user-1', TODAY)).toMatchObject({ enabled: true, state: 'suggestion' });
+  });
+});
+
 describe('AdaptiveService.status', () => {
   it('só lê os dados do usuário da sessão', async () => {
     const { service, prisma } = setup();

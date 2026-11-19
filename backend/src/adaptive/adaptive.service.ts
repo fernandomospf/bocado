@@ -51,8 +51,9 @@ export class AdaptiveService {
 
     const input: AdaptiveInput = {
       today,
-      // Com "esconder calorias" nenhuma sugestão é calculada nem aplicada (a preferência guardada não muda)
-      enabled: profile.adaptiveEnabled && !profile.hideCalories,
+      // Com "esconder calorias" nenhuma sugestão é calculada nem aplicada (a preferência guardada não muda).
+      // Com o modo GLP-1 também fica pausada: parte da perda vem da medicação e confundiria a estimativa do gasto
+      enabled: profile.adaptiveEnabled && !profile.hideCalories && !profile.glp1Mode,
       snoozedUntil: profile.adaptiveSnoozedUntil ? formatDay(profile.adaptiveSnoozedUntil) : null,
       lastDecisionDate: last ? formatDay(last.createdAt) : null,
       firstMealDate: first ? formatDay(first.date) : null,

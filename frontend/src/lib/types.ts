@@ -65,6 +65,12 @@ export interface Profile extends BodyData {
   supplementsEnabled: boolean;
   /** Na tela Hoje, mostra "Medicação 1" / "Suplemento 2" em vez do nome. */
   supplementsMaskNamesOnHome: boolean;
+  /** Jejum intermitente (privado, desligado por padrão). */
+  fastingEnabled: boolean;
+  /** Modo GLP-1 (privado). Com ele desligado, `proteinFloorG` e a sugestão vêm nulos. */
+  glp1Mode: boolean;
+  proteinFloorG: number | null;
+  proteinFloorSuggestion: number | null;
   /** Meta de peso (kg), se houver. */
   goalWeightKg: number | null;
   updatedAt: string;
@@ -264,6 +270,8 @@ export interface FoodResult {
   /** Só produtos industrializados. */
   brand?: string | null;
   barcode?: string | null;
+  /** Produto confirmado por 2 ou mais pessoas diferentes (selo "Verificado"). */
+  verified?: boolean;
 }
 
 export type BarcodeLookup =
@@ -334,6 +342,8 @@ export interface AnalysisResult {
   totals: Macros;
   hasCookedFood: boolean;
   preparationFat: PreparationFatGuess;
+  /** Só no prato por quilo: o peso da balança, a que as gramas dos itens somam. */
+  totalGrams?: number;
 }
 
 export interface FatPortion extends Macros {
@@ -428,6 +438,13 @@ export interface WeeklyReport {
   water?: { loggedDays: number; goalDays: number } | null;
   /** Meta de peso: quanto falta (só com o peso visível nos relatórios). */
   weightGoal?: { targetKg: number; remainingKg: number } | null;
+  /** Modo GLP-1 (privado): piso de proteína, bem-estar resumido e o aviso de baixa ingestão. */
+  glp1?: {
+    proteinFloorG: number;
+    proteinFloorDays: number;
+    wellbeing: { loggedDays: number; nausea: [number, number, number]; gi: [number, number, number] } | null;
+    lowIntake: boolean;
+  } | null;
 }
 
 export interface WeeklyListItem {
@@ -629,4 +646,16 @@ export interface WeightMarker {
   date: string;
   planId: string;
   label: string;
+}
+
+/** Bem-estar do dia (modo GLP-1 ou suplementos): escalas de 0 a 3, nulas = sem resposta. */
+export interface WellbeingDay {
+  date: string;
+  nausea: number | null;
+  appetite: number | null;
+  energy: number | null;
+  gi: number | null;
+  note: string | null;
+  /** "Dia N desde a última aplicação" do plano injetável (só com suplementos ligados). */
+  dayOfCycle?: number | null;
 }

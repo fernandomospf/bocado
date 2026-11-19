@@ -35,6 +35,7 @@ function setup() {
   const prisma = {
     food: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), findUniqueOrThrow: jest.fn() },
     foodReport: { findUnique: jest.fn(), create: jest.fn(), count: jest.fn(), deleteMany: jest.fn() },
+    foodConfirmation: { deleteMany: jest.fn() },
     barcodeMiss: { deleteMany: jest.fn() },
     $transaction: jest.fn(),
   };
@@ -120,7 +121,7 @@ describe('FoodsService.report', () => {
     const out = await service.report('user-3', 'food-1', 'Calorias erradas');
 
     expect(prisma.foodReport.create).toHaveBeenCalledWith({ data: { foodId: 'food-1', userId: 'user-3', reason: 'Calorias erradas' } });
-    expect(prisma.food.update).toHaveBeenCalledWith({ where: { id: 'food-1' }, data: { reportCount: 3, status: FoodStatus.REPORTED } });
+    expect(prisma.food.update).toHaveBeenCalledWith({ where: { id: 'food-1' }, data: { reportCount: 3, status: FoodStatus.REPORTED, verifyCount: 0 } });
     expect(out).toEqual({ reportCount: 3, status: FoodStatus.REPORTED, alreadyReported: false });
   });
 

@@ -40,6 +40,20 @@ export class FoodsController {
     return this.foods.report(user.id, id, reason);
   }
 
+  /** Situação do selo "Verificado" para a pessoa (contagem, se já confirmou, se o produto é dela). */
+  @Get(':id/verification')
+  verification(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.foods.verification(user.id, id);
+  }
+
+  /** "Os valores conferem com o rótulo": uma confirmação por pessoa; o criador do produto não conta. */
+  @Post(':id/confirm')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  confirm(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.foods.confirm(user.id, id);
+  }
+
   @Post()
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateFoodDto) {
     return this.foods.create(user.id, dto);

@@ -57,9 +57,11 @@ export interface MacroInput {
   totals: { kcal: number; protein: number };
   targets: { kcal: number; protein: number };
   hideCalories: boolean;
+  /** Modo GLP-1: o texto central passa a ser a proteína contra o piso (a energia continua no arco externo). */
+  proteinFloor?: number | null;
 }
 
-export function macroView({ arcs, totals, targets, hideCalories }: MacroInput): GaugeView {
+export function macroView({ arcs, totals, targets, hideCalories, proteinFloor }: MacroInput): GaugeView {
   const withOver: GaugeArc[] = arcs
     // Modo sem calorias: a Energia nem entra (o backend guarda tudo, a tela só não mostra)
     .filter((a) => !(hideCalories && a.key === 'kcal'))
@@ -71,13 +73,16 @@ export function macroView({ arcs, totals, targets, hideCalories }: MacroInput): 
     .map((a) => `${a.label}: ${pct(a.value, a.target)}% da meta${a.overLabel ? `, ${a.overLabel}` : ''}`)
     .join('; ');
 
-  if (hideCalories) {
-    const left = Math.round(targets.protein - totals.protein);
+  const proteinFirst = hideCalories || (proteinFloor ?? 0) > 0;
+  if (proteinFirst) {
+    const goal = proteinFloor && proteinFloor > 0 ? proteinFloor : targets.protein;
+    const left = Math.round(goal - totals.protein);
     const hit = left <= 0;
-    const label = hit ? 'Proteína · meta batida' : `Proteína · faltam ${n0(left)} g`;
-    const sentence = `Proteína: ${n0(totals.protein)} de ${n0(targets.protein)} g; ${hit ? 'meta batida' : `faltam ${n0(left)} g`}`;
+    const reached = proteinFloor ? 'piso batido' : 'meta batida';
+    const label = hit ? `Proteína · ${reached}` : `Proteína · faltam ${n0(left)} g`;
+    const sentence = `Proteína: ${n0(totals.protein)} de ${n0(goal)} g; ${hit ? reached : `faltam ${n0(left)} g`}`;
     const value = n0(totals.protein);
-    const total = ` / ${n0(targets.protein)} g`;
+    const total = ` / ${n0(goal)} g`;
     return { arcs: withOver, value, total, label, fit: fitOf(value + total, 13), sentence, ariaLabel: `Macros. ${sentence}. ${description}` };
   }
   const remaining = Math.round(targets.kcal - totals.kcal);

@@ -9,7 +9,8 @@ import { useLastWorkout, useProfile } from '@/lib/hooks';
 import { useWorkoutActions } from '@/lib/useWorkouts';
 import { workoutSummary } from '@/lib/workouts';
 import { useHasActiveSupplements } from '@/lib/useSupplements';
-import { CapsuleIcon, DropIcon, DumbbellIcon, PlusIcon, PotIcon, RepeatIcon, ScaleIcon } from './Icons';
+import { useSpeechSupported } from '@/lib/speech';
+import { CapsuleIcon, DropIcon, DumbbellIcon, HourglassIcon, MicIcon, PlusIcon, PotIcon, RepeatIcon, ScaleIcon } from './Icons';
 import { useQuickSheets } from './QuickSheets';
 
 /**
@@ -18,8 +19,9 @@ import { useQuickSheets } from './QuickSheets';
  */
 export function QuickAddMenu() {
   const pathname = usePathname();
-  const { openWorkout, openWeight, openWater, openSupplements, defaultDate } = useQuickSheets();
+  const { openWorkout, openWeight, openWater, openSupplements, openFasting, defaultDate } = useQuickSheets();
   const hasSupplements = useHasActiveSupplements();
+  const canSpeak = useSpeechSupported();
   const { data: profile } = useProfile();
   const { data: last } = useLastWorkout();
   const { repeat } = useWorkoutActions();
@@ -105,6 +107,24 @@ export function QuickAddMenu() {
             </span>
           </Link>
 
+          {/* Só existe se o navegador reconhece voz; abre a Nova refeição em Descrever, já ouvindo */}
+          {canSpeak && (
+            <Link
+              href={`${mealHref}${mealHref.includes('?') ? '&' : '?'}voice=1`}
+              role="menuitem"
+              className="quick-item"
+              onClick={() => choose()}
+            >
+              <span className="quick-icon">
+                <MicIcon width={22} height={22} />
+              </span>
+              <span className="quick-text">
+                <strong>Falar refeição</strong>
+                <span className="caption">Diga o que você comeu</span>
+              </span>
+            </Link>
+          )}
+
           <button type="button" role="menuitem" className="quick-item" onClick={() => choose(() => openWorkout())}>
             <span className="quick-icon">
               <DumbbellIcon width={22} height={22} />
@@ -148,6 +168,19 @@ export function QuickAddMenu() {
               <span className="quick-text">
                 <strong>Suplementos</strong>
                 <span className="caption">Registrar o que você toma hoje</span>
+              </span>
+            </button>
+          )}
+
+          {/* Jejum: só com a preferência ligada (menores de 18 anos não conseguem ligá-la) */}
+          {profile?.fastingEnabled && (
+            <button type="button" role="menuitem" className="quick-item" onClick={() => choose(openFasting)}>
+              <span className="quick-icon">
+                <HourglassIcon width={22} height={22} />
+              </span>
+              <span className="quick-text">
+                <strong>Jejum</strong>
+                <span className="caption">Iniciar ou ver sua janela</span>
               </span>
             </button>
           )}

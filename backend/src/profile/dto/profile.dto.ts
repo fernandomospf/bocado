@@ -146,4 +146,21 @@ export class PreferencesDto {
   @ValidateIf((o: PreferencesDto) => o.supplementsMaskNamesOnHome !== undefined)
   @IsBoolean()
   supplementsMaskNamesOnHome?: boolean;
+
+  /** Jejum intermitente (null não vale). Menores de 18 anos não podem ligar (403). */
+  @ValidateIf((o: PreferencesDto) => o.fastingEnabled !== undefined)
+  @IsBoolean()
+  fastingEnabled?: boolean;
+
+  /** Modo GLP-1 (null não vale). Menores de 18 anos não podem ligar (403). */
+  @ValidateIf((o: PreferencesDto) => o.glp1Mode !== undefined)
+  @IsBoolean()
+  glp1Mode?: boolean;
+
+  /** Piso de proteína em g/dia (30 a 300); null volta a usar a sugestão. */
+  @ValidateIf((o: PreferencesDto) => o.proteinFloorG !== undefined && o.proteinFloorG !== null)
+  @IsInt({ message: 'Informe o piso de proteína em gramas' })
+  @Min(30, { message: 'O piso de proteína precisa ser de pelo menos 30 g' })
+  @Max(300, { message: 'O piso de proteína pode ter no máximo 300 g' })
+  proteinFloorG?: number | null;
 }

@@ -8,7 +8,7 @@ import { api } from '@/lib/api';
 import { addDays, dayTitle, isValidISO, todayISO } from '@/lib/date';
 import { fmtInt } from '@/lib/format';
 import { tap } from '@/lib/haptics';
-import { useDay, useLastWorkout, useMe, useWeekStartsOn } from '@/lib/hooks';
+import { useDay, useLastWorkout, useMe, useProfile, useWeekStartsOn } from '@/lib/hooks';
 import { activitiesSummary, mealsSummary } from '@/lib/movement';
 import { useHomeSections } from '@/lib/useHomeSections';
 import { useWorkoutActions } from '@/lib/useWorkouts';
@@ -32,6 +32,9 @@ import { RecipePickerSheet } from './RecipePickerSheet';
 import { OfferCards } from './OfferCards';
 import type { SplitState } from './SplitPicker';
 import { GaugeCluster } from './GaugeCluster';
+import { Glp1Home } from './Glp1';
+import { ReturnCard } from './ReturnCard';
+import { FastingLine } from './Fasting';
 import { SupplementsSection, useSupplementsToday } from './SupplementsSection';
 import { useQuickSheets } from './QuickSheets';
 import { DayPills } from './DayPills';
@@ -75,6 +78,7 @@ export function TodayView() {
   const [recipeFor, setRecipeFor] = useState<MealType | null>(null);
   const [portion, setPortion] = useState<{ type: MealType; food: FoodResult } | null>(null);
   const { data: me } = useMe();
+  const glp1 = useProfile().data?.glp1Mode === true;
   const workouts = data?.workouts ?? [];
   const supp = useSupplementsToday(date);
   const sections = useHomeSections(me?.id, { hasWorkouts: workouts.length > 0, hasPendingSupplements: supp.pending });
@@ -177,6 +181,8 @@ export function TodayView() {
           </p>
         )}
 
+        {date === today && <ReturnCard date={date} />}
+
         {/* key por dia: o bloco remonta e entra deslizando do lado da troca */}
         <section key={date} className="card glass day-slide gauge-card" aria-label="Resumo do dia">
           <GaugeCluster
@@ -195,6 +201,10 @@ export function TodayView() {
             </p>
           ) : null}
         </section>
+
+        {date === today && <FastingLine />}
+
+        <Glp1Home date={date} />
 
         <OfferCards />
 
@@ -314,7 +324,7 @@ export function TodayView() {
           </div>
 
           {/* Depois do Jantar, como último bloco das refeições (no desktop, no fim da coluna das refeições) */}
-          {targets && (
+          {targets && !glp1 && (
             <CloseDayCard
               date={date}
               isToday={date === today}

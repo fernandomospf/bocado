@@ -86,7 +86,7 @@ export function WaterSheet({ date, onClose }: { date: string; onClose: () => voi
             {day ? (
               <>
                 <p className="title num">{day.goalMl ? `${fmtMl(day.totalMl)} de ${fmtMl(day.goalMl)} ml` : `${fmtMl(day.totalMl)} ml`}</p>
-                {status !== 'plain' && <p className={`water-status water-status-${status}`}>{STATUS_LABEL[status]}</p>}
+                {status !== 'plain' && <p className={`water-status water-status-${status}`} data-emphasis={(profile?.glp1Mode && status === 'nudge') || undefined}>{STATUS_LABEL[status]}</p>}
                 {isWellOver(day.totalMl, day.goalMl) && <p className="caption">Você já passou bem da meta de hoje. Não precisa forçar.</p>}
                 {day.needsManualGoal && (
                   <p className="note">

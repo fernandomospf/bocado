@@ -3,8 +3,10 @@ import { MealType } from '@prisma/client';
 import { formatDay, parseDay } from '../common/dates';
 import { latestAllowedDay } from '../meals/meals.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { recentLoggedKcal } from '../glp1/glp1.data';
+import { effectiveProteinFloor, isLowIntake, proteinFloorDays, suggestProteinFloor, summarizeWellbeing } from '../profile/glp1';
 import { suggestTargets } from '../profile/nutrition';
-import { addDays, movingAverages } from '../weight/weight.math';
+import { addDays, movingAverages, summarizeTrend } from '../weight/weight.math';
 import { summarizeMovementWeek, summarizeWeek } from '../workouts/workout.math';
 import { buildWeeklyReport, type DayInput, pendingWeekStart, weekEndOf, weekStartOf } from './weekly.math';
 
@@ -114,7 +116,36 @@ export class ReportsService {
         ? { targetKg: profile.goalWeightKg, remainingKg: Math.round(Math.abs(movingAverages(weights.map((w) => ({ date: formatDay(w.date), weightKg: w.weightKg }))).at(-1)!.trendKg - profile.goalWeightKg) * 10) / 10 }
         : null;
 
-    return { ...report, workouts, movement, water, weightGoal };
+    const glp1 = profile.glp1Mode ? await this.glp1Block(userId, profile, weekStart, weekEnd, [...byDay.values()], weights) : null;
+    // No modo GLP-1 o aviso da média semanal sai: vale só o aviso de segurança dos últimos 5 dias registrados (glp1.lowIntake)
+    return { ...report, ...(glp1 ? { lowIntakeNote: false } : {}), workouts, movement, water, weightGoal, glp1 };
+  }
+
+  /**
+   * Modo GLP-1 (privado, nunca vai para IA, admin ou casa): dias com o piso de proteína batido, resumo neutro do
+   * bem-estar e o aviso de baixa ingestão. A água já vem no bloco `water` do relatório.
+   */
+  private async glp1Block(
+    userId: string,
+    profile: Awaited<ReturnType<ReportsService['profile']>>,
+    weekStart: string,
+    weekEnd: string,
+    days: DayInput[],
+    weights: { date: Date; weightKg: number }[],
+  ) {
+    const rows = await this.prisma.wellbeingLog.findMany({
+      where: { userId, date: { gte: parseDay(weekStart), lte: parseDay(weekEnd) } },
+      select: { nausea: true, appetite: true, energy: true, gi: true },
+    });
+    const trend = summarizeTrend(weights.filter((w) => formatDay(w.date) <= weekEnd).map((w) => ({ date: formatDay(w.date), weightKg: w.weightKg }))).trendKg;
+    const floor = effectiveProteinFloor(profile.proteinFloorG, suggestProteinFloor(profile.proteinTarget, trend ?? profile.weightKg));
+    const upTo = weekEnd < latestAllowedDay() ? weekEnd : latestAllowedDay();
+    return {
+      proteinFloorG: floor,
+      proteinFloorDays: proteinFloorDays(days.filter((d) => d.totals).map((d) => ({ protein: d.totals!.protein })), floor),
+      wellbeing: rows.length > 0 ? summarizeWellbeing(rows) : null,
+      lowIntake: isLowIntake(await recentLoggedKcal(this.prisma, userId, upTo), profile.sex),
+    };
   }
 
   /** Dias com ao menos uma refeição com alimentos, do mais recente para o mais antigo. */

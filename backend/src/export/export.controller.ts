@@ -3,6 +3,8 @@ import { Throttle } from '@nestjs/throttler';
 import { Readable } from 'node:stream';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { PrivateRouteExceptionFilter } from '../common/private-routes';
+import { FastingGuard, WellbeingGuard } from '../glp1/glp1.access';
 import { SupplementsGuard } from '../supplements/supplements.guard';
 import { SupplementsExceptionFilter } from '../supplements/supplements.http';
 import { ExportQueryDto } from './dto';
@@ -10,7 +12,7 @@ import { ExportService } from './export.service';
 import { resolvePeriod } from './period';
 
 /** Arquivo transmitido em streaming, com nome e tipo para download. */
-function csvFile(chunks: AsyncGenerator<string>, kind: 'refeicoes' | 'peso' | 'treinos' | 'agua' | 'suplementos', from: string, to: string) {
+function csvFile(chunks: AsyncGenerator<string>, kind: 'refeicoes' | 'peso' | 'treinos' | 'agua' | 'suplementos' | 'jejum' | 'bem-estar', from: string, to: string) {
   return new StreamableFile(Readable.from(chunks), {
     type: 'text/csv; charset=utf-8',
     disposition: `attachment; filename="bocado-${kind}-${from}_a_${to}.csv"`,
@@ -74,5 +76,45 @@ export class ExportController {
   supplements(@CurrentUser() user: AuthUser, @Query() q: ExportQueryDto) {
     const { from, to } = resolvePeriod(q.period, q.to);
     return csvFile(this.exports.supplementsCsv(user.id, from, to), 'suplementos', from, to);
+  }
+
+  /**
+   * Jejum e bem-estar (dados de saúde sensíveis): rotas à parte, só com o recurso ativado, nunca no `summary` padrão e sem
+   * cache. As opções ficam DESLIGADAS por padrão no app e nunca são marcadas sozinhas.
+   */
+  @UseGuards(FastingGuard)
+  @UseFilters(PrivateRouteExceptionFilter)
+  @Header('Cache-Control', 'no-store')
+  @Get('fasting/summary')
+  fastingSummary(@CurrentUser() user: AuthUser, @Query() q: ExportQueryDto) {
+    const { from, to } = resolvePeriod(q.period, q.to);
+    return this.exports.fastingSummary(user.id, from, to);
+  }
+
+  @UseGuards(FastingGuard)
+  @UseFilters(PrivateRouteExceptionFilter)
+  @Header('Cache-Control', 'no-store')
+  @Get('fasting.csv')
+  fasting(@CurrentUser() user: AuthUser, @Query() q: ExportQueryDto) {
+    const { from, to } = resolvePeriod(q.period, q.to);
+    return csvFile(this.exports.fastingCsv(user.id, from, to), 'jejum', from, to);
+  }
+
+  @UseGuards(WellbeingGuard)
+  @UseFilters(PrivateRouteExceptionFilter)
+  @Header('Cache-Control', 'no-store')
+  @Get('wellbeing/summary')
+  wellbeingSummary(@CurrentUser() user: AuthUser, @Query() q: ExportQueryDto) {
+    const { from, to } = resolvePeriod(q.period, q.to);
+    return this.exports.wellbeingSummary(user.id, from, to);
+  }
+
+  @UseGuards(WellbeingGuard)
+  @UseFilters(PrivateRouteExceptionFilter)
+  @Header('Cache-Control', 'no-store')
+  @Get('wellbeing.csv')
+  wellbeing(@CurrentUser() user: AuthUser, @Query() q: ExportQueryDto) {
+    const { from, to } = resolvePeriod(q.period, q.to);
+    return csvFile(this.exports.wellbeingCsv(user.id, from, to), 'bem-estar', from, to);
   }
 }

@@ -5,10 +5,11 @@ import { api, ApiError, errorMessage } from '@/lib/api';
 import { addDays, todayISO } from '@/lib/date';
 import { tap } from '@/lib/haptics';
 import { saveFile } from '@/lib/saveFile';
+import { useProfile } from '@/lib/hooks';
 import { useSupplementsEnabled } from '@/lib/useSupplements';
 import { useToast } from './Toast';
 
-type Kind = 'meals' | 'weight' | 'water' | 'supplements';
+type Kind = 'meals' | 'weight' | 'water' | 'supplements' | 'fasting' | 'wellbeing';
 type Period = '7d' | '15d' | '30d' | '90d' | '180d' | '365d';
 
 const KINDS: { value: Kind; label: string }[] = [
@@ -31,6 +32,8 @@ const EMPTY: Record<Kind, string> = {
   weight: 'Nenhum registro de peso nesse período',
   water: 'Nenhum registro de água nesse período',
   supplements: 'Nenhum registro de suplementos e medicações nesse período',
+  fasting: 'Nenhuma janela de jejum nesse período',
+  wellbeing: 'Nenhum registro de bem-estar nesse período',
 };
 
 const FILE: Record<Kind, { path: string; name: string }> = {
@@ -38,7 +41,12 @@ const FILE: Record<Kind, { path: string; name: string }> = {
   weight: { path: 'weight', name: 'peso' },
   water: { path: 'water', name: 'agua' },
   supplements: { path: 'supplements', name: 'suplementos' },
+  fasting: { path: 'fasting', name: 'jejum' },
+  wellbeing: { path: 'wellbeing', name: 'bem-estar' },
 };
+
+/** Conjuntos sensíveis: cada um tem a rota de resumo própria e a chave da contagem. */
+const SENSITIVE_COUNT: Partial<Record<Kind, string>> = { supplements: 'supplements', fasting: 'fasting', wellbeing: 'wellbeing' };
 
 const br = (iso: string) => iso.split('-').reverse().join('/');
 
@@ -53,11 +61,23 @@ export function ExportCard({ hasWeight = true }: { hasWeight?: boolean }) {
   // Dado sensível: só existe com o módulo ativo, começa DESLIGADO e nunca é marcado sozinho (nem lembrado)
   const supplementsOn = useSupplementsEnabled();
   const [includeSupplements, setIncludeSupplements] = useState(false);
+  // Jejum e bem-estar: também sensíveis, desligados por padrão e nunca marcados sozinhos
+  const { data: profile } = useProfile();
+  const adult = !!profile && profile.age >= 18;
+  const fastingOn = adult && !!profile?.fastingEnabled;
+  const wellbeingOn = adult && (!!profile?.glp1Mode || !!profile?.supplementsEnabled);
+  const [includeFasting, setIncludeFasting] = useState(false);
+  const [includeWellbeing, setIncludeWellbeing] = useState(false);
 
   const to = todayISO();
   const from = addDays(to, -((PERIODS.find((p) => p.value === period)?.days ?? 30) - 1));
   const baseKinds = hasWeight ? KINDS : KINDS.filter((k) => k.value !== 'weight');
-  const kinds = supplementsOn && includeSupplements ? [...baseKinds, { value: 'supplements' as const, label: 'Suplementos' }] : baseKinds;
+  const kinds: { value: Kind; label: string }[] = [
+    ...baseKinds,
+    ...(supplementsOn && includeSupplements ? [{ value: 'supplements' as const, label: 'Suplementos' }] : []),
+    ...(fastingOn && includeFasting ? [{ value: 'fasting' as const, label: 'Jejum' }] : []),
+    ...(wellbeingOn && includeWellbeing ? [{ value: 'wellbeing' as const, label: 'Bem-estar' }] : []),
+  ];
 
   async function download() {
     setBusy(true);
@@ -65,10 +85,10 @@ export function ExportCard({ hasWeight = true }: { hasWeight?: boolean }) {
     try {
       const query = `period=${period}&to=${to}`;
       // Antes de baixar: o período tem registros?
-      const total =
-        kind === 'supplements'
-          ? (await api<{ supplements: number }>(`/export/supplements/summary?${query}`)).supplements
-          : await api<{ items: number; weights: number; water?: number }>(`/export/summary?${query}`).then((count) =>
+      const sensitiveKey = SENSITIVE_COUNT[kind];
+      const total = sensitiveKey
+        ? ((await api<Record<string, number>>(`/export/${FILE[kind].path}/summary?${query}`))[sensitiveKey] ?? 0)
+        : await api<{ items: number; weights: number; water?: number }>(`/export/summary?${query}`).then((count) =>
               kind === 'meals' ? count.items : kind === 'weight' ? count.weights : (count.water ?? 0),
             );
       if (total === 0) {
@@ -125,6 +145,44 @@ export function ExportCard({ hasWeight = true }: { hasWeight?: boolean }) {
             />
           </label>
           {includeSupplements && <p className="caption">O arquivo sai com os nomes que você cadastrou e fica só no seu aparelho.</p>}
+        </div>
+      )}
+
+      {(fastingOn || wellbeingOn) && (
+        <div className="stack-sm">
+          {fastingOn && (
+            <label className="switch-row">
+              <span>Incluir jejum (dado sensível)</span>
+              <input
+                type="checkbox"
+                role="switch"
+                className="switch"
+                checked={includeFasting}
+                onChange={(e) => {
+                  setIncludeFasting(e.target.checked);
+                  setEmpty(null);
+                  setKind(e.target.checked ? 'fasting' : 'meals');
+                }}
+              />
+            </label>
+          )}
+          {wellbeingOn && (
+            <label className="switch-row">
+              <span>Incluir bem-estar (dado sensível)</span>
+              <input
+                type="checkbox"
+                role="switch"
+                className="switch"
+                checked={includeWellbeing}
+                onChange={(e) => {
+                  setIncludeWellbeing(e.target.checked);
+                  setEmpty(null);
+                  setKind(e.target.checked ? 'wellbeing' : 'meals');
+                }}
+              />
+            </label>
+          )}
+          {(includeFasting || includeWellbeing) && <p className="caption">Esses arquivos saem só com o que você registrou e ficam só no seu aparelho.</p>}
         </div>
       )}
 

@@ -12,6 +12,7 @@ import { ProfileService } from '../profile/profile.service';
 import { CreateMealDto, MealSnapshotDto, MoveMealItemDto, RepeatMealDto, UpdateMealItemDto } from './dto/meal.dto';
 import { summarizeDayWorkouts, summarizeMovementDay } from '../workouts/workout.math';
 import { groupRecentMeals } from './recent';
+import { dayNumber } from '../weight/weight.math';
 
 export interface Totals {
   kcal: number;
@@ -119,6 +120,22 @@ export class MealsService {
    * Refeições distintas dos últimos 30 dias (mesmo conjunto de alimentos e gramas = uma só), com a frequência.
    * Com `type`, as desse tipo vêm primeiro e as demais completam a lista.
    */
+  /**
+   * Dias desde o último registro (refeição com ao menos um alimento, até `today`). 0 = registrou hoje;
+   * nulo = nunca registrou (conta nova: não há "retorno" a recepcionar).
+   */
+  async lastLog(userId: string, today: string) {
+    if (today > latestAllowedDay()) throw new BadRequestException('Data inválida');
+    const last = await this.prisma.meal.findFirst({
+      where: { userId, date: { lte: parseDay(today) }, items: { some: {} } },
+      orderBy: { date: 'desc' },
+      select: { date: true },
+    });
+    if (!last) return { lastLogDate: null, daysSinceLastLog: null };
+    const lastLogDate = formatDay(last.date);
+    return { lastLogDate, daysSinceLastLog: dayNumber(today) - dayNumber(lastLogDate) };
+  }
+
   async recent(userId: string, type?: MealType, limit = 8) {
     const since = formatDay(new Date(Date.now() - RECENT_DAYS * 86_400_000));
     const meals = await this.prisma.meal.findMany({

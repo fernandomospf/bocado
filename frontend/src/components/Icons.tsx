@@ -228,3 +228,48 @@ export const CapsuleIcon = (p: IconProps) => (
     <path d="m8.5 8.5 7 7" />
   </svg>
 );
+
+/** Microfone: registro por voz. */
+export const MicIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <rect x="9" y="3" width="6" height="11" rx="3" />
+    <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M9 21h6" />
+  </svg>
+);
+
+/** Balança de cozinha: modo "Por quilo" (a de pesagem corporal é a ScaleIcon). */
+export const KitchenScaleIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M6 20h12l1.5-9h-15z" />
+    <path d="M9 11a3 3 0 0 1 6 0M12 8.2l1.2-1.6" />
+  </svg>
+);
+
+/** Ampulheta: jejum intermitente. */
+export const HourglassIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M7 3h10M7 21h10M8 3v3.5a4 4 0 0 0 1.6 3.2L12 12l2.4-2.3A4 4 0 0 0 16 6.5V3M8 21v-3.5a4 4 0 0 1 1.6-3.2L12 12l2.4 2.3a4 4 0 0 1 1.6 3.2V21" />
+  </svg>
+);
+
+/** Sinal de pulso: "Como você está hoje?". */
+export const PulseIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M3 12h4l2-5 4 10 2-5h6" />
+  </svg>
+);
+
+/** Cesta: lista de compras. */
+export const BasketIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M4 10h16l-1.6 9a2 2 0 0 1-2 1.6H7.6a2 2 0 0 1-2-1.6zM8 10l3-6M16 10l-3-6" />
+  </svg>
+);
+
+/** Selo de verificado. */
+export const VerifiedIcon = (p: IconProps) => (
+  <svg {...base(p)}>
+    <path d="M12 3l2.4 1.8 3-.2 1 2.8 2.4 1.8-.9 2.9.9 2.9-2.4 1.8-1 2.8-3-.2L12 21l-2.4-1.8-3 .2-1-2.8L3.2 14.8l.9-2.9-.9-2.9 2.4-1.8 1-2.8 3 .2z" />
+    <path d="M8.8 12.2l2.2 2.2 4.2-4.4" />
+  </svg>
+);

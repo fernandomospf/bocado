@@ -1,7 +1,7 @@
 import { Body, Patch, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Put } from '@nestjs/common';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { SaveRecipeDto, ShareRecipeDto } from './dto/recipe.dto';
+import { SaveRecipeDto, ShareRecipeDto, ShoppingListDto } from './dto/recipe.dto';
 import { RecipesService } from './recipes.service';
 
 @Controller('recipes')
@@ -12,6 +12,16 @@ export class RecipesController {
   @Get()
   list(@CurrentUser() user: AuthUser) {
     return this.recipes.list(user.id);
+  }
+
+  /**
+   * Lista de compras: ingredientes das receitas escolhidas (vezes de preparo), somados por nome, em gramas arredondadas a
+   * 10 g e agrupados pela categoria da TACO. Sem IA; só receitas visíveis à pessoa. (Declarada antes das rotas com :id.)
+   */
+  @Post('shopping-list')
+  @HttpCode(200)
+  shoppingList(@CurrentUser() user: AuthUser, @Body() dto: ShoppingListDto) {
+    return this.recipes.shoppingList(user.id, dto.items);
   }
 
   @Get(':id')

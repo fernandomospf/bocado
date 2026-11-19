@@ -4,7 +4,9 @@ import { WaterService } from '../water/water.service';
 import { formatDay, parseDay } from '../common/dates';
 import { PrismaService } from '../prisma/prisma.service';
 import { BodyDataDto, PreferencesDto, SaveProfileDto, TargetsDto } from './dto/profile.dto';
+import { effectiveProteinFloor, suggestProteinFloor } from './glp1';
 import { ageFrom, BodyData, suggestTargets, Targets } from './nutrition';
+import { summarizeTrend } from '../weight/weight.math';
 
 @Injectable()
 export class ProfileService {
@@ -110,6 +112,14 @@ export class ProfileService {
     if (dto.supplementsEnabled === true && ageFrom(existing.birthDate) < 18) {
       throw new ForbiddenException('Este recurso não está disponível para menores de 18 anos.');
     }
+    // Modo GLP-1: indisponível para menores de 18 anos (403 neutro)
+    if ((dto.glp1Mode === true || (dto.proteinFloorG !== undefined && dto.proteinFloorG !== null)) && ageFrom(existing.birthDate) < 18) {
+      throw new ForbiddenException('Este recurso não está disponível para menores de 18 anos.');
+    }
+    // Jejum: indisponível para menores de 18 anos (403 neutro)
+    if (dto.fastingEnabled === true && ageFrom(existing.birthDate) < 18) {
+      throw new ForbiddenException('Este recurso não está disponível para menores de 18 anos.');
+    }
     // A soma à meta só existe com a estimativa ligada: desligar a estimativa desliga a soma junto
     const estimate = dto.workoutEstimateEnabled ?? existing.workoutEstimateEnabled;
     const addToGoal = estimate ? (dto.workoutAddToGoal ?? existing.workoutAddToGoal) : false;
@@ -133,6 +143,9 @@ export class ProfileService {
         ...(dto.movementEnabled !== undefined ? { movementEnabled: dto.movementEnabled } : {}),
         ...(dto.supplementsEnabled !== undefined ? { supplementsEnabled: dto.supplementsEnabled } : {}),
         ...(dto.supplementsMaskNamesOnHome !== undefined ? { supplementsMaskNamesOnHome: dto.supplementsMaskNamesOnHome } : {}),
+        ...(dto.fastingEnabled !== undefined ? { fastingEnabled: dto.fastingEnabled } : {}),
+        ...(dto.glp1Mode !== undefined ? { glp1Mode: dto.glp1Mode } : {}),
+        ...(dto.proteinFloorG !== undefined ? { proteinFloorG: dto.proteinFloorG } : {}),
         ...(dto.movementDailyGoalMin !== undefined ? { movementDailyGoalMin: dto.movementDailyGoalMin } : {}),
         ...(dto.movementRestDays !== undefined ? { movementRestDays: [...dto.movementRestDays].sort((a, b) => a - b) } : {}),
       },
@@ -146,7 +159,28 @@ export class ProfileService {
     return profile ? fromProfile(profile) : null;
   }
 
-  private serialize(p: Profile) {
+  /**
+   * Piso de proteína do modo GLP-1: o editado ou a sugestão (maior entre a meta de proteína e 1,2 g/kg da tendência de
+   * peso, até 200 g). Referência geral, não prescrição. Só é calculado com o modo ligado (dado sensível).
+   */
+  private async glp1Fields(p: Profile) {
+    if (!p.glp1Mode) return { glp1Mode: false, proteinFloorG: null, proteinFloorSuggestion: null };
+    const recent = await this.prisma.weightEntry.findMany({
+      where: { userId: p.userId },
+      orderBy: { date: 'desc' },
+      take: 30,
+      select: { date: true, weightKg: true },
+    });
+    const trend = summarizeTrend(recent.reverse().map((w) => ({ date: formatDay(w.date), weightKg: w.weightKg }))).trendKg;
+    const suggestion = suggestProteinFloor(p.proteinTarget, trend ?? p.weightKg);
+    return { glp1Mode: true, proteinFloorG: effectiveProteinFloor(p.proteinFloorG, suggestion), proteinFloorSuggestion: suggestion };
+  }
+
+  private async serialize(p: Profile) {
+    return { ...this.serializeBase(p), ...(await this.glp1Fields(p)) };
+  }
+
+  private serializeBase(p: Profile) {
     return {
       sex: p.sex,
       birthDate: formatDay(p.birthDate),
@@ -171,6 +205,7 @@ export class ProfileService {
       movementRestDays: p.movementRestDays,
       supplementsEnabled: p.supplementsEnabled,
       supplementsMaskNamesOnHome: p.supplementsMaskNamesOnHome,
+      fastingEnabled: p.fastingEnabled,
       adaptiveEnabled: p.adaptiveEnabled,
       workoutEstimateEnabled: p.workoutEstimateEnabled,
       workoutAddToGoal: p.workoutAddToGoal,

@@ -879,6 +879,21 @@ img {
   }
 }
 
+/* 6 modos: em telas estreitas, 3 por linha (nenhum rótulo cortado) */
+@media (max-width: 520px) {
+  .segmented.segmented-modes {
+    grid-auto-flow: row;
+    grid-auto-columns: unset;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-radius: 22px;
+  }
+
+  .segmented-modes button {
+    min-height: 40px;
+    font-size: 14px;
+  }
+}
+
 /* Leitor de código de barras */
 .scanner {
   position: relative;
@@ -4780,3 +4795,278 @@ body:not(:has(.tabbar)) .toast-region {
   border-radius: 22px;
 }
 
+
+/* --------------------------------------------------------------------------
+   Registro por voz
+   -------------------------------------------------------------------------- */
+
+.mic-btn[data-listening] {
+  background: var(--accent);
+  color: #fff;
+}
+
+.input-with-mic {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input-with-mic > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.voice-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.voice-status:empty {
+  display: none;
+}
+
+.voice-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 15px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+.voice-waves {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+  flex: none;
+}
+
+.voice-waves i {
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: scaleY(0.35);
+  animation: voice-wave 1s ease-in-out infinite;
+}
+
+.voice-waves i:nth-child(2) { animation-delay: 0.12s; }
+.voice-waves i:nth-child(3) { animation-delay: 0.24s; }
+.voice-waves i:nth-child(4) { animation-delay: 0.36s; }
+.voice-waves i:nth-child(5) { animation-delay: 0.48s; }
+
+@keyframes voice-wave {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-waves i {
+    animation: none;
+    transform: scaleY(0.6);
+  }
+}
+
+.input-with-mic .mic-btn {
+  margin-left: auto;
+}
+
+.input-with-mic > .field + .mic-btn {
+  margin-left: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Prato por quilo
+   -------------------------------------------------------------------------- */
+
+.weight-input .input {
+  min-height: 56px;
+  font-size: 28px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.weighed-line {
+  padding: 0 4px;
+  color: var(--text-2);
+}
+
+.weighed-line[data-match] {
+  color: var(--text);
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 15px;
+}
+
+.check-row input {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+/* --------------------------------------------------------------------------
+   Modo GLP-1 e bem-estar (tons neutros: nenhuma cor de julgamento)
+   -------------------------------------------------------------------------- */
+
+.scale-chips {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.scale-chip {
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 4px;
+  font-size: clamp(12px, 3.6vw, 14px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scale-chip[aria-pressed='true'] {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: none;
+}
+
+.wellbeing-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gauge-btn[data-nudge] .gauge-label {
+  color: var(--water);
+  font-weight: 700;
+}
+
+.water-status[data-emphasis] {
+  font-size: 18px;
+  font-weight: 750;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--water) 16%, transparent);
+}
+
+/* Jejum: barra de progresso neutra (sem cor de alerta) */
+.fast-bar {
+  display: block;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--glass-line);
+  overflow: hidden;
+}
+
+.fast-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 400ms var(--ease);
+}
+
+.fast-bar-lg {
+  height: 10px;
+}
+
+.fasting-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fasting-line .list-row-main {
+  min-width: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fast-bar > span {
+    transition: none;
+  }
+}
+
+/* Selo "Verificado" (acervo) */
+.badge-row {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.badge-row-end {
+  flex: none;
+  justify-content: flex-end;
+}
+
+.badge-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+
+.adm-dup-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 0;
+}
+
+.adm-dup-item input {
+  margin-top: 4px;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+/* Retorno sem culpa: card acolhedor, sem cor de alerta */
+.return-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Lista de compras */
+.shopping-pick .list-row {
+  gap: 10px;
+}
+
+.shopping-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.shopping-stepper-value {
+  min-width: 34px;
+  text-align: center;
+  font-weight: 650;
+}
+
+.shopping-item {
+  width: 100%;
+  min-width: 0;
+}
+
+.shopping-item .list-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.shopping-item[data-have] .list-row-main {
+  color: var(--text-3);
+  text-decoration: line-through;
+}

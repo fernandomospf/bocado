@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsEnum, IsInt, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsEnum, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
 import { WaitlistStatus } from '@prisma/client';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
@@ -51,4 +51,16 @@ export class CreateInviteDto {
   @Min(1)
   @Max(365)
   expiresInDays?: number;
+}
+
+/** "Unir" duplicados do acervo: o canônico fica, os outros viram MERGED. */
+export class MergeFoodsDto {
+  @IsUUID()
+  canonicalId: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(20)
+  @IsUUID('all', { each: true })
+  mergeIds: string[];
 }

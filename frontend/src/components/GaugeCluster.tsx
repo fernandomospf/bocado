@@ -5,6 +5,7 @@ import { fmtInt } from '@/lib/format';
 import { ringsFromKey } from '@/lib/gauge';
 import { macroView, waterView } from '@/lib/gaugeModel';
 import { useProfile, useWaterDay } from '@/lib/hooks';
+import { STATUS_LABEL, waterStatus } from '@/lib/water';
 import type { DayMovement, Macros, Meal } from '@/lib/types';
 import { DayCompositionSheet } from './DayCompositionSheet';
 import { GaugeText } from './GaugeText';
@@ -28,6 +29,7 @@ interface GaugeClusterProps {
 
 /** Legenda curta (a Energia já está no centro; sem calorias, a Proteína também). */
 const STRIP = [
+  { key: 'kcal', label: 'Energia', color: 'var(--ring-kcal)' },
   { key: 'protein', label: 'Proteína', color: 'var(--ring-protein)' },
   { key: 'carbs', label: 'Carbo', color: 'var(--ring-carbs)' },
   { key: 'fat', label: 'Gordura', color: 'var(--ring-fat)' },
@@ -64,9 +66,17 @@ export function GaugeCluster({ date, targets, totals, meals, hideCalories, movem
     );
   }
 
-  const macro = macroView({ arcs: ringSpecs(totals, targets, hideCalories), totals, targets, hideCalories });
+  // Modo GLP-1: a proteína (contra o piso) vira o texto central; a energia continua no arco e passa para a linha de macros
+  const glp1 = profile?.glp1Mode === true;
+  const floor = glp1 ? (profile?.proteinFloorG ?? targets.protein) : null;
+  const macro = macroView({ arcs: ringSpecs(totals, targets, hideCalories), totals, targets, hideCalories, proteinFloor: floor });
   const waterModel = profile?.waterEnabled && water.data ? waterView({ totalMl: water.data.totalMl, goalMl: water.data.goalMl }) : null;
-  const strip = STRIP.filter((s) => !(hideCalories && s.key === 'protein'));
+  // A Energia só entra na linha com o modo GLP-1 (nele o centro é a proteína); sem calorias, a Proteína já está no centro
+  // Modo GLP-1: "Hora de um copo d'água" ganha destaque (a regra de cálculo é a mesma da folha de água)
+  const now = new Date();
+  const waterNudge =
+    glp1 && isToday && !!water.data && waterStatus({ totalMl: water.data.totalMl, goalMl: water.data.goalMl, hour: now.getHours(), minute: now.getMinutes() }) === 'nudge';
+  const strip = STRIP.filter((s) => (s.key === 'kcal' ? glp1 && !hideCalories : !(s.key === 'protein' && hideCalories)));
 
   return (
     <div className="gauge-cluster" data-sides={sides}>
@@ -74,7 +84,14 @@ export function GaugeCluster({ date, targets, totals, meals, hideCalories, movem
         {waterOn && (
           <div className="gauge-cell gauge-cell-water gauge-cell-side">
             {waterModel ? (
-              <button type="button" className="gauge-btn" aria-label={waterModel.ariaLabel} title={waterModel.sentence} onClick={() => openWater(date)}>
+              <button
+                type="button"
+                className="gauge-btn"
+                aria-label={waterModel.ariaLabel}
+                title={waterNudge ? `${waterModel.sentence}. ${STATUS_LABEL.nudge}` : waterModel.sentence}
+                data-nudge={waterNudge || undefined}
+                onClick={() => openWater(date)}
+              >
                 <HalfGauge arcs={waterModel.arcs} size={100} strokeWidth={8} memoryKey={memoryKey}>
                   <DropIcon className="gauge-slot-icon" style={{ color: 'var(--water)' }} />
                 </HalfGauge>
@@ -110,10 +127,13 @@ export function GaugeCluster({ date, targets, totals, meals, hideCalories, movem
           <div key={s.key} className="macro-strip-item">
             <span className="macro-strip-head">
               <span className="macro-strip-dot" style={{ background: s.color }} aria-hidden />
-              {s.label}
+              {s.key === 'protein' && glp1 ? 'Proteína · piso' : s.label}
             </span>
             <span className="macro-strip-val num">
-              {fmtInt(totals[s.key])} <span className="macro-strip-total">/ {fmtInt(targets[s.key])} g</span>
+              {fmtInt(totals[s.key])}{' '}
+              <span className="macro-strip-total">
+                / {fmtInt(s.key === 'protein' && floor ? floor : targets[s.key])}{s.key === 'kcal' ? '' : ' g'}
+              </span>
             </span>
           </div>
         ))}

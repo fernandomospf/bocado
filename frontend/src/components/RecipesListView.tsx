@@ -7,7 +7,8 @@ import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtInt } from '@/lib/format';
 import { matchesName } from '@/lib/recipe';
 import type { RecipeSummary } from '@/lib/types';
-import { ChevronRight, PlusIcon } from './Icons';
+import { BasketIcon, ChevronRight, PlusIcon } from './Icons';
+import { ShoppingListSheet } from './ShoppingListSheet';
 
 /** Aba Receitas: lista (as mais usadas primeiro), busca por nome e criação. */
 export function RecipesListView() {
@@ -15,6 +16,7 @@ export function RecipesListView() {
   const [query, setQuery] = useState('');
   const { hideCalories: hide } = useDisplayPrefs();
   const [sort, setSort] = useState<'used' | 'recent' | 'az'>('used');
+  const [shopping, setShopping] = useState(false);
   const recipes = useMemo(() => {
     const list = (data ?? []).filter((r) => matchesName(r.name, query));
     const byName = (a: RecipeSummary, b: RecipeSummary) => a.name.localeCompare(b.name, 'pt-BR');
@@ -34,6 +36,13 @@ export function RecipesListView() {
         <PlusIcon width={20} height={20} />
         Nova receita
       </Link>
+
+      {data && data.length > 0 && (
+        <button type="button" className="btn btn-glass btn-block" onClick={() => setShopping(true)}>
+          <BasketIcon width={20} height={20} />
+          Lista de compras
+        </button>
+      )}
 
       {data && data.length > 1 && (
         <div className="segmented" role="group" aria-label="Ordenar receitas">
@@ -124,6 +133,7 @@ export function RecipesListView() {
           Nenhuma receita com esse nome.
         </p>
       )}
+      {shopping && data && <ShoppingListSheet recipes={data} onClose={() => setShopping(false)} />}
     </main>
   );
 }

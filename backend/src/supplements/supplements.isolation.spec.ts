@@ -9,8 +9,20 @@ import { ExportService, MEALS_HEADER } from '../export/export.service';
 const SRC = join(__dirname, '..');
 const ALLOWED = new Set(['supplements', 'testing']); // o módulo em si e o fake dos testes
 const MENTIONS = /supplement|intakelog|intake_log|suplement/i;
-// Só o perfil guarda as duas preferências, e a exportação tem a opção à parte (conferida abaixo)
-const EXCEPTIONS = new Set(['profile/dto/profile.dto.ts', 'profile/profile.service.ts', 'export/export.controller.ts', 'export/export.service.ts', 'app.module.ts', 'main.ts']);
+// Só o perfil guarda as duas preferências, e a exportação tem a opção à parte (conferida abaixo).
+// Bem-estar (glp1/): vale com GLP-1 OU suplementos ligados (glp1.access.ts) e mostra "dia N desde a última aplicação" com UMA
+// leitura do registro de doses (wellbeing.service.ts, conferida abaixo). private-routes.ts só lista as rotas para o monitoramento.
+const EXCEPTIONS = new Set([
+  'profile/dto/profile.dto.ts',
+  'profile/profile.service.ts',
+  'export/export.controller.ts',
+  'export/export.service.ts',
+  'glp1/glp1.access.ts',
+  'glp1/wellbeing.service.ts',
+  'common/private-routes.ts',
+  'app.module.ts',
+  'main.ts',
+]);
 
 function sources(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -33,6 +45,15 @@ describe('isolamento do módulo de suplementos', () => {
     for (const dir of ['admin/', 'household/', 'reports/', 'recipes/', 'analysis/', 'suggestions/', 'adaptive/', 'water/', 'account/']) {
       expect(files.some((f) => f.startsWith(dir))).toBe(true);
     }
+  });
+
+  it('o bem-estar só LÊ o registro de doses (uma consulta) e nunca mexe nos planos', () => {
+    const wellbeing = readFileSync(join(SRC, 'glp1/wellbeing.service.ts'), 'utf8');
+    expect(wellbeing.match(/intakeLog\./g)).toEqual(['intakeLog.']); // uma única consulta
+    expect(wellbeing).toMatch(/intakeLog\.findFirst/);
+    expect(wellbeing).not.toMatch(/supplementPlan|intakeLog\.(create|update|delete|upsert)/);
+    // a leitura só acontece com o módulo de suplementos ligado
+    expect(wellbeing).toMatch(/supplementsEnabled/);
   });
 
   it('as exceções fazem só o que devem: a exportação à parte e as duas preferências', () => {

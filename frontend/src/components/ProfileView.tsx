@@ -27,6 +27,8 @@ import { WeightSection } from './WeightSection';
 import { WaterPrefs } from './WaterPrefs';
 import { MovementPrefs } from './MovementPrefs';
 import { SupplementsPrefs } from './SupplementsPrefs';
+import { Glp1Prefs } from './Glp1Prefs';
+import { FastingPrefs } from './FastingPrefs';
 import { WorkoutPrefs } from './WorkoutPrefs';
 
 const WEEK_START_OPTIONS: { value: WeekStart; label: string }[] = [
@@ -271,6 +273,8 @@ export function ProfileView() {
               <WorkoutPrefs />
               <WaterPrefs />
               <SupplementsPrefs />
+              <Glp1Prefs />
+              <FastingPrefs />
             </section>
           </div>
         )}

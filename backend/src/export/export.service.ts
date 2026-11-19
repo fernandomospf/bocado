@@ -8,6 +8,9 @@ import { BOM, dateCell, numCell, row, textCell } from './csv';
 import { amountText, SITE_LABEL, unitText } from '../supplements/supplements.format';
 import { dayBatches, shiftDay } from './period';
 
+/** 2026-11-19T10:05:00.000Z → "19/11/2026 10:05" (UTC: o arquivo diz isso no cabeçalho). */
+const utcStamp = (d: Date) => `${dateCell(d.toISOString().slice(0, 10))} ${d.toISOString().slice(11, 16)}`;
+
 const MEAL_ORDER: MealType[] = ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER'];
 
 export const MEAL_LABEL: Record<MealType, string> = {
@@ -49,6 +52,15 @@ export const WORKOUT_TYPE_LABEL: Record<string, string> = {
 };
 export const WORKOUT_INTENSITY_LABEL: Record<string, string> = { LIGHT: 'Leve', MODERATE: 'Moderada', HARD: 'Forte' };
 export const SUPPLEMENT_HEADER = ['Data', 'Item', 'Dose', 'Unidade', 'Status', 'Local'];
+export const FASTING_HEADER = ['Início (UTC)', 'Fim (UTC)', 'Meta (h)', 'Duração (min)', 'Nota'];
+export const WELLBEING_HEADER = ['Data', 'Náusea', 'Apetite', 'Energia', 'Intestino', 'Nota'];
+/** Rótulos das escalas 0 a 3 (os mesmos do app). */
+export const WELLBEING_LABELS = {
+  nausea: ['Nada', 'Leve', 'Moderada', 'Forte'],
+  appetite: ['Nenhum', 'Baixo', 'Normal', 'Alto'],
+  energy: ['Baixa', 'Média', 'Boa', 'Alta'],
+  gi: ['Tranquilo', 'Leve', 'Moderado', 'Forte'],
+} as const;
 export const WEIGHT_HEADER = ['Data', 'Peso (kg)', 'Média de 7 dias (kg)', 'Nota'];
 
 interface DayTotals {
@@ -242,6 +254,65 @@ export class ExportService {
           textCell(WORKOUT_INTENSITY_LABEL[w.intensity]),
           textCell(w.note),
           ...(withEstimate ? [numCell(estimateKcal(w, profile!.weightKg), 0)] : []),
+        ]);
+      }
+      if (chunk) yield chunk;
+    }
+  }
+
+  /** Janelas de jejum no período (dado sensível: só para quem ativou; o controller confere). */
+  async fastingSummary(userId: string, from: string, to: string) {
+    const fasting = await this.prisma.fastingSession.count({
+      where: { userId, startedAt: { gte: parseDay(from), lt: parseDay(shiftDay(to, 1)) } },
+    });
+    return { from, to, fasting };
+  }
+
+  /** Dado sensível: só sai se a pessoa pedir este arquivo. Horários em UTC. */
+  async *fastingCsv(userId: string, from: string, to: string): AsyncGenerator<string> {
+    yield BOM + row(FASTING_HEADER.map(textCell));
+    for (const [start, end] of dayBatches(from, to)) {
+      const rows = await this.prisma.fastingSession.findMany({
+        where: { userId, startedAt: { gte: parseDay(start), lt: parseDay(shiftDay(end, 1)) } },
+        orderBy: { startedAt: 'asc' },
+      });
+      let chunk = '';
+      for (const f of rows) {
+        chunk += row([
+          utcStamp(f.startedAt),
+          f.endedAt ? utcStamp(f.endedAt) : '',
+          numCell(f.targetHours, 0),
+          f.endedAt ? numCell(Math.round((f.endedAt.getTime() - f.startedAt.getTime()) / 60_000), 0) : '',
+          textCell(f.note),
+        ]);
+      }
+      if (chunk) yield chunk;
+    }
+  }
+
+  /** Respostas de bem-estar no período (dado sensível: só para quem ativou GLP-1 ou suplementos). */
+  async wellbeingSummary(userId: string, from: string, to: string) {
+    const wellbeing = await this.prisma.wellbeingLog.count({ where: { userId, date: { gte: parseDay(from), lte: parseDay(to) } } });
+    return { from, to, wellbeing };
+  }
+
+  async *wellbeingCsv(userId: string, from: string, to: string): AsyncGenerator<string> {
+    yield BOM + row(WELLBEING_HEADER.map(textCell));
+    const label = (k: keyof typeof WELLBEING_LABELS, v: number | null) => (v === null ? '' : (WELLBEING_LABELS[k][v] ?? ''));
+    for (const [start, end] of dayBatches(from, to)) {
+      const rows = await this.prisma.wellbeingLog.findMany({
+        where: { userId, date: { gte: parseDay(start), lte: parseDay(end) } },
+        orderBy: { date: 'asc' },
+      });
+      let chunk = '';
+      for (const w of rows) {
+        chunk += row([
+          dateCell(formatDay(w.date)),
+          textCell(label('nausea', w.nausea)),
+          textCell(label('appetite', w.appetite)),
+          textCell(label('energy', w.energy)),
+          textCell(label('gi', w.gi)),
+          textCell(w.note),
         ]);
       }
       if (chunk) yield chunk;

@@ -22,6 +22,8 @@ export interface FoodResult {
   /** Só produtos industrializados. */
   brand?: string | null;
   barcode?: string | null;
+  /** Produto confirmado por 2 ou mais pessoas diferentes (selo "Verificado"). */
+  verified?: boolean;
 }
 
 export type BarcodeLookup =
@@ -30,6 +32,10 @@ export type BarcodeLookup =
 
 /** Denúncias de usuários diferentes para tirar um produto da busca até a revisão. */
 export const REPORTS_TO_HIDE = 3;
+
+/** Confirmações de pessoas diferentes (o criador não conta) para o selo "Verificado". */
+export const CONFIRMATIONS_TO_VERIFY = 2;
+export const isVerified = (verifyCount: number) => verifyCount >= CONFIRMATIONS_TO_VERIFY;
 
 /** Por quanto tempo um código que o OFF não tem deixa de ser consultado de novo. */
 export const BARCODE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -152,6 +158,8 @@ export class FoodsService {
       servingLabel: dto.serving ? dto.serving.label || `${dto.serving.grams} g` : null,
       status: FoodStatus.ACTIVE,
       reportCount: 0,
+      verifyCount: 0,
+      mergedIntoId: null,
     };
 
     if (barcode) {
@@ -160,6 +168,7 @@ export class FoodsService {
       if (existing) {
         const food = await this.prisma.$transaction(async (tx) => {
           await tx.foodReport.deleteMany({ where: { foodId: existing.id } });
+          await tx.foodConfirmation.deleteMany({ where: { foodId: existing.id } });
           return tx.food.update({ where: { id: existing.id }, data });
         });
         return serializeFood(food, 'label');
@@ -191,7 +200,8 @@ export class FoodsService {
    * Denúncia de dado errado num produto do acervo (Open Food Facts ou rótulo). Uma por usuário: repetir não
    * conta de novo. Com 3 usuários diferentes, o produto vira REPORTED e sai da busca até a revisão.
    */
-  async report(userId: string, foodId: string, reason: string) {
+  async report(userId: string, rawId: string, reason: string) {
+    const foodId = await this.canonicalId(rawId);
     const food = await this.prisma.food.findUnique({ where: { id: foodId } });
     if (!food || (food.source !== FoodSource.OFF && food.source !== FoodSource.LABEL)) {
       throw new NotFoundException('Produto não encontrado');
@@ -204,13 +214,72 @@ export class FoodsService {
         await tx.foodReport.create({ data: { foodId, userId, reason } });
         const reportCount = await tx.foodReport.count({ where: { foodId } });
         const status = reportCount >= REPORTS_TO_HIDE ? FoodStatus.REPORTED : food.status;
-        await tx.food.update({ where: { id: foodId }, data: { reportCount, status } });
+        // Uma denúncia aceita zera o selo: as confirmações recomeçam do zero depois da correção
+        await tx.foodConfirmation.deleteMany({ where: { foodId } });
+        await tx.food.update({ where: { id: foodId }, data: { reportCount, status, verifyCount: 0 } });
         return { reportCount, status, alreadyReported: false };
       });
     } catch (err) {
       // Dois envios simultâneos da mesma pessoa: o segundo não conta
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         return { reportCount: food.reportCount, status: food.status, alreadyReported: true };
+      }
+      throw err;
+    }
+  }
+
+  /** Segue o redirecionamento de um duplicado unido (MERGED) até o produto canônico. */
+  private async canonicalId(id: string): Promise<string> {
+    let current = id;
+    for (let hops = 0; hops < 5; hops++) {
+      const f = await this.prisma.food.findUnique({ where: { id: current }, select: { status: true, mergedIntoId: true } });
+      if (f?.status === FoodStatus.MERGED && f.mergedIntoId) current = f.mergedIntoId;
+      else break;
+    }
+    return current;
+  }
+
+  /** Situação do selo para a pessoa: contagem, se já confirmou e se o produto é dela (o criador não confirma o próprio). */
+  async verification(userId: string, rawId: string) {
+    const foodId = await this.canonicalId(rawId);
+    const food = await this.prisma.food.findUnique({ where: { id: foodId } });
+    if (!food || (food.source !== FoodSource.OFF && food.source !== FoodSource.LABEL)) throw new NotFoundException('Produto não encontrado');
+    const mine = await this.prisma.foodConfirmation.findUnique({ where: { foodId_userId: { foodId, userId } } });
+    return {
+      id: foodId,
+      verifyCount: food.verifyCount,
+      verified: isVerified(food.verifyCount),
+      confirmedByMe: !!mine,
+      ownProduct: food.contributedById === userId,
+    };
+  }
+
+  /**
+   * "Os valores conferem com o rótulo": uma confirmação por pessoa. O criador do produto não conta (nada é gravado).
+   * Com 2 ou mais pessoas diferentes o produto ganha o selo "Verificado".
+   */
+  async confirm(userId: string, rawId: string) {
+    const foodId = await this.canonicalId(rawId);
+    const food = await this.prisma.food.findUnique({ where: { id: foodId } });
+    if (!food || (food.source !== FoodSource.OFF && food.source !== FoodSource.LABEL) || food.status !== FoodStatus.ACTIVE) {
+      throw new NotFoundException('Produto não encontrado');
+    }
+    if (food.contributedById === userId) {
+      return { id: foodId, verifyCount: food.verifyCount, verified: isVerified(food.verifyCount), counted: false, ownProduct: true };
+    }
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const exists = await tx.foodConfirmation.findUnique({ where: { foodId_userId: { foodId, userId } } });
+        if (!exists) await tx.foodConfirmation.create({ data: { foodId, userId } });
+        const verifyCount = await tx.foodConfirmation.count({ where: { foodId } });
+        await tx.food.update({ where: { id: foodId }, data: { verifyCount } });
+        return { id: foodId, verifyCount, verified: isVerified(verifyCount), counted: !exists, ownProduct: false };
+      });
+    } catch (err) {
+      // Dois toques ao mesmo tempo da mesma pessoa: o segundo não conta
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        const fresh = await this.prisma.food.findUniqueOrThrow({ where: { id: foodId } });
+        return { id: foodId, verifyCount: fresh.verifyCount, verified: isVerified(fresh.verifyCount), counted: false, ownProduct: false };
       }
       throw err;
     }
@@ -271,7 +340,11 @@ export class FoodsService {
     const code = normalizeBarcode(raw);
     if (!code) throw new BadRequestException('Código de barras inválido. Confira os números.');
 
-    const local = await this.prisma.food.findUnique({ where: { barcode: code } });
+    let local = await this.prisma.food.findUnique({ where: { barcode: code } });
+    // Duplicado unido a outro produto: o código leva ao canônico
+    if (local?.status === FoodStatus.MERGED && local.mergedIntoId) {
+      local = await this.prisma.food.findUnique({ where: { id: await this.canonicalId(local.id) } });
+    }
     if (local) {
       // Denunciado ou oculto: tratado como não encontrado até a revisão
       return local.status === FoodStatus.ACTIVE
@@ -409,7 +482,7 @@ type SerializableFood = Pick<
   Food,
   'id' | 'name' | 'kcal100' | 'protein100' | 'carbs100' | 'fat100' | 'portionGrams' | 'portionLabel'
 > &
-  Partial<Pick<Food, 'brand' | 'barcode' | 'servingGrams' | 'servingLabel' | 'displayName'>> & { source: FoodSource };
+  Partial<Pick<Food, 'brand' | 'barcode' | 'servingGrams' | 'servingLabel' | 'displayName' | 'verifyCount'>> & { source: FoodSource };
 
 /** Porção sugerida: a medida caseira (TACO e próprios) ou a porção do rótulo (produtos). */
 function serializeFood(f: SerializableFood, origin: FoodOrigin): FoodResult {
@@ -426,6 +499,6 @@ function serializeFood(f: SerializableFood, origin: FoodOrigin): FoodResult {
     origin,
     per100: { kcal: f.kcal100, protein: f.protein100, carbs: f.carbs100, fat: f.fat100 },
     ...(portion ? { portion } : {}),
-    ...(isProduct ? { brand: f.brand ?? null, barcode: f.barcode ?? null } : {}),
+    ...(isProduct ? { brand: f.brand ?? null, barcode: f.barcode ?? null, verified: isVerified(f.verifyCount ?? 0) } : {}),
   };
 }

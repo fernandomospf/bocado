@@ -15,6 +15,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import {
   CreateMealDto,
   DayParamDto,
+  LastLogQueryDto,
   MoveMealItemDto,
   RangeQueryDto,
   RecentQueryDto,
@@ -37,6 +38,15 @@ export class MealsController {
   @Get('meals/recent')
   recent(@CurrentUser() user: AuthUser, @Query() { type, limit }: RecentQueryDto) {
     return this.meals.recent(user.id, type, limit);
+  }
+
+  /**
+   * Há quantos dias a pessoa não registra nada (dia local `today`). Alimenta o card "Que bom te ver por aqui".
+   * Só informa: nenhuma notificação, e-mail ou cobrança sai daqui.
+   */
+  @Get('meals/last-log')
+  lastLog(@CurrentUser() user: AuthUser, @Query() { today }: LastLogQueryDto) {
+    return this.meals.lastLog(user.id, today);
   }
 
   /** Duplica uma refeição sua em outra data (ou no mesmo dia, em outro tipo). */

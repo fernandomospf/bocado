@@ -80,3 +80,23 @@ export class ShareRecipeDto {
   @IsBoolean()
   shared: boolean;
 }
+
+export class ShoppingItemDto {
+  @IsUUID()
+  recipeId: string;
+
+  /** Quantas vezes a receita vai ser preparada (1 a 10). */
+  @IsInt({ message: 'Informe quantas vezes vai preparar' })
+  @Min(1, { message: 'Prepare pelo menos 1 vez' })
+  @Max(10, { message: 'No máximo 10 vezes por receita' })
+  times: number;
+}
+
+export class ShoppingListDto {
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Escolha ao menos uma receita' })
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => ShoppingItemDto)
+  items: ShoppingItemDto[];
+}

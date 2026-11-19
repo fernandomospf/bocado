@@ -7,6 +7,7 @@ import { fmtDec, fmtInt } from '@/lib/format';
 import { useDisplayPrefs } from '@/lib/display-prefs';
 import { useAdaptiveStatus } from '@/lib/hooks';
 import { MEAL_LABEL } from '@/lib/labels';
+import { LOW_INTAKE_NOTE, wellbeingSummaryLines } from '@/lib/glp1';
 import { balanceText, periodLabel, signedKg, WEEKLY_DISCLAIMER } from '@/lib/reports';
 import type { WeeklyHighlight, WeeklyReport, WorkoutType } from '@/lib/types';
 import { WORKOUT_LABEL } from '@/lib/workouts';
@@ -69,13 +70,14 @@ function ReportBody({ report: r, hide }: { report: WeeklyReport; hide: boolean }
         {!hide && <WeeklyBars days={r.days} />}
         {dots}
         <section className="card glass stack-sm">
-          <p className="headline">Registros da semana</p>
+          <p className="headline">Poucos dias registrados</p>
           <p className="body-2">
             O relatório completo aparece quando há pelo menos 4 dias registrados na semana. Dias sem registro não entram nas médias.
           </p>
         </section>
         <WorkoutsSection workouts={r.workouts} movement={r.movement} />
         <WaterReportLine water={r.water} />
+        <Glp1ReportSection glp1={r.glp1} />
       </>
     );
   }
@@ -153,6 +155,7 @@ function ReportBody({ report: r, hide }: { report: WeeklyReport; hide: boolean }
 
       <WorkoutsSection workouts={r.workouts} movement={r.movement} />
       <WaterReportLine water={r.water} />
+      <Glp1ReportSection glp1={r.glp1} />
 
       {highlights.length > 0 && (
         <section className="card glass stack-sm" aria-label="Destaques">
@@ -255,5 +258,30 @@ function WaterReportLine({ water }: { water: WeeklyReport['water'] }) {
         Meta batida em {water.goalDays} de {water.loggedDays} {water.loggedDays === 1 ? 'dia registrado' : 'dias registrados'}
       </p>
     </section>
+  );
+}
+
+/** Modo GLP-1 (privado): proteína contra o piso, resumo neutro do bem-estar e o aviso de segurança. */
+function Glp1ReportSection({ glp1 }: { glp1: WeeklyReport['glp1'] }) {
+  if (!glp1) return null;
+  return (
+    <>
+      <section className="card glass stack-sm" aria-label="Proteína e bem-estar">
+        <h3 className="headline">Proteína e bem-estar</h3>
+        <p className="body-2 num">
+          Piso de proteína ({fmtInt(glp1.proteinFloorG)} g) batido em {glp1.proteinFloorDays} {glp1.proteinFloorDays === 1 ? 'dia' : 'dias'}
+        </p>
+        {glp1.wellbeing && (
+          <ul className="weekly-highlights">
+            {wellbeingSummaryLines(glp1.wellbeing).map((line) => (
+              <li key={line} className="body-2">
+                {line}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      {glp1.lowIntake && <p className="note">{LOW_INTAKE_NOTE}</p>}
+    </>
   );
 }

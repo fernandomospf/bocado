@@ -1,5 +1,6 @@
-import { Transform } from 'class-transformer';
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsIn, IsNumber, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import { BY_WEIGHT_MAX_GRAMS, BY_WEIGHT_MIN_GRAMS } from '../by-weight';
 
 const trim = ({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim() : value);
 
@@ -18,6 +19,19 @@ export class AnalyzePhotoDto {
   @MaxLength(300)
   @Transform(trim)
   hint?: string;
+
+  /** 'by_weight' = prato por quilo (exige totalGrams). Sem ele, a análise é a comum. */
+  @IsOptional()
+  @IsIn(['by_weight'], { message: 'Modo de análise inválido' })
+  mode?: 'by_weight';
+
+  /** Peso do prato na balança, sem o prato (multipart chega como texto). */
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({}, { message: 'Informe o peso do prato em gramas' })
+  @Min(BY_WEIGHT_MIN_GRAMS, { message: `O peso do prato precisa ser de pelo menos ${BY_WEIGHT_MIN_GRAMS} g` })
+  @Max(BY_WEIGHT_MAX_GRAMS, { message: `O peso do prato pode ter no máximo ${BY_WEIGHT_MAX_GRAMS} g` })
+  totalGrams?: number;
 }
 
 export class AnalyzeLabelDto {

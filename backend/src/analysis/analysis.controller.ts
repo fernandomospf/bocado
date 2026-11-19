@@ -46,7 +46,11 @@ export class AnalysisController {
   )
   photo(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File | undefined, @Body() dto: AnalyzePhotoDto) {
     if (!file) throw new BadRequestException('Envie uma foto da refeição');
-    return this.analysis.analyzePhoto(file.buffer, file.mimetype, dto.hint, user.id);
+    // Por quilo: o modo e o peso andam juntos (um sem o outro é pedido incompleto)
+    if ((dto.mode === 'by_weight') !== (dto.totalGrams !== undefined)) {
+      throw new BadRequestException('Para o prato por quilo, informe o modo e o peso do prato.');
+    }
+    return this.analysis.analyzePhoto(file.buffer, file.mimetype, dto.hint, user.id, dto.totalGrams);
   }
 
   @Post('text')

@@ -6,9 +6,11 @@ import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtDec, fmtInt, parseNum } from '@/lib/format';
 import type { FoodResult } from '@/lib/types';
 import { type DraftItem, draftFromPer100, scalePer100 } from './ItemsEditor';
+import { ConfirmLabel } from './ConfirmLabel';
 import { Sheet } from './Sheet';
 import { NO_SPLIT, SplitPicker, type SplitState, splitIncomplete, splitReady } from './SplitPicker';
 import { useToast } from './Toast';
+import { VerifiedBadge } from './VerifiedBadge';
 
 export const ORIGIN_LABEL: Record<FoodResult['origin'], string> = {
   history: 'Você já comeu',
@@ -85,8 +87,9 @@ export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 
     <Sheet open title={food.name} onClose={onClose}>
       <div className="stack-lg">
         <div className="stack" style={{ gap: 6 }}>
-          <span className={`badge badge-origin-${food.origin}`} style={{ alignSelf: 'flex-start' }}>
-            {ORIGIN_LABEL[food.origin]}
+          <span className="badge-row" style={{ alignSelf: 'flex-start' }}>
+            <span className={`badge badge-origin-${food.origin}`}>{ORIGIN_LABEL[food.origin]}</span>
+            {food.verified && <VerifiedBadge />}
           </span>
           <h2 className="title">{food.name}</h2>
           {food.brand && <p className="body-2">{food.brand}</p>}
@@ -170,6 +173,8 @@ export function FoodPortionSheet({ food, onClose, onAdd, context, actionLabel = 
             (ODbL)
           </p>
         )}
+
+        {reportable && food.id && <ConfirmLabel foodId={food.id} />}
 
         {reportable &&
           (reporting.open ? (

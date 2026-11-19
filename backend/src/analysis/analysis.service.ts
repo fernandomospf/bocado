@@ -16,6 +16,7 @@ import { DEFAULT_MODEL } from '../ai-usage/ai-usage.config';
 import { AnalysisCacheService } from './analysis.cache';
 import { analysisCacheKey } from './analysis.normalize';
 import { extractItemObjects, parseLooseJson, toNumber } from './analysis.parse';
+import { BY_WEIGHT_PROMPT_ADDON, byWeightUserText, rescaleToTotal } from './by-weight';
 import { ANALYSIS_TOOL, ANALYSIS_TOOL_NAME, LABEL_SYSTEM_PROMPT, LABEL_TOOL, SYSTEM_PROMPT } from './analysis.prompt';
 import { coerceLabel, LabelDraft } from './label';
 
@@ -29,6 +30,8 @@ export interface AnalyzedItem {
   carbs: number;
   fat: number;
   confidence: Confidence;
+  /** Valor estimado pela IA (sempre true nas análises por quilo). */
+  estimated?: boolean;
 }
 
 export type FatLevel = 'none' | 'little' | 'lots';
@@ -48,6 +51,8 @@ export interface AnalysisResult {
   totals: { kcal: number; protein: number; carbs: number; fat: number };
   hasCookedFood: boolean;
   preparationFat: PreparationFatGuess;
+  /** Só no prato por quilo: o peso da balança, a que as gramas dos itens somam exatamente. */
+  totalGrams?: number;
 }
 
 const SUPPORTED_MEDIA = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
@@ -86,15 +91,20 @@ export class AnalysisService {
     );
   }
 
-  async analyzePhoto(image: Buffer, mimeType: string, hint?: string, userId?: string): Promise<AnalysisResult> {
+  /** `totalGrams` (50 a 3000) liga o modo por quilo: as gramas dos itens são reescaladas para somar esse peso. */
+  async analyzePhoto(image: Buffer, mimeType: string, hint?: string, userId?: string, totalGrams?: number): Promise<AnalysisResult> {
     if (!SUPPORTED_MEDIA.includes(mimeType as SupportedMedia)) {
       throw new BadRequestException('Formato de imagem não suportado. Use JPG, PNG ou WebP.');
     }
-    const text = hint
-      ? `Estime os nutrientes desta refeição. Dica do usuário: ${hint}`
-      : 'Estime os nutrientes desta refeição.';
+    const byWeight = totalGrams !== undefined;
+    const text = byWeight
+      ? byWeightUserText(totalGrams, hint)
+      : hint
+        ? `Estime os nutrientes desta refeição. Dica do usuário: ${hint}`
+        : 'Estime os nutrientes desta refeição.';
 
-    return this.run(
+    // Conta na cota de foto, como qualquer análise de foto (a reserva acontece dentro de run → invoke)
+    const result = await this.run(
       [
         {
           type: 'image',
@@ -104,7 +114,26 @@ export class AnalysisService {
       ],
       'PHOTO',
       userId,
+      byWeight ? SYSTEM_PROMPT + BY_WEIGHT_PROMPT_ADDON : SYSTEM_PROMPT,
     );
+    return byWeight ? this.toByWeight(result, totalGrams) : result;
+  }
+
+  /** O servidor, não o modelo, garante que as gramas somem o peso da balança. */
+  private toByWeight(result: AnalysisResult, totalGrams: number): AnalysisResult {
+    const items = rescaleToTotal(result.items, totalGrams).map((i) => ({ ...i, estimated: true }));
+    const sum = (k: 'kcal' | 'protein' | 'carbs' | 'fat') => items.reduce((s, i) => s + i[k], 0);
+    return {
+      ...result,
+      items,
+      totalGrams,
+      totals: {
+        kcal: Math.round(sum('kcal')),
+        protein: Math.round(sum('protein') * 10) / 10,
+        carbs: Math.round(sum('carbs') * 10) / 10,
+        fat: Math.round(sum('fat') * 10) / 10,
+      },
+    };
   }
 
   /**
@@ -187,9 +216,14 @@ export class AnalysisService {
     return (await this.invoke(params)).raw;
   }
 
-  private async run(content: Anthropic.ContentBlockParam[], feature: AiFeature, userId?: string): Promise<AnalysisResult> {
+  private async run(
+    content: Anthropic.ContentBlockParam[],
+    feature: AiFeature,
+    userId?: string,
+    system: string = SYSTEM_PROMPT,
+  ): Promise<AnalysisResult> {
     const { raw, summary } = await this.invoke({
-      system: SYSTEM_PROMPT,
+      system,
       tool: ANALYSIS_TOOL,
       content,
       maxTokens: 2000,
@@ -359,7 +393,7 @@ function summarizeResponse(message: Anthropic.Message, block: Anthropic.ToolUseB
 
 const ITEMS_KEYS = ['items', 'itens', 'alimentos', 'foods'];
 
-const FIELD_ALIASES: Record<keyof AnalyzedItem, string[]> = {
+const FIELD_ALIASES: Record<Exclude<keyof AnalyzedItem, 'estimated'>, string[]> = {
   name: ['name', 'nome'],
   grams: ['grams', 'gramas', 'quantity', 'quantidade', 'peso'],
   kcal: ['kcal', 'calorias', 'calories'],

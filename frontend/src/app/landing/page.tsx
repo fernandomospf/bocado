@@ -4,7 +4,7 @@ import { Logo } from '@/components/Logo';
 import { MacroDots, MacroLegend } from '@/components/MacroLegend';
 import { Rings } from '@/components/Rings';
 import { ringSpecs } from '@/components/ringSpecs';
-import { BarcodeIcon, CameraIcon, ChartIcon, PotIcon, RingsIcon, UserIcon } from '@/components/Icons';
+import { BarcodeIcon, CameraIcon, ChartIcon, KitchenScaleIcon, MicIcon, PotIcon, RingsIcon, UserIcon, VerifiedIcon } from '@/components/Icons';
 import { WaitlistForm } from '@/components/landing/WaitlistForm';
 
 const TITLE = 'Bocado: contagem de calorias para a comida brasileira';
@@ -52,6 +52,9 @@ const BRAZIL = [
   { Icon: BarcodeIcon, title: 'Tabela TACO integrada', text: 'Arroz, feijão, mandioca e o resto do prato brasileiro, com valores de referência.' },
   { Icon: PotIcon, title: 'Receitas caseiras', text: 'Cadastre uma vez, com o peso da panela e as porções, e registre em segundos.' },
   { Icon: UserIcon, title: 'Divisão com quem mora com você', text: 'Divida uma refeição sem que ninguém veja o diário do outro.' },
+  { Icon: MicIcon, title: 'Registro por voz', text: 'Diga o que você comeu e revise o texto antes de estimar. O áudio fica com o seu aparelho; só o texto chega ao Bocado.' },
+  { Icon: KitchenScaleIcon, title: 'Prato por quilo', text: 'Fotografe o prato e informe o peso da balança: as gramas dos itens sempre somam o total.' },
+  { Icon: VerifiedIcon, title: 'Acervo verificado', text: 'Produtos do acervo ganham o selo Verificado quando mais de uma pessoa confere que os valores batem com o rótulo.' },
   { Icon: RingsIcon, title: 'Modo sem calorias', text: 'Acompanhe só proteína e constância, se preferir não ver os números.' },
 ];
 

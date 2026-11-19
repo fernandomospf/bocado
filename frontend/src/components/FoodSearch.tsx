@@ -4,9 +4,12 @@ import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { useDisplayPrefs } from '@/lib/display-prefs';
 import { fmtInt } from '@/lib/format';
+import { useSpeechInput } from '@/lib/speech';
 import type { FoodResult } from '@/lib/types';
 import { FoodPortionSheet, ORIGIN_LABEL } from './FoodPortionSheet';
 import { type DraftItem } from './ItemsEditor';
+import { MicButton, VoiceStatus } from './VoiceInput';
+import { VerifiedBadge } from './VerifiedBadge';
 
 const DEBOUNCE_MS = 250;
 
@@ -35,6 +38,8 @@ export function FoodSearch({ onAdd, excludeRecipes = false, placeholder }: FoodS
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
   const [picked, setPicked] = useState<FoodResult | null>(null);
+  // A fala vira o termo da busca (TACO, histórico e receitas; sem IA)
+  const speech = useSpeechInput({ onResult: (text) => setQuery(text.slice(0, 80)) });
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(query.trim()), DEBOUNCE_MS);
@@ -51,19 +56,23 @@ export function FoodSearch({ onAdd, excludeRecipes = false, placeholder }: FoodS
 
   return (
     <section className="stack">
-      <label className="field">
-        <span className="sr-only">Buscar alimento</span>
-        <input
-          className="input"
-          type="search"
-          enterKeyHint="search"
-          autoComplete="off"
-          placeholder={placeholder ?? 'Buscar alimento: arroz, ovo, banana…'}
-          value={query}
-          maxLength={80}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </label>
+      <div className="input-with-mic">
+        <label className="field">
+          <span className="sr-only">Buscar alimento</span>
+          <input
+            className="input"
+            type="search"
+            enterKeyHint="search"
+            autoComplete="off"
+            placeholder={placeholder ?? 'Buscar alimento: arroz, ovo, banana…'}
+            value={query}
+            maxLength={80}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+        <MicButton speech={speech} label="Buscar falando" />
+      </div>
+      <VoiceStatus speech={speech} />
 
       {error ? (
         <p className="alert" role="alert">
@@ -87,7 +96,10 @@ export function FoodSearch({ onAdd, excludeRecipes = false, placeholder }: FoodS
                     {portionSummary(food, hide)}
                   </div>
                 </div>
-                <span className={`badge badge-origin-${food.origin}`}>{ORIGIN_LABEL[food.origin]}</span>
+                <span className="badge-row badge-row-end">
+                  {food.verified && <VerifiedBadge />}
+                  <span className={`badge badge-origin-${food.origin}`}>{ORIGIN_LABEL[food.origin]}</span>
+                </span>
               </button>
             ))}
           </div>

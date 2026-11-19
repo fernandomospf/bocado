@@ -4,6 +4,7 @@ import { useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
 import { fmtInt } from '@/lib/format';
+import { GLP1_ADAPTIVE_PAUSED } from '@/lib/glp1';
 import { useDisplayPrefs } from '@/lib/display-prefs';
 import { tap } from '@/lib/haptics';
 import { useAdaptiveStatus, useProfile } from '@/lib/hooks';
@@ -50,6 +51,18 @@ export function AdaptiveSection() {
   }
 
   const under18 = status?.notes.includes('under18');
+
+  // Modo GLP-1: pausada (parte da variação de peso vem da medicação); ao desligar o modo, tudo continua como estava
+  if (profile.glp1Mode) {
+    return (
+      <section className="card glass stack" aria-labelledby="adaptive-title">
+        <h3 className="headline" id="adaptive-title">
+          Meta adaptativa
+        </h3>
+        <p className="body-2">{GLP1_ADAPTIVE_PAUSED}</p>
+      </section>
+    );
+  }
 
   // Com "esconder calorias" a meta adaptativa fica em espera: nada é sugerido nem aplicado. Ao voltar, tudo continua como estava
   if (hide) {

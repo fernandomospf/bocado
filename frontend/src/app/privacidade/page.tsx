@@ -27,7 +27,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="Política de Privacidade"
-      updatedAt="18 de novembro de 2026"
+      updatedAt="19 de novembro de 2026"
       toc={TOC}
       otherPage={{ href: '/termos', label: 'Termos de Uso' }}
     >
@@ -106,6 +106,32 @@ export default function PrivacyPage() {
         de saúde pela LGPD e são tratados com base no seu consentimento, dado ao ativar o registro. Se você gerar um arquivo de
         calendário com lembretes, ele é criado na hora para o seu aparelho e não fica guardado nem publicado pelo Bocado.
       </p>
+      <h3>Bem-estar e uso de medicamento GLP-1</h3>
+      <p>
+        Se você ativar o modo de uso de medicamento GLP-1, o app guarda o que você informar sobre o seu dia: náusea, apetite,
+        energia e intestino (escalas de 0 a 3), uma nota opcional de até 280 caracteres, o piso de proteína que você definir e a
+        própria preferência. O Bocado só registra e organiza: não orienta sobre a medicação, a dose nem o ciclo. O recurso fica
+        desligado até você ativá-lo e não está disponível para menores de 18 anos.
+      </p>
+      <h3>Jejum intermitente</h3>
+      <p>
+        Se você ativar o registro de jejum, guardamos as janelas que você iniciar ou encerrar: horário de início e de fim (em
+        UTC, exibidos no fuso do seu aparelho), a meta em horas e uma nota opcional. O Bocado só registra; não indica nem
+        prescreve jejum. Fica desligado até você confirmar que leu o aviso e não está disponível para menores de 18 anos.
+      </p>
+      <p>
+        Esses dados de saúde (bem-estar, GLP-1 e jejum) são tratados com base no seu consentimento, dado ao ativar cada recurso.
+        Eles ficam só com você: não aparecem para a casa nem para a administração, não são enviados à IA, não entram em
+        análises de uso nem em registros técnicos (logs), entram em exportações só se você marcar essa opção e são apagados
+        junto com a conta.
+      </p>
+      <h3>Confirmações do acervo</h3>
+      <p>
+        Ao tocar em &ldquo;Os valores conferem com o rótulo&rdquo; num produto do acervo, guardamos a ligação entre a sua conta e
+        o produto (uma por pessoa). Ela serve só para contar quantas pessoas diferentes confirmaram e dar o selo
+        &ldquo;Verificado&rdquo; (2 ou mais); a contagem é pública, mas quem confirmou não aparece para ninguém. A confirmação é
+        apagada com a conta.
+      </p>
       <h3>Uso da IA e denúncias</h3>
       <p>
         Contadores de uso de IA: guardamos quando e qual recurso de IA foi usado (foto, descrição, leitura de rótulo ou
@@ -127,6 +153,12 @@ export default function PrivacyPage() {
         apenas para estimar os alimentos e nutrientes. O mesmo vale para a foto da tabela nutricional ao cadastrar um
         produto. As fotos não são armazenadas pelo Bocado: ficam só na memória durante a análise e são descartadas. Só
         é salvo o que você confirmar.
+      </p>
+      <h3>Registro por voz</h3>
+      <p>
+        No registro por voz, o áudio é processado pelo serviço de reconhecimento de voz do seu navegador ou sistema (por
+        exemplo, Apple ou Google) e só o texto chega ao Bocado. Nenhum áudio é gravado nem enviado aos nossos servidores,
+        e o texto reconhecido só aparece num campo para você revisar antes de qualquer análise.
       </p>
       <p>
         No card &ldquo;Para fechar o dia&rdquo;, enviamos à Anthropic o quanto falta para suas metas, o tipo da refeição,
@@ -230,10 +262,11 @@ export default function PrivacyPage() {
       </p>
       <ul>
         <li>corrija seu perfil, metas, refeições e registros de peso;</li>
-        <li>exporte suas refeições e seu peso em CSV, para abrir no Excel;</li>
+        <li>exporte suas refeições, peso, água e treinos em CSV, para abrir no Excel (jejum, bem-estar e suplementos só se você marcar);</li>
         <li>
           exclua sua conta em &ldquo;Excluir conta&rdquo;. Isso apaga de forma definitiva seu perfil, refeições, pesos,
-          treinos, receitas, alimentos cadastrados por você, contadores de uso e denúncias. Os produtos que você cadastrou no
+          treinos, receitas, alimentos cadastrados por você, registros de bem-estar, jejum e confirmações do acervo, contadores de
+          uso e denúncias. Os produtos que você cadastrou no
           acervo compartilhado continuam, sem ligação com você.
         </li>
       </ul>

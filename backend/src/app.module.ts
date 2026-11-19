@@ -15,6 +15,8 @@ import { UserThrottlerGuard } from './common/user-throttler.guard';
 import { validateEnv } from './config/env.validation';
 import { FavoritesModule } from './favorites/favorites.module';
 import { FoodsModule } from './foods/foods.module';
+import { Glp1Module } from './glp1/glp1.module';
+import { FastingModule } from './fasting/fasting.module';
 import { HouseholdModule } from './household/household.module';
 import { HealthModule } from './health/health.module';
 import { MealsModule } from './meals/meals.module';
@@ -47,6 +49,8 @@ import { WorkoutsModule } from './workouts/workouts.module';
     AdaptiveModule,
     WorkoutsModule,
     SupplementsModule,
+    Glp1Module,
+    FastingModule,
     SuggestionsModule,
     WeightModule,
     WaterModule,

@@ -2,9 +2,10 @@ import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, P
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AdminGuard } from './admin.guard';
+import { AdminFoodsService } from './admin-foods.service';
 import { AdminService } from './admin.service';
 import { AiUsageAdminService } from './ai-usage-admin.service';
-import { AiLimitDto, AiUsageQueryDto, CreateInviteDto, WaitlistQueryDto } from './dto/admin.dto';
+import { AiLimitDto, AiUsageQueryDto, CreateInviteDto, MergeFoodsDto, WaitlistQueryDto } from './dto/admin.dto';
 
 /** Painel do beta. Tudo atrás do AdminGuard: quem não é admin recebe 403. */
 @Controller('admin')
@@ -13,6 +14,7 @@ export class AdminController {
   constructor(
     private readonly admin: AdminService,
     private readonly ai: AiUsageAdminService,
+    private readonly foods: AdminFoodsService,
   ) {}
 
   @Get('me')
@@ -52,6 +54,19 @@ export class AdminController {
   @Patch('users/:id/ai-limit')
   setAiLimit(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AiLimitDto) {
     return this.ai.setLimitFactor(id, dto.factor);
+  }
+
+  /** Acervo: possíveis duplicados de produtos (mesmo código, ou nome + marca parecidos com valores até 5%). */
+  @Get('foods/duplicates')
+  duplicates() {
+    return this.foods.duplicates();
+  }
+
+  /** "Unir": marca os outros como MERGED e soma as confirmações no canônico. Não apaga nada. */
+  @Post('foods/merge')
+  @HttpCode(200)
+  merge(@Body() dto: MergeFoodsDto) {
+    return this.foods.merge(dto.canonicalId, dto.mergeIds);
   }
 
   @Get('invites')

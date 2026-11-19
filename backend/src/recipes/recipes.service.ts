@@ -4,6 +4,7 @@ import { NORMALIZED_NAME_SQL, normalizeName } from '../foods/food-normalize';
 import { PrismaService } from '../prisma/prisma.service';
 import { SaveRecipeDto } from './dto/recipe.dto';
 import { computeRecipe } from './recipe.math';
+import { buildShoppingList } from './shopping-list';
 
 type RecipeWithIngredients = Recipe & { ingredients: RecipeIngredient[] };
 
@@ -104,6 +105,37 @@ export class RecipesService {
          AND r.id = ANY(${ids}::uuid[])
        GROUP BY r.id`;
     return new Map(rows.map((r) => [r.id, Number(r.times)]));
+  }
+
+  /** Só receitas visíveis à pessoa (dela ou da casa dela); qualquer outra é "não encontrada", sem diferenciar. */
+  async shoppingList(userId: string, items: { recipeId: string; times: number }[]) {
+    // A mesma receita repetida soma as vezes (até 10 no total)
+    const times = new Map<string, number>();
+    for (const i of items) times.set(i.recipeId, Math.min(10, (times.get(i.recipeId) ?? 0) + i.times));
+    const ids = [...times.keys()];
+
+    const recipes = await this.prisma.recipe.findMany({
+      where: { AND: [{ id: { in: ids } }, await this.visibleWhere(userId)] },
+      include: { ingredients: { orderBy: { position: 'asc' }, include: { food: { select: { category: true, source: true } } } } },
+    });
+    if (recipes.length !== ids.length) throw new NotFoundException('Receita não encontrada');
+
+    const groups = buildShoppingList(
+      recipes.map((r) => ({
+        times: times.get(r.id) ?? 1,
+        ingredients: r.ingredients.map((i) => ({
+          name: i.name,
+          grams: i.grams,
+          // Só a categoria da TACO agrupa; produtos e alimentos próprios caem em "Outros"
+          category: i.food?.source === FoodSource.TACO ? i.food.category : null,
+        })),
+      })),
+    );
+    return {
+      recipes: recipes.map((r) => ({ id: r.id, name: r.name, times: times.get(r.id) ?? 1 })),
+      groups,
+      itemCount: groups.reduce((s, g) => s + g.items.length, 0),
+    };
   }
 
   async get(userId: string, id: string) {

@@ -167,6 +167,12 @@ export class RestoreMealDto {
   snapshot: MealSnapshotDto;
 }
 
+/** Dia local de hoje da pessoa (o servidor não usa fuso). */
+export class LastLogQueryDto {
+  @Matches(ISO_DATE, { message: 'Data inválida' })
+  today: string;
+}
+
 export class RecentQueryDto {
   @IsOptional()
   @IsEnum(MealType)

@@ -85,6 +85,8 @@ enum FoodStatus {
   /// Denunciado por 3 usuários: sai da busca até revisão
   REPORTED
   HIDDEN
+  /// Duplicado unido a outro produto (mergedIntoId): some da busca e redireciona para o canônico
+  MERGED
 }
 
 model User {
@@ -104,11 +106,14 @@ model User {
   contributed  Food[]        @relation("FoodContributor")
   aiUsage      AiUsage[]
   foodReports  FoodReport[]
+  foodConfirmations FoodConfirmation[]
   favoriteMeals FavoriteMeal[]
   adaptiveAdjustments AdaptiveAdjustment[]
   workouts     Workout[]
   supplementPlans SupplementPlan[]
   intakeLogs   IntakeLog[]
+  wellbeingLogs WellbeingLog[]
+  fastingSessions FastingSession[]
   /// Multiplicador dos limites de IA (0 = IA bloqueada para a pessoa, 2 = dobro). Só o admin altera
   aiLimitFactor Float @default(1)
   householdMember HouseholdMember?
@@ -175,6 +180,13 @@ model Profile {
   supplementsEnabled     Boolean @default(false)
   /// Na tela Hoje, mostra "Medicação 1" / "Suplemento 2" em vez do nome
   supplementsMaskNamesOnHome Boolean @default(false)
+  /// Modo GLP-1 (dado sensível, desligado por padrão; indisponível a menores de 18). Só ajusta a interface (proteína,
+  /// água, bem-estar) e pausa a meta adaptativa. O Bocado não orienta sobre a medicação
+  glp1Mode               Boolean @default(false)
+  /// Piso de proteína em g/dia (referência geral, editável). Nulo = usa a sugestão calculada
+  proteinFloorG          Int?
+  /// Jejum intermitente (dado sensível, desligado por padrão; indisponível a menores de 18). O Bocado só registra a janela
+  fastingEnabled         Boolean @default(false)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -254,6 +266,13 @@ model Food {
   contributedBy   User?              @relation("FoodContributor", fields: [contributedById], references: [id], onDelete: SetNull)
   status          FoodStatus         @default(ACTIVE)
   reportCount     Int                @default(0)
+  /// Confirmações de pessoas diferentes (o criador não conta). Com 2 ou mais, o produto ganha o selo "Verificado"
+  verifyCount     Int                @default(0)
+  /// Produto canônico para o qual este duplicado foi unido (status MERGED). Nada é apagado
+  mergedIntoId    String?            @db.Uuid
+  mergedInto      Food?              @relation("FoodMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom      Food[]             @relation("FoodMerge")
+  confirmations   FoodConfirmation[]
   createdAt       DateTime           @default(now())
   ingredients     RecipeIngredient[]
   reports         FoodReport[]
@@ -261,6 +280,7 @@ model Food {
   @@index([searchName(ops: raw("gin_trgm_ops"))], type: Gin)
   @@index([userId])
   @@index([source, name])
+  @@index([mergedIntoId])
   @@map("foods")
 }
 
@@ -453,6 +473,19 @@ model FoodReport {
 
   @@unique([foodId, userId])
   @@map("food_reports")
+}
+
+/// "Os valores conferem com o rótulo": uma confirmação por pessoa e produto. O criador do produto não confirma o próprio
+model FoodConfirmation {
+  id        String   @id @default(uuid()) @db.Uuid
+  foodId    String   @db.Uuid
+  food      Food     @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([foodId, userId])
+  @@map("food_confirmations")
 }
 
 enum HouseholdRole {
@@ -734,4 +767,46 @@ model IntakeLog {
   @@unique([planId, date, slot])
   @@index([userId, date])
   @@map("intake_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Bem-estar (modo GLP-1 ou suplementos): dado de saúde, privado. Nunca vai para a casa, o admin, a IA, analytics nem logs.
+// ---------------------------------------------------------------------------
+
+/// Como a pessoa se sentiu no dia, em escalas de 0 a 3 (nulas = não respondeu). Uma linha por dia
+model WellbeingLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  nausea    Int?
+  appetite  Int?
+  energy    Int?
+  gi        Int?
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@map("wellbeing_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Jejum intermitente: só REGISTRA a janela que a pessoa escolhe (não prescreve jejum). Dado de saúde, privado: nunca
+// vai para a casa, o admin, a IA, analytics nem logs. Horários em UTC; o app exibe no fuso do aparelho.
+// ---------------------------------------------------------------------------
+
+/// Uma janela de jejum. No máximo UMA ativa (endedAt nulo) por pessoa: índice único parcial na migration
+model FastingSession {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startedAt   DateTime
+  endedAt     DateTime?
+  /// Meta em horas (12 a 20): só referência para a barra de progresso
+  targetHours Int
+  note        String?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, startedAt])
+  @@map("fasting_sessions")
 }

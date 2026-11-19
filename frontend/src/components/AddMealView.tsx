@@ -19,16 +19,20 @@ import {
   isFatItem,
   nextFatState,
 } from '@/lib/preparationFat';
-import type { AnalysisResult, FoodResult, MealSource, MealType, PreparationFatTable, QuickItem } from '@/lib/types';
+import type { AnalysisResult, FoodResult, Meal, MealSource, MealType, PreparationFatTable, QuickItem } from '@/lib/types';
 import { BarcodeFlow } from './BarcodeFlow';
 import { FoodPortionSheet } from './FoodPortionSheet';
 import { FoodSearch } from './FoodSearch';
 import { FatQuestion } from './FatQuestion';
 import { MacroDots } from './MacroLegend';
-import { BarcodeIcon, CameraIcon, ChevronLeft, ImageIcon, PlusIcon, SparkIcon } from './Icons';
+import { BarcodeIcon, CameraIcon, ChevronLeft, ImageIcon, KitchenScaleIcon, PlusIcon, SparkIcon } from './Icons';
+import { byWeightLine, parseTotalGrams, sumGrams, WEIGHT_MAX_G, WEIGHT_MIN_G } from '@/lib/byWeight';
 import { PREFILL_KEY } from './CloseDayCard';
 import { AiBlockedNotice, AiQuotaHint, useAiBlocked, useRefreshAiQuota } from './AiQuotaHint';
 import { useDisplayPrefs } from '@/lib/display-prefs';
+import { useSpeechInput } from '@/lib/speech';
+import { EndFastPrompt, useFastingCurrent } from './Fasting';
+import { MicButton, VoiceStatus } from './VoiceInput';
 import { NO_SPLIT, SplitPicker, type SplitState, splitIncomplete, splitReady } from './SplitPicker';
 import { useSharedSave } from '@/lib/sharedMeals';
 import {
@@ -42,13 +46,14 @@ import {
 } from './ItemsEditor';
 import { QuickChips, type QuickSource } from './QuickChips';
 
-type Mode = 'search' | 'barcode' | 'photo' | 'text' | 'manual';
+type Mode = 'search' | 'barcode' | 'photo' | 'text' | 'weight' | 'manual';
 
 const MODES: { value: Mode; label: string }[] = [
   { value: 'search', label: 'Buscar' },
   { value: 'barcode', label: 'Código' },
   { value: 'photo', label: 'Foto' },
   { value: 'text', label: 'Descrever' },
+  { value: 'weight', label: 'Por quilo' },
   { value: 'manual', label: 'Manual' },
 ];
 
@@ -62,7 +67,9 @@ export function AddMealView() {
   const paramType = params.get('type') as MealType | null;
   const paramDate = params.get('date');
 
-  const [mode, setMode] = useState<Mode>('search');
+  // "Falar refeição" (menu +) abre direto em Descrever, já ouvindo
+  const voiceStart = params.get('voice') === '1';
+  const [mode, setMode] = useState<Mode>(voiceStart ? 'text' : 'search');
   const [type, setType] = useState<MealType>(
     paramType && MEAL_ORDER.includes(paramType) ? paramType : mealTypeForNow(),
   );
@@ -75,6 +82,25 @@ export function AddMealView() {
   const [photo, setPhoto] = useState<{ blob: Blob; url: string } | null>(null);
   const [hint, setHint] = useState('');
   const [description, setDescription] = useState('');
+  // Por quilo: o peso digitado, o peso da última análise (a conferência com a balança) e o atalho de favorita
+  const [weightInput, setWeightInput] = useState('');
+  const [weighed, setWeighed] = useState<number | null>(null);
+  const [favName, setFavName] = useState<string | null>(null);
+  // Janela de jejum ativa: depois de salvar, uma pergunta neutra (nunca insiste)
+  const { data: activeFast } = useFastingCurrent();
+  const [askFast, setAskFast] = useState(false);
+  const leave = () => router.push(date === today ? '/' : `/?date=${date}`);
+  const weightValue = parseTotalGrams(weightInput);
+  // A fala só preenche o campo (editável): a análise é sempre um toque da pessoa em "Estimar"
+  const speech = useSpeechInput({
+    onResult: (text) => setDescription((prev) => `${prev.trim() ? `${prev.trim()} ` : ''}${text}`.slice(0, 600)),
+  });
+  const voiceStarted = useRef(false);
+  useEffect(() => {
+    if (!voiceStart || voiceStarted.current || !speech.supported) return;
+    voiceStarted.current = true;
+    speech.start();
+  }, [voiceStart, speech]);
 
   const [busy, setBusy] = useState<'analyze' | 'save' | null>(null);
   const [split, setSplit] = useState<SplitState>(NO_SPLIT);
@@ -168,8 +194,8 @@ export function AddMealView() {
     }
     setPhoto({ blob, url: URL.createObjectURL(blob) });
     setHint(''); // a dica era da foto anterior
-    // Um toque a menos: a análise começa sozinha assim que a foto está pronta
-    await analyzePhoto(blob, '');
+    // Por quilo precisa do peso também: a pessoa toca em "Analisar". Na foto comum, um toque a menos: a análise começa sozinha
+    if (mode !== 'weight') await analyzePhoto(blob, '');
   }
 
   async function onPickPhoto(e: ChangeEvent<HTMLInputElement>) {
@@ -247,14 +273,20 @@ export function AddMealView() {
     }
   }
 
-  async function analyzePhoto(blob: Blob, hintText: string) {
+  async function analyzePhoto(blob: Blob, hintText: string, totalGrams?: number) {
     setBusy('analyze');
     setError(null);
     try {
       const form = new FormData();
       form.append('image', blob, 'refeicao.jpg');
       if (hintText.trim()) form.append('hint', hintText.trim());
-      applyAnalysis(await api<AnalysisResult>('/analysis/photo', { method: 'POST', body: form }), 'PHOTO');
+      if (totalGrams !== undefined) {
+        form.append('mode', 'by_weight');
+        form.append('totalGrams', String(totalGrams));
+      }
+      const result = await api<AnalysisResult>('/analysis/photo', { method: 'POST', body: form });
+      applyAnalysis(result, 'PHOTO');
+      setWeighed(result.totalGrams ?? null);
     } catch (err) {
       // 429 de cota traz a mensagem do servidor (em português), que já vem em errorMessage
       setError(errorMessage(err));
@@ -293,14 +325,20 @@ export function AddMealView() {
       if (splitReady(split)) {
         await saveShared({ date, type, source, items: valid.map(toMealPayload), shares: split.shares });
       } else {
-        await api('/meals', {
+        const meal = await api<Meal>('/meals', {
           method: 'POST',
           json: { date, type, source, items: valid.map(toMealPayload) },
         });
+        // Atalho do prato por quilo: a favorita nasce da refeição salva (se falhar, a refeição já está salva)
+        if (favName?.trim()) {
+          await api('/favorites', { method: 'POST', json: { fromMealId: meal.id, name: favName.trim() } }).catch(() => undefined);
+          void mutate('/favorites');
+        }
       }
       await mutate(`/days/${date}`);
       void mutate('/recipes'); // a contagem de uso ("mais usadas") pode ter mudado
-      router.push(date === today ? '/' : `/?date=${date}`);
+      if (activeFast && date === today) setAskFast(true);
+      else leave();
     } catch (err) {
       setError(errorMessage(err));
       setBusy(null);
@@ -351,6 +389,7 @@ export function AddMealView() {
           {MODES.map((m) => (
             <button key={m.value} type="button" aria-pressed={mode === m.value} onClick={() => chooseMode(m.value)}>
               {m.value === 'barcode' && <BarcodeIcon width={16} height={16} />}
+              {m.value === 'weight' && <KitchenScaleIcon width={16} height={16} />}
               {m.label}
             </button>
           ))}
@@ -360,7 +399,7 @@ export function AddMealView() {
 
         {mode === 'barcode' && <BarcodeFlow onAdd={addFromSearch} onChooseMode={chooseMode} />}
 
-        {mode === 'photo' && (
+        {(mode === 'photo' || mode === 'weight') && (
           <section className="stack">
             <input
               ref={cameraInput}
@@ -401,8 +440,8 @@ export function AddMealView() {
                 </>
               ) : (
                 <>
-                  <CameraIcon />
-                  Fotografe o prato
+                  {mode === 'weight' ? <KitchenScaleIcon /> : <CameraIcon />}
+                  {mode === 'weight' ? 'Fotografe o prato pesado' : 'Fotografe o prato'}
                   <span className="caption">Enquadre o prato inteiro, de cima</span>
                   <span className="caption desktop-only">ou arraste a imagem para cá</span>
                 </>
@@ -412,6 +451,27 @@ export function AddMealView() {
             <p className="sr-only" role="status">
               {analyzing ? 'Analisando a foto' : ''}
             </p>
+
+            {mode === 'weight' && (
+              <label className="field">
+                <span className="field-label">Peso do prato (g)</span>
+                <div className="input-suffix weight-input">
+                  <input
+                    className="input num"
+                    inputMode="decimal"
+                    placeholder="0"
+                    aria-describedby="weight-help"
+                    value={weightInput}
+                    maxLength={6}
+                    onChange={(e) => setWeightInput(e.target.value)}
+                  />
+                  <span>g</span>
+                </div>
+                <span className="caption" id="weight-help">
+                  o valor da balança, sem o prato ({WEIGHT_MIN_G} a {WEIGHT_MAX_G} g)
+                </span>
+              </label>
+            )}
 
             {photo ? (
               <div className={photoAnalyzed || analyzing ? 'stack' : 'grid-2'}>
@@ -426,9 +486,14 @@ export function AddMealView() {
                 </button>
                 {/* A análise falhou: tentar de novo com a mesma foto */}
                 {!photoAnalyzed && !analyzing && (
-                  <button type="button" className="btn btn-primary" onClick={() => analyzePhoto(photo.blob, hint)} disabled={photoBlocked}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => analyzePhoto(photo.blob, hint, mode === 'weight' ? (weightValue ?? undefined) : undefined)}
+                    disabled={photoBlocked || (mode === 'weight' && weightValue === null)}
+                  >
                     <SparkIcon width={20} height={20} />
-                    Analisar de novo
+                    {mode === 'weight' ? 'Analisar' : 'Analisar de novo'}
                   </button>
                 )}
               </div>
@@ -472,13 +537,19 @@ export function AddMealView() {
                 onChange={(e) => setDescription(e.target.value)}
               />
             </label>
+            {speech.supported && (
+              <div className="input-with-mic">
+                <VoiceStatus speech={speech} />
+                <MicButton speech={speech} label="Falar a refeição" />
+              </div>
+            )}
             <button
               className="btn btn-primary btn-block"
               onClick={analyzeText}
               disabled={!!busy || description.trim().length < 3 || textBlocked}
             >
               {busy === 'analyze' ? <span className="spinner" aria-hidden /> : <SparkIcon width={20} height={20} />}
-              {busy === 'analyze' ? 'Estimando' : 'Estimar nutrientes'}
+              {busy === 'analyze' ? 'Estimando' : 'Estimar'}
             </button>
             <AiBlockedNotice feature="TEXT" alternatives={aiAlternatives} />
             <AiQuotaHint feature="TEXT" />
@@ -512,6 +583,7 @@ export function AddMealView() {
               <span className="caption">Toque para ajustar</span>
             </div>
             {notes && <p className="note">{notes}</p>}
+            {weighed !== null && <WeighedLine total={weighed} items={items} />}
             {fat && <FatQuestion state={fat} onChange={chooseFat} />}
             <ItemsEditor items={items} onChange={changeItems} />
             {/* A dica vem depois da análise: corrige o que a foto não mostra sem atrasar o primeiro resultado */}
@@ -527,14 +599,14 @@ export function AddMealView() {
                     enterKeyHint="send"
                     onChange={(e) => setHint(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && hint.trim() && !busy) void analyzePhoto(photo.blob, hint);
+                      if (e.key === 'Enter' && hint.trim() && !busy) void analyzePhoto(photo.blob, hint, weighed ?? undefined);
                     }}
                   />
                 </label>
                 <button
                   type="button"
                   className="btn btn-glass"
-                  onClick={() => analyzePhoto(photo.blob, hint)}
+                  onClick={() => analyzePhoto(photo.blob, hint, weighed ?? undefined)}
                   disabled={!!busy || !hint.trim()}
                 >
                   {analyzing ? <span className="spinner" aria-hidden /> : <SparkIcon width={20} height={20} />}
@@ -551,6 +623,31 @@ export function AddMealView() {
             <PlusIcon width={20} height={20} />
             Adicionar alimento
           </button>
+        )}
+
+        {weighed !== null && items.length > 0 && (
+          <section className="card glass stack" aria-label="Favorita">
+            <label className="check-row">
+              <input
+                type="checkbox"
+                checked={favName !== null}
+                onChange={(e) => setFavName(e.target.checked ? 'Almoço no restaurante ' : null)}
+              />
+              <span>Salvar como favorita para repetir depois</span>
+            </label>
+            {favName !== null && (
+              <label className="field">
+                <span className="sr-only">Nome da favorita</span>
+                <input
+                  className="input"
+                  value={favName}
+                  maxLength={60}
+                  placeholder="Almoço no restaurante X"
+                  onChange={(e) => setFavName(e.target.value)}
+                />
+              </label>
+            )}
+          </section>
         )}
 
         {items.length > 0 && <SplitPicker value={split} onChange={setSplit} totalKcal={totals.kcal} totalProtein={totals.protein} />}
@@ -570,6 +667,8 @@ export function AddMealView() {
         )}
       </div>
 
+      {askFast && <EndFastPrompt onDone={leave} />}
+
       {chipFood && (
         <FoodPortionSheet
           key={chipFood.id}
@@ -582,5 +681,15 @@ export function AddMealView() {
         />
       )}
     </main>
+  );
+}
+
+/** "Total: 520 g, igual à balança" ou "Agora 540 g de 520 g" (só informa; nunca bloqueia o salvar). */
+function WeighedLine({ total, items }: { total: number; items: DraftItem[] }) {
+  const line = byWeightLine(total, sumGrams(items.filter((i) => !isFatItem(i)).map((i) => ({ grams: parseNum(i.grams) }))));
+  return (
+    <p className="caption weighed-line num" role="status" data-match={line.matches || undefined}>
+      {line.text}
+    </p>
   );
 }
