@@ -28,6 +28,8 @@ import { WaterPrefs } from './WaterPrefs';
 import { MovementPrefs } from './MovementPrefs';
 import { SupplementsPrefs } from './SupplementsPrefs';
 import { Glp1Prefs } from './Glp1Prefs';
+import { ShortcutsSection } from './ShortcutsSection';
+import { A11yPrefs } from './A11yPrefs';
 import { FastingPrefs } from './FastingPrefs';
 import { WorkoutPrefs } from './WorkoutPrefs';
 
@@ -275,9 +277,12 @@ export function ProfileView() {
               <SupplementsPrefs />
               <Glp1Prefs />
               <FastingPrefs />
+              <A11yPrefs />
             </section>
           </div>
         )}
+
+        {profile && <ShortcutsSection />}
 
         {profile && (
           <div className="screen-group profile-o4">
@@ -321,8 +326,8 @@ export function ProfileView() {
         )}
 
         <nav
-          className="caption profile-o5"
-          style={{ display: 'flex', justifyContent: 'center', gap: 16 }}
+          className="caption profile-o5 legal-links"
+          style={{ justifyContent: 'center' }}
           aria-label="Documentos legais"
         >
           <Link href="/termos">Termos de Uso</Link>

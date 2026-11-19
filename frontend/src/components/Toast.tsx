@@ -55,9 +55,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={api}>
       {children}
-      {/* A região viva fica sempre montada: leitores de tela só anunciam mudanças em regiões que já existiam */}
+      {/* As regiões vivas ficam sempre montadas: leitores de tela só anunciam mudanças em regiões que já existiam.
+          Avisos comuns são anunciados com educação (polite); erros interrompem (assertive). */}
       <div className="toast-region" role="status" aria-live="polite" aria-atomic="true">
-        {toast && <ToastView key={toast.id} toast={toast} onDismiss={dismiss} />}
+        {toast && toast.tone !== 'error' && <ToastView key={toast.id} toast={toast} onDismiss={dismiss} />}
+      </div>
+      <div className="toast-region" role="alert" aria-live="assertive" aria-atomic="true">
+        {toast && toast.tone === 'error' && <ToastView key={toast.id} toast={toast} onDismiss={dismiss} />}
       </div>
     </ToastContext.Provider>
   );

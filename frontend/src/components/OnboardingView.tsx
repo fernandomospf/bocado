@@ -123,7 +123,7 @@ export function OnboardingView() {
           >
             <ChevronLeft width={20} height={20} />
           </button>
-          <div className="progress-dots" aria-label={`Etapa ${step + 1} de ${STEPS}`}>
+          <div className="progress-dots" role="img" aria-label={`Etapa ${step + 1} de ${STEPS}`}>
             {Array.from({ length: STEPS }, (_, i) => (
               <i key={i} data-active={i === step} data-done={i < step} />
             ))}

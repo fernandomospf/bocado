@@ -69,7 +69,10 @@ export function AddMealView() {
 
   // "Falar refeição" (menu +) abre direto em Descrever, já ouvindo
   const voiceStart = params.get('voice') === '1';
-  const [mode, setMode] = useState<Mode>(voiceStart ? 'text' : 'search');
+  // ?mode= (atalho /rapido/refeicao): abre direto no modo pedido
+  const paramMode = params.get('mode');
+  const startMode: Mode = voiceStart ? 'text' : MODES.some((m) => m.value === paramMode) && paramMode !== 'manual' ? (paramMode as Mode) : 'search';
+  const [mode, setMode] = useState<Mode>(startMode);
   const [type, setType] = useState<MealType>(
     paramType && MEAL_ORDER.includes(paramType) ? paramType : mealTypeForNow(),
   );

@@ -26,8 +26,9 @@
 
   /* Texto */
   --text: #0f1729;
-  --text-2: rgb(15 23 41 / 0.62);
-  --text-3: rgb(15 23 41 / 0.4);
+  /* Contraste AA (4,5:1) sobre o vidro e o fundo: medido em src/lib/contrast.test.mjs */
+  --text-2: rgb(15 23 41 / 0.76);
+  --text-3: rgb(15 23 41 / 0.7);
 
   /* Vidro */
   --glass: rgb(255 255 255 / 0.5);
@@ -49,16 +50,25 @@
   --ring-fat: #12b8a6;
   --ring-fat-2: #5fe0cf;
 
+  /* Cores dos macros como TEXTO (rótulos): versões mais fortes das cores dos anéis */
+  --ring-kcal-text: #ad1f19;
+  --ring-protein-text: #2447c9;
+  --ring-carbs-text: #774800;
+  --ring-fat-text: #09594f;
   --accent: #2f62ff;
   --accent-ink: #ffffff;
+  /* Azul para TEXTO e links (o --accent é o preenchimento de botões, com texto branco) */
+  --accent-text: #1a44c4;
   /* Água: azul-ciano neutro (nunca vermelho) */
   --water: #1aa7d8;
+  /* Água como TEXTO (o --water é a cor dos arcos e da gota) */
+  --water-text: #085a7a;
   --water-2: #6fd6f2;
   /* Medidor de movimento: chama, do laranja ao âmbar (nunca vermelho) */
   --flame: #f2711c;
   --flame-2: #ffb62e;
-  --danger: #e5384a;
-  --success: #12a37f;
+  --danger: #ab1a2e;
+  --success: #066149;
 
   --radius-xl: 32px;
   --radius-lg: 24px;
@@ -89,8 +99,8 @@
     --glow-3: #0d5a50;
 
     --text: #f1f4fb;
-    --text-2: rgb(241 244 251 / 0.66);
-    --text-3: rgb(241 244 251 / 0.42);
+    --text-2: rgb(241 244 251 / 0.8);
+    --text-3: rgb(241 244 251 / 0.78);
 
     --glass: rgb(30 38 60 / 0.42);
     --glass-strong: rgb(36 45 70 / 0.7);
@@ -103,6 +113,7 @@
 
     --ring-kcal: #ff5a55;
     --water: #3bbfea;
+    --water-text: #7fd8f5;
     --water-2: #86dff6;
     --flame: #ff8a3d;
     --flame-2: #ffc94d;
@@ -110,8 +121,13 @@
     --ring-carbs: #ffb52e;
     --ring-fat: #22d3bd;
 
-    --accent: #4d7bff;
-    --danger: #ff5a68;
+    --ring-kcal-text: #ff8a84;
+    --ring-protein-text: #8ba6ff;
+    --ring-carbs-text: #ffc766;
+    --ring-fat-text: #4ee3cf;
+    --accent: #3a64ea;
+    --accent-text: #8aa8ff;
+    --danger: #ff6f7b;
     --success: #2fd6a6;
   }
 }
@@ -130,6 +146,14 @@ html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   background: var(--bg);
+  /* Tipografia em rem: segue o tamanho de texto do navegador e, no iOS, o Dynamic Type do sistema */
+  font-size: 100%;
+}
+
+@supports (font: -apple-system-body) {
+  html {
+    font: -apple-system-body;
+  }
 }
 
 /*
@@ -146,7 +170,7 @@ body {
   margin: 0;
   min-height: 100dvh;
   font-family: var(--font);
-  font-size: 17px;
+  font-size: 1.0625rem;
   line-height: 1.4;
   color: var(--text);
   /* Sem fundo aqui: o fundo fica no <html>, para a luz (.backdrop) aparecer atrás do conteúdo */
@@ -413,14 +437,14 @@ img {
 }
 
 .large-title {
-  font-size: 34px;
+  font-size: 2.125rem;
   line-height: 1.12;
   font-weight: 700;
   letter-spacing: -0.025em;
 }
 
 .title {
-  font-size: 22px;
+  font-size: 1.375rem;
   line-height: 1.2;
   font-weight: 700;
   letter-spacing: -0.015em;
@@ -429,23 +453,23 @@ img {
 }
 
 .headline {
-  font-size: 17px;
+  font-size: 1.0625rem;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 
 .body-2 {
-  font-size: 15px;
+  font-size: 0.9375rem;
   color: var(--text-2);
 }
 
 .caption {
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--text-3);
 }
 
 .section-title {
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.015em;
   padding: 6px 4px 0;
@@ -463,7 +487,7 @@ img {
   min-height: 50px;
   padding: 0 22px;
   border-radius: 999px;
-  font-size: 17px;
+  font-size: 1.0625rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   transition: transform 160ms var(--ease), opacity 160ms var(--ease), background 160ms var(--ease);
@@ -496,7 +520,7 @@ img {
 .btn-plain {
   min-height: 44px;
   padding: 0 12px;
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
 }
 
@@ -530,7 +554,7 @@ img {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 15px;
+  font-size: 0.9375rem;
   color: var(--text-2);
 }
 
@@ -550,7 +574,7 @@ img {
 .btn-sm {
   min-height: 36px;
   padding: 0 14px;
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 
 /* --------------------------------------------------------------------------
@@ -564,7 +588,7 @@ img {
 }
 
 .field-label {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text-2);
   padding-left: 4px;
@@ -576,7 +600,7 @@ img {
   width: 100%;
   min-height: 50px;
   padding: 12px 16px;
-  font-size: 17px; /* 16px+ evita zoom automático no iOS */
+  font-size: 1.0625rem; /* 16px+ evita zoom automático no iOS */
   border-radius: var(--radius-md);
   border: 1px solid var(--glass-line);
   background: var(--fill);
@@ -617,7 +641,7 @@ img {
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-3);
-  font-size: 15px;
+  font-size: 0.9375rem;
   pointer-events: none;
 }
 
@@ -636,7 +660,7 @@ img {
 .alert {
   padding: 12px 16px;
   border-radius: var(--radius-md);
-  font-size: 15px;
+  font-size: 0.9375rem;
   background: color-mix(in srgb, var(--danger) 14%, transparent);
   color: var(--danger);
 }
@@ -644,7 +668,7 @@ img {
 .note {
   padding: 12px 16px;
   border-radius: var(--radius-md);
-  font-size: 15px;
+  font-size: 0.9375rem;
   background: var(--fill);
   color: var(--text-2);
 }
@@ -664,7 +688,7 @@ img {
   min-width: 0;
   min-height: 38px;
   border-radius: 999px;
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text-2);
   transition: background 200ms var(--ease), color 200ms var(--ease), box-shadow 200ms var(--ease);
@@ -762,7 +786,8 @@ img {
   min-width: 0;
   height: 100%;
   border-radius: 999px;
-  font-size: 11px;
+  /* A barra de abas tem largura fixa por aba: o rótulo cresce com o texto do sistema só até 14px (como a TabBar do iOS) */
+  font-size: min(0.6875rem, 14px);
   white-space: nowrap;
   font-weight: 600;
   color: var(--text-2);
@@ -775,7 +800,7 @@ img {
 }
 
 .tab[aria-current='page'] {
-  color: var(--accent);
+  color: var(--accent-text);
   background: var(--fill);
 }
 
@@ -785,7 +810,7 @@ img {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  color: var(--accent);
+  color: var(--accent-text);
   transition: transform 160ms var(--ease);
 }
 
@@ -824,7 +849,7 @@ img {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text-3);
 }
@@ -838,7 +863,7 @@ img {
   min-height: 36px;
   padding: 0 14px;
   border-radius: 999px;
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 600;
   white-space: nowrap;
   background: var(--glass-strong);
@@ -853,7 +878,7 @@ img {
 .chip-plain {
   background: none;
   box-shadow: none;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 /* Modos da Nova refeição: 5 opções cabem até em 320px (colunas pelo texto, fonte fluida, ícone some no aperto) */
@@ -868,7 +893,7 @@ img {
   justify-content: center;
   gap: 4px;
   padding: 0 4px;
-  font-size: clamp(12px, 4.4cqw, 14px);
+  font-size: clamp(0.75rem, 4.4cqw, 0.875rem);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -890,7 +915,7 @@ img {
 
   .segmented-modes button {
     min-height: 40px;
-    font-size: 14px;
+    font-size: 0.875rem;
   }
 }
 
@@ -934,7 +959,7 @@ img {
   right: 0;
   bottom: 14px;
   text-align: center;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
   color: #fff;
   text-shadow: 0 1px 4px rgb(0 0 0 / 0.6);
@@ -971,7 +996,7 @@ img {
 .label-slot svg {
   width: 32px;
   height: 32px;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .label-slot img {
@@ -1027,7 +1052,7 @@ img {
 .chip-sm {
   min-height: 32px;
   padding: 0 12px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 /* Sugestão compacta */
@@ -1054,7 +1079,7 @@ img {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 
 .suggestion-items li {
@@ -1074,7 +1099,7 @@ img {
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 4px 8px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--text-3);
 }
 
@@ -1104,7 +1129,7 @@ img {
 .close-day-steps {
   margin: 0;
   padding-left: 20px;
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--text-2);
 }
 
@@ -1114,7 +1139,7 @@ img {
 
 .close-day-disclaimer {
   text-align: center;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 /* Card de refeição vazio: "Adicionar" e "Da receita" lado a lado */
@@ -1228,33 +1253,33 @@ img {
 }
 
 .gauge-label {
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 0.75rem;
+  line-height: 1rem;
   color: var(--text-2);
 }
 
 /* Rótulo longo ("kcal · 10.345 além da meta") reduz com a coluna, sem quebrar */
 .gauge-label[data-fit='long'] {
-  font-size: clamp(10px, 7.6cqw, 12px);
+  font-size: clamp(0.625rem, 7.6cqw, 0.75rem);
 }
 
 /* Laterais: 15px; texto longo ("800 / 2.600 ml") reduz com a coluna */
 .gauge-value {
-  font-size: clamp(12px, 18cqw, 15px);
+  font-size: clamp(0.75rem, 18cqw, 0.9375rem);
   font-weight: 500;
-  line-height: 20px;
+  line-height: 1.25rem;
   letter-spacing: -0.01em;
 }
 
 .gauge-value[data-fit='long'] {
-  font-size: clamp(11px, 15.5cqw, 15px);
+  font-size: clamp(0.6875rem, 15.5cqw, 0.9375rem);
 }
 
 /* Centro: 20px; números grandes ("12.345 / 12.000") reduzem até 15px */
 .gauge-value-lg,
 .gauge-value-lg[data-fit='long'] {
-  font-size: clamp(15px, 13.5cqw, 20px);
-  line-height: 24px;
+  font-size: clamp(0.9375rem, 13.5cqw, 1.25rem);
+  line-height: 1.5rem;
 }
 
 /* "/ 2.400": a meta em tom muted e um pouco menor */
@@ -1305,7 +1330,8 @@ img {
 /* Legenda dos macros: uma linha, colunas iguais, separada por um fio */
 .macro-strip {
   display: grid;
-  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  /* Com texto ampliado as colunas quebram em linhas em vez de se sobrepor */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 4.4rem), 1fr));
   gap: 8px;
   margin: 0;
   padding-top: 10px;
@@ -1324,10 +1350,9 @@ img {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
-  line-height: 16px;
+  font-size: 0.75rem;
+  line-height: 1rem;
   color: var(--text-2);
-  white-space: nowrap;
 }
 
 .macro-strip-dot {
@@ -1338,10 +1363,9 @@ img {
 }
 
 .macro-strip-val {
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
-  line-height: 18px;
-  white-space: nowrap;
+  line-height: 1.125rem;
 }
 
 .macro-strip-total {
@@ -1523,7 +1547,7 @@ img {
 }
 
 .move-bar-label {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--text-2);
 }
 
@@ -1538,7 +1562,7 @@ img {
   justify-content: center;
   min-width: 0;
   padding: 0;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 /* Barra de um dia de descanso na semana: tom mais discreto */
@@ -1563,7 +1587,7 @@ img {
   border-radius: 50%;
   background: var(--glass-strong);
   color: var(--text);
-  font-size: 20px;
+  font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
 }
@@ -1620,7 +1644,7 @@ img {
 
 .collapsible-title {
   flex: none;
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.015em;
 }
@@ -1632,7 +1656,7 @@ img {
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: right;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
   color: var(--text-2);
 }
@@ -1653,7 +1677,7 @@ img {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--text-2);
 }
 
@@ -1743,12 +1767,12 @@ img {
 }
 
 .legend-label {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 
 .legend-value {
-  font-size: 19px;
+  font-size: 1.1875rem;
   font-weight: 700;
   letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
@@ -1756,7 +1780,7 @@ img {
 }
 
 .legend-value small {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: var(--text-3);
   /* O número fica inteiro; o complemento ("/ 2.770 kcal · faltam…") quebra nos espaços se não couber */
@@ -1810,7 +1834,7 @@ img {
 }
 
 .list-row-title {
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1823,14 +1847,14 @@ img {
   align-items: center;
   row-gap: 2px;
   min-width: 0;
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 
 .list-row-end {
   flex-shrink: 0;
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text-2);
@@ -1860,9 +1884,9 @@ img {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 0.9375rem;
   min-height: 40px;
 }
 
@@ -1872,7 +1896,7 @@ img {
   height: 22px;
   padding: 0 8px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   background: var(--fill);
   color: var(--text-2);
@@ -1904,7 +1928,7 @@ img {
 }
 
 .weight-chart text {
-  font-size: 10px;
+  font-size: 0.625rem;
   fill: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
@@ -1958,7 +1982,7 @@ img {
 .badge-origin-history {
   flex: none;
   background: color-mix(in srgb, var(--accent) 16%, transparent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .badge-origin-recipe {
@@ -1988,7 +2012,7 @@ img {
 .badge-origin-ai {
   flex: none;
   background: color-mix(in srgb, var(--accent) 12%, transparent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .badge-origin-template {
@@ -2015,7 +2039,7 @@ img {
   display: grid;
   place-items: center;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 1rem;
   background: var(--fill-strong);
   color: var(--text-2);
   flex: none;
@@ -2024,7 +2048,7 @@ img {
 .avatar-lg {
   width: 64px;
   height: 64px;
-  font-size: 24px;
+  font-size: 1.5rem;
 }
 
 /* --------------------------------------------------------------------------
@@ -2057,7 +2081,7 @@ img {
 .photo-drop svg {
   width: 40px;
   height: 40px;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .photo-drop .scan {
@@ -2101,7 +2125,7 @@ img {
 }
 
 .mini-field label {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   padding-left: 2px;
 }
@@ -2173,14 +2197,14 @@ img {
 }
 
 .bar-label {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-3);
   text-transform: capitalize;
 }
 
 .bar-label.today {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .stat {
@@ -2190,7 +2214,7 @@ img {
 }
 
 .stat strong {
-  font-size: 22px;
+  font-size: 1.375rem;
   letter-spacing: -0.015em;
   font-variant-numeric: tabular-nums;
 }
@@ -2345,7 +2369,7 @@ img {
   align-items: center;
   gap: 12px;
   color: var(--text-3);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 .divider::before,
@@ -2396,7 +2420,7 @@ img {
 
 .legal {
   max-width: 68ch;
-  font-size: 15px;
+  font-size: 0.9375rem;
   line-height: 1.6;
   color: var(--text-2);
 }
@@ -2407,7 +2431,7 @@ img {
 
 .legal h2 {
   margin-top: 28px;
-  font-size: 19px;
+  font-size: 1.1875rem;
   line-height: 1.25;
   font-weight: 700;
   letter-spacing: -0.015em;
@@ -2416,7 +2440,7 @@ img {
 
 .legal h3 {
   margin-top: 18px;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text);
 }
@@ -2451,7 +2475,7 @@ img {
   padding: 0;
   display: grid;
   gap: 6px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .legal-toc {
@@ -2467,14 +2491,14 @@ img {
 }
 
 .legal-links a {
-  color: var(--accent);
+  color: var(--accent-text);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .legal a,
 .text-link {
-  color: var(--accent);
+  color: var(--accent-text);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -2490,7 +2514,7 @@ img {
   gap: 12px;
   min-height: 44px;
   padding: 0 4px;
-  font-size: 15px;
+  font-size: 0.9375rem;
   color: var(--text-2);
   cursor: pointer;
 }
@@ -2561,7 +2585,7 @@ img {
 
 .fat-chip[aria-pressed='true'],
 .chip-toggle[aria-pressed='true'] {
-  color: var(--accent);
+  color: var(--accent-text);
   background: color-mix(in srgb, var(--accent) 14%, var(--glass-strong));
   box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent);
 }
@@ -2607,14 +2631,14 @@ button.badge-estimate::before {
 .badge-inline {
   height: 18px;
   margin-left: 8px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   vertical-align: middle;
 }
 
 .estimate-tip {
   order: 99;
   flex-basis: 100%;
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.4;
   color: var(--text-2);
 }
@@ -2651,7 +2675,7 @@ button.badge-estimate::before {
 }
 
 .day-pill-label {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -2673,7 +2697,7 @@ button.badge-estimate::before {
 }
 
 .day-pill[aria-current='date'] .day-pill-label {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .day-pill[aria-pressed='true'] {
@@ -2693,7 +2717,7 @@ button.badge-estimate::before {
   border-radius: 18px;
   display: grid;
   place-items: center;
-  color: var(--accent);
+  color: var(--accent-text);
   background: var(--fill);
 }
 
@@ -2744,7 +2768,7 @@ button.badge-estimate::before {
 
 .calendar-dow {
   text-align: center;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-3);
   padding: 4px 0;
@@ -2764,7 +2788,7 @@ button.badge-estimate::before {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text);
@@ -2778,7 +2802,7 @@ button.badge-estimate::before {
 
 .calendar-day[data-today] {
   box-shadow: inset 0 0 0 1.5px var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .calendar-day[aria-pressed='true'] {
@@ -2895,7 +2919,7 @@ button.badge-estimate::before {
   padding: 4px 4px 4px 18px;
   border-radius: 999px;
   background: var(--glass-strong);
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 500;
   animation: toast-in 260ms var(--ease);
 }
@@ -2911,9 +2935,9 @@ button.badge-estimate::before {
   min-height: 44px;
   padding: 0 16px;
   border-radius: 999px;
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-text);
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
@@ -3105,7 +3129,7 @@ body:not(:has(.tabbar)) .toast-region {
   }
 
   .large-title {
-    font-size: clamp(30px, 2.4vw, 40px);
+    font-size: clamp(1.875rem, 2.4vw, 2.5rem);
   }
 
   /* Fundo: manchas em vmin e mais suaves, para não virar borrões gigantes em telas largas */
@@ -3174,7 +3198,7 @@ body:not(:has(.tabbar)) .toast-region {
     min-height: 46px;
     padding: 0 16px;
     border-radius: 999px;
-    font-size: 16px;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text-2);
     transition: background 220ms var(--ease), color 220ms var(--ease);
@@ -3182,7 +3206,7 @@ body:not(:has(.tabbar)) .toast-region {
 
   /* Mesmo estilo do item ativo da TabBar */
   .sidebar-link[aria-current='page'] {
-    color: var(--accent);
+    color: var(--accent-text);
     background: var(--fill);
   }
 
@@ -3211,7 +3235,7 @@ body:not(:has(.tabbar)) .toast-region {
   }
 
   .sidebar-user-name {
-    font-size: 15px;
+    font-size: 0.9375rem;
     font-weight: 600;
   }
 
@@ -3409,7 +3433,7 @@ body:not(:has(.tabbar)) .toast-region {
     display: grid;
     place-items: center;
     background: color-mix(in srgb, var(--accent) 16%, transparent);
-    color: var(--accent);
+    color: var(--accent-text);
   }
 
   /* Questionário: painel de vidro centralizado, com a marca acima */
@@ -3537,7 +3561,7 @@ body:not(:has(.tabbar)) .toast-region {
   gap: 8px;
   min-height: 44px;
   padding: 0 8px 0 14px;
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -3549,7 +3573,7 @@ body:not(:has(.tabbar)) .toast-region {
 }
 
 .chip-meal-kcal {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: var(--text-3);
 }
@@ -3560,9 +3584,9 @@ body:not(:has(.tabbar)) .toast-region {
   height: 20px;
   padding: 0 7px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--accent-text);
   background: var(--fill);
 }
 
@@ -3572,7 +3596,7 @@ body:not(:has(.tabbar)) .toast-region {
   justify-content: center;
   width: 44px;
   min-height: 44px;
-  color: var(--accent);
+  color: var(--accent-text);
   border-left: 1px solid var(--glass-line);
 }
 
@@ -3608,7 +3632,7 @@ body:not(:has(.tabbar)) .toast-region {
   flex: none;
   min-height: 44px;
   padding: 0 10px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 /* --------------------------------------------------------------------------
@@ -3642,7 +3666,7 @@ body:not(:has(.tabbar)) .toast-region {
 }
 
 .weekly-label {
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   fill: var(--text-3);
 }
@@ -3713,11 +3737,11 @@ body:not(:has(.tabbar)) .toast-region {
 }
 
 .adaptive-compare .stat strong {
-  font-size: 26px;
+  font-size: 1.625rem;
 }
 
 .adaptive-arrow {
-  font-size: 22px;
+  font-size: 1.375rem;
   color: var(--text-3);
 }
 
@@ -3742,7 +3766,7 @@ body:not(:has(.tabbar)) .toast-region {
   align-items: center;
   cursor: pointer;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .adaptive-how ol {
@@ -3784,7 +3808,7 @@ body:not(:has(.tabbar)) .toast-region {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  color: var(--accent);
+  color: var(--accent-text);
   background: var(--fill);
 }
 
@@ -3904,7 +3928,7 @@ body:not(:has(.tabbar)) .toast-region {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  color: var(--accent);
+  color: var(--accent-text);
   background: var(--fill);
 }
 
@@ -3915,7 +3939,7 @@ body:not(:has(.tabbar)) .toast-region {
 }
 
 .quick-text strong {
-  font-size: 16px;
+  font-size: 1rem;
 }
 
 /* "Repetir último": botão secundário logo abaixo do item Treino */
@@ -3928,9 +3952,9 @@ body:not(:has(.tabbar)) .toast-region {
   margin: 0 6px 4px 58px;
   padding: 0 12px;
   border-radius: 14px;
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--accent-text);
   text-align: left;
 }
 
@@ -4005,7 +4029,7 @@ body:not(:has(.tabbar)) .toast-region {
 .lp-btn {
   min-height: 44px;
   padding: 0 16px;
-  font-size: 15px;
+  font-size: 0.9375rem;
   white-space: nowrap;
 }
 
@@ -4024,14 +4048,14 @@ body:not(:has(.tabbar)) .toast-region {
 .lp-badge {
   align-self: flex-start;
   background: color-mix(in srgb, var(--accent) 16%, transparent);
-  color: var(--accent);
+  color: var(--accent-text);
   height: 26px;
   padding: 0 12px;
 }
 
 .lp-h1 {
   margin: 0;
-  font-size: clamp(30px, 7.4vw, 54px);
+  font-size: clamp(1.875rem, 7.4vw, 3.375rem);
   line-height: 1.08;
   letter-spacing: -0.02em;
   font-weight: 800;
@@ -4039,7 +4063,7 @@ body:not(:has(.tabbar)) .toast-region {
 
 .lp-h2 {
   margin: 0 0 18px;
-  font-size: clamp(24px, 4.6vw, 34px);
+  font-size: clamp(1.5rem, 4.6vw, 2.125rem);
   line-height: 1.15;
   letter-spacing: -0.015em;
   font-weight: 750;
@@ -4047,7 +4071,7 @@ body:not(:has(.tabbar)) .toast-region {
 
 .lp-lead {
   margin: 0;
-  font-size: clamp(17px, 2.6vw, 20px);
+  font-size: clamp(1.0625rem, 2.6vw, 1.25rem);
   line-height: 1.5;
   color: var(--text-2);
   max-width: 56ch;
@@ -4111,11 +4135,11 @@ body:not(:has(.tabbar)) .toast-region {
   height: 48px;
   border-radius: 16px;
   background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .lp-step-n {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .lp-contract {
@@ -4134,7 +4158,7 @@ body:not(:has(.tabbar)) .toast-region {
 .lp-contract-list li {
   position: relative;
   padding-left: 30px;
-  font-size: 17px;
+  font-size: 1.0625rem;
   line-height: 1.45;
 }
 
@@ -4165,7 +4189,7 @@ body:not(:has(.tabbar)) .toast-region {
   min-height: 56px;
   padding: 12px 20px;
   font-weight: 650;
-  font-size: 17px;
+  font-size: 1.0625rem;
   cursor: pointer;
   list-style: none;
 }
@@ -4177,9 +4201,9 @@ body:not(:has(.tabbar)) .toast-region {
 .lp-faq summary::after {
   content: '+';
   flex: none;
-  font-size: 24px;
+  font-size: 1.5rem;
   line-height: 1;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .lp-faq[open] summary::after {
@@ -4219,7 +4243,7 @@ body:not(:has(.tabbar)) .toast-region {
   align-items: flex-start;
   gap: 12px;
   min-height: 44px;
-  font-size: 15px;
+  font-size: 0.9375rem;
   line-height: 1.4;
   cursor: pointer;
 }
@@ -4341,7 +4365,7 @@ body:not(:has(.tabbar)) .toast-region {
   display: none;
   width: 100%;
   border-collapse: collapse;
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 
 .adm-table th,
@@ -4353,7 +4377,7 @@ body:not(:has(.tabbar)) .toast-region {
 }
 
 .adm-table th {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 650;
   color: var(--text-2);
 }
@@ -4444,7 +4468,7 @@ body:not(:has(.tabbar)) .toast-region {
 
 .water-status {
   font-weight: 650;
-  color: var(--water);
+  color: var(--water-text);
 }
 
 .water-status-done {
@@ -4499,7 +4523,7 @@ body:not(:has(.tabbar)) .toast-region {
 
 .water-dot-hit {
   background: var(--water);
-  border-color: var(--water);
+  border-color: var(--water-text);
 }
 
 .water-dot-partial {
@@ -4636,16 +4660,16 @@ body:not(:has(.tabbar)) .toast-region {
 }
 
 .supp-name {
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 600;
-  line-height: 20px;
+  line-height: 1.25rem;
   overflow-wrap: anywhere;
 }
 
 .supp-meta,
 .supp-status {
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
   color: var(--text-2);
   /* Quebra em vez de cortar: "Não registrada · dom" perderia justamente o dia */
   overflow-wrap: anywhere;
@@ -4674,7 +4698,7 @@ body:not(:has(.tabbar)) .toast-region {
   justify-content: center;
   width: 44px;
   height: 44px;
-  font-size: 18px;
+  font-size: 1.125rem;
   color: var(--text-2);
 }
 
@@ -4686,7 +4710,7 @@ body:not(:has(.tabbar)) .toast-region {
   border-radius: 50%;
   background: none;
   color: var(--text-2);
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: 1px;
   cursor: pointer;
@@ -4699,7 +4723,7 @@ body:not(:has(.tabbar)) .toast-region {
 
 .supp-subhead {
   margin: 10px 0 0;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text-2);
 }
@@ -4745,7 +4769,7 @@ body:not(:has(.tabbar)) .toast-region {
 }
 
 .site-hint {
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 500;
   color: var(--text-3);
 }
@@ -4830,7 +4854,7 @@ body:not(:has(.tabbar)) .toast-region {
 .voice-text {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 15px;
+  font-size: 0.9375rem;
   color: var(--text-2);
   overflow-wrap: anywhere;
 }
@@ -4883,7 +4907,7 @@ body:not(:has(.tabbar)) .toast-region {
 
 .weight-input .input {
   min-height: 56px;
-  font-size: 28px;
+  font-size: 1.75rem;
   font-weight: 700;
   text-align: center;
 }
@@ -4902,7 +4926,7 @@ body:not(:has(.tabbar)) .toast-region {
   align-items: center;
   gap: 10px;
   min-height: 44px;
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 
 .check-row input {
@@ -4926,7 +4950,7 @@ body:not(:has(.tabbar)) .toast-region {
   justify-content: center;
   min-height: 44px;
   padding: 0 4px;
-  font-size: clamp(12px, 3.6vw, 14px);
+  font-size: clamp(0.75rem, 3.6vw, 0.875rem);
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -4944,12 +4968,12 @@ body:not(:has(.tabbar)) .toast-region {
 }
 
 .gauge-btn[data-nudge] .gauge-label {
-  color: var(--water);
+  color: var(--water-text);
   font-weight: 700;
 }
 
 .water-status[data-emphasis] {
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 750;
   padding: 6px 14px;
   border-radius: 999px;
@@ -5013,7 +5037,7 @@ body:not(:has(.tabbar)) .toast-region {
   align-items: center;
   gap: 4px;
   background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .adm-dup-item {
@@ -5069,4 +5093,370 @@ body:not(:has(.tabbar)) .toast-region {
 .shopping-item[data-have] .list-row-main {
   color: var(--text-3);
   text-decoration: line-through;
+}
+
+/* Importar histórico de peso */
+.file-pick {
+  cursor: pointer;
+}
+
+.file-pick:focus-within {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.import-steps {
+  padding-left: 20px;
+  margin: 0;
+}
+
+.import-summary {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 0.9375rem;
+}
+
+.import-spark {
+  margin: 0;
+}
+
+.import-spark svg {
+  display: block;
+  width: 100%;
+  height: 64px;
+}
+
+.import-conflict {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+/* Atalhos (/rapido) e Perfil > Atalhos */
+.quick-screen {
+  min-height: 70dvh;
+  justify-content: center;
+}
+
+/* Uma linha mesmo em 360 px: o título do cartão acompanha a largura */
+.quick-card .large-title {
+  font-size: clamp(1.25rem, 5.4vw, 2rem);
+}
+
+.quick-primary {
+  min-height: 64px;
+  font-size: 1.15rem;
+}
+
+.shortcut-row {
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.shortcut-link {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  user-select: all;
+}
+
+/* --------------------------------------------------------------------------
+   Acessibilidade: menos transparência, alto contraste, menos animação, "Pular para o conteúdo"
+   Os atributos vêm do script do <head> (sistema OU preferência salva no perfil): ver src/lib/a11y.ts.
+   -------------------------------------------------------------------------- */
+
+/* Menos transparência: o vidro vira fundo sólido; some o desfoque e a luz colorida do fundo */
+html[data-reduce-transparency] {
+  --glass: #f2f5fb;
+  --glass-strong: #ffffff;
+  --glass-edge: rgb(15 23 41 / 0.2);
+  --glass-edge-soft: rgb(15 23 41 / 0.1);
+  --glass-line: rgb(15 23 41 / 0.16);
+  --fill: #e3e8f1;
+  --fill-strong: #d6dce8;
+}
+
+html[data-reduce-transparency] *,
+html[data-reduce-transparency] *::before,
+html[data-reduce-transparency] *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+html[data-reduce-transparency] .backdrop {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-reduce-transparency] {
+    --glass: #161e32;
+    --glass-strong: #1e2842;
+    --glass-edge: rgb(255 255 255 / 0.3);
+    --glass-edge-soft: rgb(255 255 255 / 0.14);
+    --glass-line: rgb(255 255 255 / 0.22);
+    --fill: #202a44;
+    --fill-strong: #2a3556;
+  }
+}
+
+/* Alto contraste: bordas mais fortes e texto secundário mais escuro (a transparência já sai junto) */
+html[data-contrast='more'] {
+  --text: #000000;
+  --text-2: #1c2233;
+  --text-3: #2c3345;
+  --glass-edge: rgb(0 0 0 / 0.6);
+  --glass-edge-soft: rgb(0 0 0 / 0.45);
+  --glass-line: rgb(0 0 0 / 0.5);
+  --glass-shadow: none;
+  --fill: #dfe4ee;
+  --fill-strong: #cbd2e0;
+  --accent-text: #0f2f8f;
+  --water-text: #075a78;
+  --water: #0b6f93;
+  --success: #0b6e55;
+  --danger: #b0152a;
+}
+
+html[data-contrast='more'] .glass {
+  box-shadow: inset 0 0 0 2px rgb(0 0 0 / 0.55);
+}
+
+html[data-contrast='more'] .input,
+html[data-contrast='more'] .textarea,
+html[data-contrast='more'] .btn-glass,
+html[data-contrast='more'] .segmented {
+  box-shadow: inset 0 0 0 2px var(--text-2);
+}
+
+html[data-contrast='more'] :focus-visible {
+  outline-width: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+  html[data-contrast='more'] {
+    --text: #ffffff;
+    --text-2: #e6eaf5;
+    --text-3: #d2d8e8;
+    --glass-edge: rgb(255 255 255 / 0.85);
+    --glass-edge-soft: rgb(255 255 255 / 0.7);
+    --glass-line: rgb(255 255 255 / 0.7);
+    --fill: #262f4a;
+    --fill-strong: #333e60;
+    --accent-text: #cfdcff;
+    --water-text: #a4e6fb;
+    --water: #6fd3f5;
+    --success: #5eecc0;
+    --danger: #ff8793;
+  }
+
+  html[data-contrast='more'] .glass {
+    box-shadow: inset 0 0 0 2px rgb(255 255 255 / 0.75);
+  }
+}
+
+/* Menos animação (preferência da pessoa ou do sistema): nada se move nem transiciona */
+html[data-reduce-motion] *,
+html[data-reduce-motion] *::before,
+html[data-reduce-motion] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  animation-delay: 0s !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Pular para o conteúdo: aparece só com o foco do teclado */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: calc(var(--z-toast) + 10);
+  padding: 12px 18px;
+  min-height: 44px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 650;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+.kbd-list {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.kbd-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.kbd-row dt {
+  flex: none;
+  min-width: 64px;
+}
+
+.kbd-row dd {
+  margin: 0;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 32px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  text-align: center;
+  font: inherit;
+  font-weight: 650;
+  background: var(--fill-strong);
+  box-shadow: inset 0 0 0 1px var(--glass-line);
+}
+
+/* "Ver em tabela" (alternativa aos gráficos) */
+.chart-table {
+  font-size: 0.9375rem;
+}
+
+.chart-table summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.chart-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.chart-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.chart-table th,
+.chart-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--glass-line);
+}
+
+.chart-table td {
+  text-align: right;
+}
+
+/* --------------------------------------------------------------------------
+   Alvos de toque: no mínimo 44 x 44 px em tudo que se toca, com respiro entre vizinhos
+   -------------------------------------------------------------------------- */
+
+.segmented button,
+.empty-add,
+.chip,
+.btn-sm,
+button.text-link,
+.toast-action,
+.toast-close,
+.sheet-close,
+.quick-sub,
+.legal-links a,
+summary {
+  min-height: 44px;
+}
+
+.rest-day-chip,
+.toast-close {
+  min-width: 44px;
+}
+
+.legal-links a,
+button.text-link {
+  display: inline-flex;
+  align-items: center;
+}
+
+.legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+/* Interruptor: a linha inteira é o alvo (o controle em si é pequeno de propósito) */
+.switch-row {
+  min-height: 44px;
+}
+
+/* --------------------------------------------------------------------------
+   Texto ampliado: nos medidores e nos modos da Nova refeição, o texto pode ocupar duas linhas em vez de ser cortado.
+   O limite é em rem: quanto maior o texto do sistema, mais cedo a regra vale (no tamanho padrão ela não aparece).
+   -------------------------------------------------------------------------- */
+
+@container (max-width: 4.8rem) {
+  .gauge-label,
+  .gauge-value {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.2;
+  }
+}
+
+.gauge-text {
+  min-height: calc(2.6rem);
+  height: auto;
+}
+
+.gauge-label,
+.gauge-value {
+  overflow-wrap: anywhere;
+}
+
+.segmented-modes button {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+  padding-block: 6px;
+}
+
+/* Centro do cluster: a coluna é mais larga, então o limite também (continua sem valer no tamanho padrão) */
+@container (max-width: 9rem) {
+  .gauge-cell-center .gauge-label,
+  .gauge-cell-center .gauge-value {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.2;
+  }
+}
+
+.macro-strip-item {
+  text-align: center;
+}
+
+.macro-strip-head,
+.macro-strip-val {
+  flex-wrap: wrap;
+  justify-content: center;
+  overflow-wrap: anywhere;
+}
+
+.fasting-line .list-row-title,
+.wellbeing-line .list-row-title,
+.wellbeing-line .list-row-sub {
+  white-space: normal;
+  overflow: visible;
 }

@@ -241,9 +241,9 @@ export function ItemsEditor({ items, onChange }: ItemsEditorProps) {
               return hide ? (
                 <>
                   <div className="grid-4" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-                    {macroField('protein', 'Prot.', 'var(--ring-protein)')}
-                    {macroField('carbs', 'Carb.', 'var(--ring-carbs)')}
-                    {macroField('fat', 'Gord.', 'var(--ring-fat)')}
+                    {macroField('protein', 'Prot.', 'var(--ring-protein-text)')}
+                    {macroField('carbs', 'Carb.', 'var(--ring-carbs-text)')}
+                    {macroField('fat', 'Gord.', 'var(--ring-fat-text)')}
                   </div>
                   <details className="adaptive-how">
                     <summary>Mais detalhes</summary>
@@ -254,10 +254,10 @@ export function ItemsEditor({ items, onChange }: ItemsEditorProps) {
                 </>
               ) : (
                 <div className="grid-4">
-                  {macroField('kcal', 'kcal', 'var(--ring-kcal)')}
-                  {macroField('protein', 'Prot.', 'var(--ring-protein)')}
-                  {macroField('carbs', 'Carb.', 'var(--ring-carbs)')}
-                  {macroField('fat', 'Gord.', 'var(--ring-fat)')}
+                  {macroField('kcal', 'kcal', 'var(--ring-kcal-text)')}
+                  {macroField('protein', 'Prot.', 'var(--ring-protein-text)')}
+                  {macroField('carbs', 'Carb.', 'var(--ring-carbs-text)')}
+                  {macroField('fat', 'Gord.', 'var(--ring-fat-text)')}
                 </div>
               );
             })()}

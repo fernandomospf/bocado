@@ -102,6 +102,7 @@ model User {
   meals        Meal[]
   foods        Food[]
   weights      WeightEntry[]
+  weightImports WeightImport[]
   recipes      Recipe[]
   contributed  Food[]        @relation("FoodContributor")
   aiUsage      AiUsage[]
@@ -185,6 +186,10 @@ model Profile {
   glp1Mode               Boolean @default(false)
   /// Piso de proteína em g/dia (referência geral, editável). Nulo = usa a sugestão calculada
   proteinFloorG          Int?
+  /// Acessibilidade: força os modos de alto contraste, menos transparência e menos animação (além do que o sistema pede)
+  a11yHighContrast       Boolean @default(false)
+  a11yReduceTransparency Boolean @default(false)
+  a11yReduceMotion       Boolean @default(false)
   /// Jejum intermitente (dado sensível, desligado por padrão; indisponível a menores de 18). O Bocado só registra a janela
   fastingEnabled         Boolean @default(false)
   createdAt       DateTime      @default(now())
@@ -302,8 +307,12 @@ model WeightEntry {
   weightKg  Float
   note      String?
   createdAt DateTime @default(now())
+  /// Importação que CRIOU este registro (desfazer apaga só estes). Nulo = registrado à mão
+  importId  String?  @db.Uuid
+  import    WeightImport? @relation(fields: [importId], references: [id], onDelete: SetNull)
 
   @@unique([userId, date])
+  @@index([importId])
   @@map("weight_entries")
 }
 
@@ -809,4 +818,24 @@ model FastingSession {
 
   @@index([userId, startedAt])
   @@map("fasting_sessions")
+}
+
+enum WeightImportSource {
+  CSV
+  APPLE_HEALTH
+}
+
+/// Uma importação de histórico de peso (o arquivo é lido no aparelho; só datas e pesos chegam ao servidor)
+model WeightImport {
+  id        String             @id @default(uuid()) @db.Uuid
+  userId    String             @db.Uuid
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source    WeightImportSource
+  createdAt DateTime           @default(now())
+  /// Registros CRIADOS por esta importação (somando todos os lotes)
+  count     Int                @default(0)
+  entries   WeightEntry[]
+
+  @@index([userId, createdAt])
+  @@map("weight_imports")
 }

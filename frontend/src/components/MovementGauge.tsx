@@ -80,6 +80,7 @@ export function MovementGauge({ date, movement, hideCalories, isToday, onOpen }:
         size={100}
         strokeWidth={8}
         memoryKey={memoryKey}
+        decorative
         travelMs={FLAME_TRAVEL_MS}
         onTravelEnd={celebrate}
         renderTip={() => (

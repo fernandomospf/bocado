@@ -16,6 +16,8 @@ interface HalfGaugeProps {
   /** Só um ícone pequeno, centralizado no vão inferior (nenhum texto dentro da meia-lua). */
   children?: ReactNode;
   className?: string;
+  /** Dentro de um botão que já tem nome acessível completo: o desenho fica escondido do leitor de tela (sem nome duplicado). */
+  decorative?: boolean;
   /**
    * Quando o PRIMEIRO arco aumenta, ele preenche em `travelMs` (ease-out) com `renderTip` desenhado na ponta.
    * Sem movimento reduzido; com ele, o arco só muda de valor.
@@ -40,6 +42,7 @@ export function HalfGauge({
   memoryKey,
   children,
   className,
+  decorative,
   travelMs,
   renderTip,
   onTravelEnd,
@@ -117,7 +120,10 @@ export function HalfGauge({
   }, [signature, memoryKey, cx, cy]);
 
   return (
-    <div className={`half-gauge${className ? ` ${className}` : ''}`} role="img" aria-label={arcs.map(describe).join('; ')}>
+    <div
+      className={`half-gauge${className ? ` ${className}` : ''}`}
+      {...(decorative ? { 'aria-hidden': true } : { role: 'img', 'aria-label': arcs.map(describe).join('; ') })}
+    >
       <svg viewBox={`0 0 ${size} ${height}`} className="half-gauge-svg" focusable="false">
         <defs>
           {arcs.map((a) => (
@@ -150,7 +156,7 @@ export function HalfGauge({
               )}
               {a.overLabel && (
                 <circle cx={end.x} cy={end.y} r={strokeWidth * 0.2} className="half-over-dot">
-                  <title>{a.overLabel}</title>
+                  {!decorative && <title>{a.overLabel}</title>}
                 </circle>
               )}
             </g>

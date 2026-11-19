@@ -1,20 +1,30 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { type ReactNode, useEffect } from 'react';
 import { AppShell } from '@/components/AppShell';
 import { ApiError } from '@/lib/api';
 import { useMe } from '@/lib/hooks';
+import { storeReturnPath, takeReturnPath } from '@/lib/quickActions';
 
 /** Área logada: exige sessão e questionário concluído. */
 export default function AppLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { data: me, error } = useMe();
 
+  const pathname = usePathname();
+
   useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) router.replace('/login');
-    else if (me && !me.onboarded) router.replace('/onboarding');
-  }, [me, error, router]);
+    if (error instanceof ApiError && error.status === 401) {
+      // Atalho aberto sem sessão: depois do login, volta para ele (só caminhos internos /rapido/, validados)
+      storeReturnPath(`${pathname}${window.location.search}`, window.localStorage);
+      router.replace('/login');
+    } else if (me && !me.onboarded) router.replace('/onboarding');
+    else if (me?.onboarded && pathname === '/') {
+      const back = takeReturnPath(window.localStorage);
+      if (back) router.replace(back);
+    }
+  }, [me, error, router, pathname]);
 
   if (error && !(error instanceof ApiError && error.status === 401)) {
     return (

@@ -92,7 +92,7 @@ export function GaugeCluster({ date, targets, totals, meals, hideCalories, movem
                 data-nudge={waterNudge || undefined}
                 onClick={() => openWater(date)}
               >
-                <HalfGauge arcs={waterModel.arcs} size={100} strokeWidth={8} memoryKey={memoryKey}>
+                <HalfGauge arcs={waterModel.arcs} size={100} strokeWidth={8} memoryKey={memoryKey} decorative>
                   <DropIcon className="gauge-slot-icon" style={{ color: 'var(--water)' }} />
                 </HalfGauge>
                 <GaugeText view={waterModel} />
@@ -105,7 +105,7 @@ export function GaugeCluster({ date, targets, totals, meals, hideCalories, movem
 
         <div className="gauge-cell gauge-cell-center">
           <button type="button" className="gauge-btn" aria-label={macro.ariaLabel} title={macro.sentence} onClick={() => setCompositionOpen(true)}>
-            <HalfGauge arcs={macro.arcs} size={150} strokeWidth={10} gap={3} memoryKey={memoryKey} />
+            <HalfGauge arcs={macro.arcs} size={150} strokeWidth={10} gap={3} memoryKey={memoryKey} decorative />
             <GaugeText view={macro} large />
           </button>
         </div>

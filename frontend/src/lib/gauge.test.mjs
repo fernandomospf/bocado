@@ -224,7 +224,9 @@ describe('movimento (dia)', () => {
     const m = movementView(base);
     assert.equal(`${m.value}${m.total}`, '60/30 min');
     assert.equal(m.label, '≈ 370 kcal');
-    assert.equal(m.ariaLabel, 'Movimento de hoje: 60 de 30 minutos; gasto estimado de 370 calorias');
+    // O nome acessível começa pelo texto visível (WCAG 2.5.3) e termina com a leitura completa
+    assert.ok(m.ariaLabel.startsWith('60/30 min'));
+    assert.ok(m.ariaLabel.endsWith('Movimento de hoje: 60 de 30 minutos; gasto estimado de 370 calorias'));
     assert.equal(m.arcs[0].target, 30);
     assert.equal(m.arcs[0].overLabel, '30 min além da meta');
   });
@@ -240,7 +242,8 @@ describe('movimento (dia)', () => {
     const m = movementView({ ...base, goalMin: null, estimateKcal: null });
     assert.equal(`${m.value}${m.total}`, '60 min');
     assert.equal(m.arcs[0].target, 0);
-    assert.equal(m.ariaLabel, 'Movimento de hoje: 60 minutos');
+    assert.ok(m.ariaLabel.startsWith('60 min Movimento'));
+    assert.ok(m.ariaLabel.endsWith('Movimento de hoje: 60 minutos'));
   });
 
   it('descanso sem treino: "Descanso" / "Movimento", arco neutro; descanso com treino: minutos sem meta', () => {
@@ -257,7 +260,7 @@ describe('movimento (dia)', () => {
   });
 
   it('dia passado: "do dia" em vez de "de hoje"', () => {
-    assert.match(movementView({ ...base, isToday: false }).ariaLabel, /^Movimento do dia: 60 de 30 minutos/);
+    assert.match(movementView({ ...base, isToday: false }).ariaLabel, /Movimento do dia: 60 de 30 minutos/);
   });
 
   it('números grandes ("240/240 min") marcados como longos', () => {

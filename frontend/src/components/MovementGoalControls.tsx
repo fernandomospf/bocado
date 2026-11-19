@@ -78,7 +78,7 @@ export function MovementGoalControls({ showToggle = true }: { showToggle?: boole
                 type="button"
                 className="chip chip-toggle rest-day-chip"
                 aria-pressed={on}
-                aria-label={`${d.long}: ${on ? 'descanso' : 'dia ativo'}`}
+                aria-label={`${d.short}, ${d.long}: dia de descanso`}
                 onClick={() => void save({ movementRestDays: toggleRestDay(rest, d.day) })}
               >
                 {d.short}

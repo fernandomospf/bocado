@@ -65,6 +65,10 @@ export interface Profile extends BodyData {
   supplementsEnabled: boolean;
   /** Na tela Hoje, mostra "Medicação 1" / "Suplemento 2" em vez do nome. */
   supplementsMaskNamesOnHome: boolean;
+  /** Acessibilidade: modos forçados (além do que o sistema pede). */
+  a11yHighContrast: boolean;
+  a11yReduceTransparency: boolean;
+  a11yReduceMotion: boolean;
   /** Jejum intermitente (privado, desligado por padrão). */
   fastingEnabled: boolean;
   /** Modo GLP-1 (privado). Com ele desligado, `proteinFloorG` e a sugestão vêm nulos. */
@@ -658,4 +662,12 @@ export interface WellbeingDay {
   note: string | null;
   /** "Dia N desde a última aplicação" do plano injetável (só com suplementos ligados). */
   dayOfCycle?: number | null;
+}
+
+/** Uma importação de histórico de peso (Perfil > Peso). */
+export interface WeightImportRecord {
+  id: string;
+  source: 'CSV' | 'APPLE_HEALTH';
+  createdAt: string;
+  count: number;
 }

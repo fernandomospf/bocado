@@ -4,12 +4,14 @@ import { useRouter } from 'next/navigation';
 import { type ReactNode, useEffect } from 'react';
 import { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
+import { useA11yPrefs } from '@/lib/a11y';
 import { useProfile } from '@/lib/hooks';
 import { takePendingInvite } from '@/lib/invite';
 import type { Household } from '@/lib/types';
 import { useToast } from './Toast';
 import { useShortcuts } from '@/lib/useShortcuts';
 import { WorkoutSheetProvider, useQuickSheets } from './QuickSheets';
+import { KEYBOARD_HELP_EVENT, KeyboardHelp } from './KeyboardHelp';
 import { Sidebar } from './Sidebar';
 import { TabBar } from './TabBar';
 import { TopBar } from './TopBar';
@@ -36,15 +38,23 @@ function Shell({ children }: { children: ReactNode }) {
     t: () => openWorkout(),
     // W abre a água (só se o contador estiver ligado)
     w: () => profile?.waterEnabled !== false && openWater(),
+    '?': () => window.dispatchEvent(new Event(KEYBOARD_HELP_EVENT)),
   });
   usePendingInvite();
+  useA11yPrefs();
 
   return (
     <>
+      <a href="#conteudo" className="skip-link">
+        Pular para o conteúdo
+      </a>
       <TopBar />
       <Sidebar />
-      <div className="app-content">{children}</div>
+      <div className="app-content" id="conteudo" tabIndex={-1}>
+        {children}
+      </div>
       <TabBar />
+      <KeyboardHelp />
     </>
   );
 }

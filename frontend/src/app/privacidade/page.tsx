@@ -27,7 +27,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="Política de Privacidade"
-      updatedAt="19 de novembro de 2026"
+      updatedAt="20 de novembro de 2026"
       toc={TOC}
       otherPage={{ href: '/termos', label: 'Termos de Uso' }}
     >
@@ -80,6 +80,13 @@ export default function PrivacyPage() {
 
       <h3>Peso</h3>
       <p>Os registros de peso que você faz: data, valor e uma observação opcional, no máximo um por dia.</p>
+      <h3>Importação de histórico de peso</h3>
+      <p>
+        Se você importar um histórico (um CSV ou o arquivo export.xml do app Saúde), o arquivo é lido no seu aparelho e só os
+        pesos e as datas são enviados ao Bocado. O restante do arquivo (passos, batimentos, nomes de apps e qualquer outra
+        coluna) nunca sai do aparelho. Guardamos também que a importação existiu (origem, data e quantidade) para você poder
+        desfazê-la. Tudo é apagado junto com a conta.
+      </p>
       <h3>Água e meta de peso</h3>
       <p>
         Os registros de água que você anota (quantidade, dia e horário), a meta de água de cada dia e, se você definir, a sua

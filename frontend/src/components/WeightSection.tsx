@@ -5,11 +5,13 @@ import useSWR, { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
 import { addDays, dayMonth, todayISO } from '@/lib/date';
 import { fmtDec } from '@/lib/format';
-import type { Profile, WeightEntry, WeightList, WeightSummary } from '@/lib/types';
+import type { Profile, WeightEntry, WeightImportRecord, WeightList, WeightSummary } from '@/lib/types';
 import { ChevronRight, PlusIcon } from './Icons';
 import { useSupplementNames, useSupplementsEnabled, useWeightMarkers } from '@/lib/useSupplements';
+import { ChartTable } from './ChartTable';
 import { WeightChart } from './WeightChart';
 import { WeightGoalCard } from './WeightGoalCard';
+import { WeightImportSheet } from './WeightImportSheet';
 import { WeightSheet } from './WeightSheet';
 
 type Period = 30 | 90;
@@ -39,6 +41,8 @@ export function WeightSection() {
   const { data: summary } = useSWR<WeightSummary>('/weight/summary');
   const { data: list } = useSWR<WeightList>(`/weight?from=${yearAgo}&to=${today}`);
 
+  const { data: imports } = useSWR<WeightImportRecord[]>('/weight/imports', { revalidateOnFocus: false });
+  const [importing, setImporting] = useState(false);
   const [period, setPeriod] = useState<Period>(30);
   const [markerDay, setMarkerDay] = useState<string | null>(null);
   const [sheet, setSheet] = useState<{ entry?: WeightEntry } | null>(null);
@@ -104,7 +108,9 @@ export function WeightSection() {
 
   return (
     <>
-      <h2 className="section-title">Peso</h2>
+      <h2 className="section-title" id="peso">
+        Peso
+      </h2>
       <WeightGoalCard summary={summary} />
       <section className="card glass stack-lg">
         {latest ? (
@@ -166,6 +172,11 @@ export function WeightSection() {
                     {dayMonth(markedDay.date)} · {markedDay.labels.join(', ')}
                   </p>
                 )}
+                <ChartTable
+                  caption={`Peso nos últimos ${period} dias`}
+                  headers={['Data', 'Peso (kg)', 'Média de 7 dias (kg)']}
+                  rows={[...inPeriod].reverse().map((e) => [dayMonth(e.date), fmtDec(e.weightKg), fmtDec(e.trendKg)])}
+                />
               </figure>
             ) : (
               <p className="caption" style={{ textAlign: 'center' }}>
@@ -198,6 +209,12 @@ export function WeightSection() {
           Registrar peso
         </button>
 
+        <button type="button" className="btn btn-glass btn-block" onClick={() => setImporting(true)}>
+          Importar histórico
+        </button>
+
+        {imports && imports.length > 0 && <ImportsList imports={imports} onUndone={refresh} />}
+
         {recent.length > 0 && (
           <div className="list" aria-label="Últimos registros">
             {(showAll ? recent : recent.slice(0, RECENT_COUNT)).map((e) => (
@@ -219,6 +236,10 @@ export function WeightSection() {
         )}
       </section>
 
+      {importing && <WeightImportSheet onClose={() => setImporting(false)} onChanged={async () => {
+          await globalMutate((key) => isWeightKey(key) || key === '/weight/imports');
+        }} />}
+
       {sheet && (
         <WeightSheet
           key={sheet.entry?.date ?? 'new'}
@@ -229,5 +250,63 @@ export function WeightSection() {
         />
       )}
     </>
+  );
+}
+
+const SOURCE_LABEL: Record<WeightImportRecord['source'], string> = { CSV: 'CSV', APPLE_HEALTH: 'App Saúde' };
+
+/** Importações feitas, cada uma com "Desfazer" (apaga só os registros que ela criou). */
+function ImportsList({ imports, onUndone }: { imports: WeightImportRecord[]; onUndone: () => void | Promise<void> }) {
+  const { mutate } = useSWRConfig();
+  const [confirm, setConfirm] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function undo(id: string) {
+    setError(null);
+    try {
+      await api(`/weight/import/${id}`, { method: 'DELETE' });
+      setConfirm(null);
+      await mutate('/weight/imports');
+      await onUndone();
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
+
+  return (
+    <div className="stack-sm" aria-label="Importações">
+      <h3 className="caption">Importações</h3>
+      {error && (
+        <p className="alert" role="alert">
+          {error}
+        </p>
+      )}
+      <ul className="list">
+        {imports.map((i) => (
+          <li key={i.id} className="list-row">
+            <span className="list-row-main">
+              <span className="list-row-title">
+                {SOURCE_LABEL[i.source]} · {i.count} {i.count === 1 ? 'registro' : 'registros'}
+              </span>
+              <span className="list-row-sub">{new Intl.DateTimeFormat('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(i.createdAt))}</span>
+            </span>
+            {confirm === i.id ? (
+              <span className="row" style={{ gap: 6 }}>
+                <button type="button" className="btn btn-glass btn-sm" onClick={() => void undo(i.id)}>
+                  Apagar {i.count}
+                </button>
+                <button type="button" className="btn btn-plain btn-sm" onClick={() => setConfirm(null)}>
+                  Manter
+                </button>
+              </span>
+            ) : (
+              <button type="button" className="btn btn-plain btn-sm" onClick={() => setConfirm(i.id)}>
+                Desfazer
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

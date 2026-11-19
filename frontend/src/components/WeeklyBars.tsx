@@ -1,6 +1,7 @@
 import { fromISO } from '@/lib/date';
 import { fmtInt } from '@/lib/format';
 import type { WeeklyDay } from '@/lib/types';
+import { ChartTable } from './ChartTable';
 
 const W = 320;
 const H = 140;
@@ -23,6 +24,7 @@ export function WeeklyBars({ days }: { days: WeeklyDay[] }) {
     .join('; ')}.`;
 
   return (
+    <>
     <svg className="weekly-bars" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label}>
       <line x1={PAD.left} x2={W - PAD.right} y1={y(goal)} y2={y(goal)} className="weekly-goal" />
       {days.map((d, i) => {
@@ -41,5 +43,11 @@ export function WeeklyBars({ days }: { days: WeeklyDay[] }) {
         );
       })}
     </svg>
+    <ChartTable
+      caption="Calorias por dia na semana"
+      headers={['Dia', 'Calorias (kcal)']}
+      rows={days.map((d) => [new Intl.DateTimeFormat('pt-BR', { weekday: 'long' }).format(fromISO(d.date)), d.logged ? fmtInt(d.kcal) : 'sem registro'])}
+    />
+    </>
   );
 }

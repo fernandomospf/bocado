@@ -147,6 +147,19 @@ export class PreferencesDto {
   @IsBoolean()
   supplementsMaskNamesOnHome?: boolean;
 
+  /** Acessibilidade (null não vale): alto contraste, menos transparência e menos animação. */
+  @ValidateIf((o: PreferencesDto) => o.a11yHighContrast !== undefined)
+  @IsBoolean()
+  a11yHighContrast?: boolean;
+
+  @ValidateIf((o: PreferencesDto) => o.a11yReduceTransparency !== undefined)
+  @IsBoolean()
+  a11yReduceTransparency?: boolean;
+
+  @ValidateIf((o: PreferencesDto) => o.a11yReduceMotion !== undefined)
+  @IsBoolean()
+  a11yReduceMotion?: boolean;
+
   /** Jejum intermitente (null não vale). Menores de 18 anos não podem ligar (403). */
   @ValidateIf((o: PreferencesDto) => o.fastingEnabled !== undefined)
   @IsBoolean()

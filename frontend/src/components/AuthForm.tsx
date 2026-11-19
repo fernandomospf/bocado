@@ -7,6 +7,7 @@ import useSWR, { useSWRConfig } from 'swr';
 import { api, errorMessage } from '@/lib/api';
 import type { Me } from '@/lib/types';
 import { CheckIcon, GoogleIcon } from './Icons';
+import { storeReturnPath } from '@/lib/quickActions';
 import { Logo } from './Logo';
 import { Rings } from './Rings';
 import { ringSpecs } from './ringSpecs';
@@ -59,6 +60,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
     return OAUTH_ERRORS[code] ?? null;
   });
   const byInvite = providers?.registration === 'invite';
+
+  // ?next=/rapido/... : guarda o retorno (validado) para depois do login, inclusive o do Google, que perde a URL
+  useEffect(() => {
+    storeReturnPath(params.get('next'), window.localStorage);
+  }, [params]);
 
   // ?invite= na URL ou o valor guardado (recarregar a página não perde o código)
   useEffect(() => {

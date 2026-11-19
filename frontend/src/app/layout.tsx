@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import { A11Y_INLINE_SCRIPT } from '@/lib/a11y';
 import { HIDE_CALORIES_INLINE_SCRIPT } from '@/lib/kcal';
 import { Providers } from '@/components/Providers';
 import './globals.css';
@@ -35,7 +36,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     // suppressHydrationWarning: o script abaixo põe data-hide-calories no <html> antes da hidratação
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: HIDE_CALORIES_INLINE_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: HIDE_CALORIES_INLINE_SCRIPT + A11Y_INLINE_SCRIPT }} />
       </head>
       <body>
         <div className="backdrop" aria-hidden>

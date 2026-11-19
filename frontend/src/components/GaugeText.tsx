@@ -10,7 +10,7 @@ export function GaugeText({ view, large = false }: { view: Pick<GaugeView, 'valu
       <span className={`gauge-value num${large ? ' gauge-value-lg' : ''}`} data-fit={view.fit}>
         {view.value}
         {view.total && <span className="gauge-total">{view.total}</span>}
-      </span>
+      </span>{' '}
       <span className="gauge-label" data-fit={view.label.length > 23 ? 'long' : 'normal'}>
         {view.label}
       </span>

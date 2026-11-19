@@ -1,10 +1,11 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, Optional, UnprocessableEntityException } from '@nestjs/common';
-import { Profile, WeightEntry } from '@prisma/client';
+import { Prisma, Profile, WeightEntry } from '@prisma/client';
 import { formatDay, parseDay } from '../common/dates';
 import { PrismaService } from '../prisma/prisma.service';
 import { ageFrom } from '../profile/nutrition';
 import { WaterService } from '../water/water.service';
-import { SaveWeightDto } from './dto/weight.dto';
+import { ImportWeightDto, SaveWeightDto } from './dto/weight.dto';
+import { normalizeImport } from './weight-import';
 import { goalProblem, goalProgress, type GoalSummary, UNDER_18_MESSAGE } from './weight.goal';
 import { addDays, dayNumber, isTargetsOutdated, movingAverages, summarizeTrend, TREND_WINDOW_DAYS } from './weight.math';
 
@@ -134,6 +135,78 @@ export class WeightService {
     if (count === 0) throw new NotFoundException('Registro de peso não encontrado');
     await this.syncProfileWeight(userId);
     await this.water?.recalcAround(userId, date);
+  }
+
+  /**
+   * Importa um lote de pesos (o app divide em lotes de até 5.000 do MESMO import, repassando o `importId`).
+   * "keep" nunca toca em registros existentes; "replace" sobrescreve o valor do dia (a nota fica). Só os registros CRIADOS
+   * pela importação ficam ligados a ela (desfazer apaga só esses; os substituídos mantêm o valor importado).
+   * Perfil: o peso só acompanha se o dia mais recente do lote não for anterior ao último registro. As metas de calorias
+   * não mudam; a meta de água de hoje é recalculada pela regra existente.
+   */
+  async importBatch(userId: string, dto: ImportWeightDto, now = new Date()) {
+    const maxDate = addDays(now.toISOString().slice(0, 10), 1);
+    const { entries, discarded } = normalizeImport(dto.entries, maxDate);
+    if (entries.length === 0) throw new BadRequestException('Nenhum registro válido para importar');
+
+    if (dto.importId) {
+      const own = await this.prisma.weightImport.findFirst({ where: { id: dto.importId, userId, source: dto.source }, select: { id: true } });
+      if (!own) throw new NotFoundException('Importação não encontrada');
+    }
+    const previousLatest = await this.prisma.weightEntry.findFirst({ where: { userId }, orderBy: { date: 'desc' }, select: { date: true } });
+
+    const dates = entries.map((e) => e.date);
+    const kgs = entries.map((e) => e.weightKg);
+    const result = await this.prisma.$transaction(async (tx) => {
+      const imp = dto.importId
+        ? { id: dto.importId }
+        : await tx.weightImport.create({ data: { userId, source: dto.source }, select: { id: true } });
+      const onConflict =
+        dto.conflict === 'replace'
+          ? Prisma.sql`ON CONFLICT ("userId", "date") DO UPDATE SET "weightKg" = EXCLUDED."weightKg"`
+          : Prisma.sql`ON CONFLICT ("userId", "date") DO NOTHING`;
+      // `xmax = 0` só nas linhas inseridas de verdade (as atualizadas pelo conflito têm xmax diferente de zero)
+      const rows = await tx.$queryRaw<{ inserted: boolean }[]>`
+        INSERT INTO weight_entries (id, "userId", "date", "weightKg", "importId", "createdAt")
+        SELECT gen_random_uuid(), ${userId}::uuid, d, k, ${imp.id}::uuid, now()
+          FROM unnest(${dates}::date[], ${kgs}::float8[]) AS t(d, k)
+        ${onConflict}
+        RETURNING (xmax = 0) AS inserted`;
+      const created = rows.filter((r) => r.inserted).length;
+      const touched = rows.length; // keep: só as criadas; replace: criadas + substituídas
+      await tx.weightImport.update({ where: { id: imp.id }, data: { count: { increment: created } } });
+      return {
+        importId: imp.id,
+        created,
+        replaced: dto.conflict === 'replace' ? touched - created : 0,
+        kept: dto.conflict === 'keep' ? entries.length - created : 0,
+      };
+    });
+
+    const lastImported = entries[entries.length - 1].date;
+    if (!previousLatest || lastImported >= formatDay(previousLatest.date)) await this.syncProfileWeight(userId);
+    await this.water?.recalcToday(userId, now);
+    return { ...result, discarded, received: dto.entries.length, period: { from: entries[0].date, to: lastImported } };
+  }
+
+  /** Importações da pessoa, da mais recente para a mais antiga (Perfil > Peso > Importar histórico). */
+  async listImports(userId: string) {
+    const rows = await this.prisma.weightImport.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 50 });
+    return rows.map((r) => ({ id: r.id, source: r.source, createdAt: r.createdAt.toISOString(), count: r.count }));
+  }
+
+  /** Desfaz: apaga só os registros que a importação CRIOU. Os valores que ela substituiu não voltam. */
+  async undoImport(userId: string, id: string, now = new Date()) {
+    const imp = await this.prisma.weightImport.findFirst({ where: { id, userId }, select: { id: true } });
+    if (!imp) throw new NotFoundException('Importação não encontrada');
+    const { deleted } = await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.weightEntry.deleteMany({ where: { userId, importId: id } });
+      await tx.weightImport.delete({ where: { id } });
+      return { deleted: count };
+    });
+    await this.syncProfileWeight(userId);
+    await this.water?.recalcToday(userId, now);
+    return { deleted };
   }
 
   /** O peso do perfil acompanha o registro mais recente. As metas não são recalculadas aqui. */

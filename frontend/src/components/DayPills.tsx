@@ -60,7 +60,7 @@ export function DayPills({ date, today, weekStartsOn, onSelect }: DayPillsProps)
         className={isOlder ? 'day-pill day-pill-older' : 'day-pill'}
         aria-pressed={iso === date}
         aria-current={iso === today ? 'date' : undefined}
-        aria-label={`${iso === today ? 'Hoje, ' : iso === addDays(today, -1) ? 'Ontem, ' : ''}${longLabel.format(fromISO(iso))}: ${detail}`}
+        aria-label={`${pillLabel(iso, today, isOlder).replace(/\s+/g, ' ')}, ${iso === today ? 'hoje, ' : iso === addDays(today, -1) ? 'ontem, ' : ''}${longLabel.format(fromISO(iso))}: ${detail}`}
         onClick={() => select(iso)}
       >
         <span className="day-pill-label" aria-hidden>

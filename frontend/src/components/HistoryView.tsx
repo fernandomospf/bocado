@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ChartTable } from './ChartTable';
 import { useState } from 'react';
 import useSWR from 'swr';
 import { addDays, dayMonth, dayTitle, shortDay, todayISO } from '@/lib/date';
@@ -109,6 +110,12 @@ export function HistoryView() {
             );
           })}
         </div>
+
+        <ChartTable
+          caption={hide ? 'Proteína por dia' : 'Calorias por dia'}
+          headers={['Dia', hide ? 'Proteína (g)' : 'Calorias (kcal)']}
+          rows={[...series].reverse().map((s) => [dayMonth(s.date), s.kcal === 0 ? 'sem registro' : fmtInt(s.kcal)])}
+        />
 
         <div className="not-desktop">
           <HistoryStats hide={hide} avgKcal={avg('kcal')} avgProtein={avg('protein')} onTarget={onTarget} period={period} />

@@ -46,6 +46,9 @@ export function waterPair(totalMl: number, goalMl: number | null): { value: stri
   return { value: fmt(totalMl), total: ` / ${fmt(goalMl)} ${unit}` };
 }
 
+/** Nome acessível de um medidor: começa pelo texto que aparece na tela (valor e rótulo) e segue com a leitura completa. */
+const named = (value: string, total: string | undefined, label: string, rest: string) => `${value}${total ?? ''} ${label}. ${rest}`;
+
 const pct = (value: number, target: number) => Math.round(target > 0 ? (value / target) * 100 : 0);
 /** Limiar (caracteres) a partir do qual a linha usa a fonte menor. */
 const fitOf = (text: string, max: number): GaugeView['fit'] => (text.length > max ? 'long' : 'normal');
@@ -83,14 +86,14 @@ export function macroView({ arcs, totals, targets, hideCalories, proteinFloor }:
     const sentence = `Proteína: ${n0(totals.protein)} de ${n0(goal)} g; ${hit ? reached : `faltam ${n0(left)} g`}`;
     const value = n0(totals.protein);
     const total = ` / ${n0(goal)} g`;
-    return { arcs: withOver, value, total, label, fit: fitOf(value + total, 13), sentence, ariaLabel: `Macros. ${sentence}. ${description}` };
+    return { arcs: withOver, value, total, label, fit: fitOf(value + total, 13), sentence, ariaLabel: named(value, total, label, `Macros. ${sentence}. ${description}`) };
   }
   const remaining = Math.round(targets.kcal - totals.kcal);
   const label = remaining >= 0 ? `kcal · restam ${n0(remaining)}` : `kcal · ${n0(-remaining)} além da meta`;
   const sentence = `Energia: ${n0(totals.kcal)} de ${n0(targets.kcal)} kcal; ${remaining >= 0 ? `restam ${n0(remaining)} kcal` : `${n0(-remaining)} kcal além da meta`}`;
   const value = n0(totals.kcal);
   const total = ` / ${n0(targets.kcal)}`;
-  return { arcs: withOver, value, total, label, fit: fitOf(value + total, 13), sentence, ariaLabel: `Macros. ${sentence}. ${description}` };
+  return { arcs: withOver, value, total, label, fit: fitOf(value + total, 13), sentence, ariaLabel: named(value, total, label, `Macros. ${sentence}. ${description}`) };
 }
 
 // --- água -------------------------------------------------------------------
@@ -115,7 +118,7 @@ export function waterView({ totalMl, goalMl }: WaterInput): GaugeView {
   };
   const pair = waterPair(totalMl, hasGoal ? goalMl : null);
   const sentence = `Água: ${fmtLiters(totalMl)}${hasGoal ? ` de ${fmtLiters(goalMl)}` : ''}${arc.overLabel ? `, ${arc.overLabel}` : ''}`;
-  return { arcs: [arc], ...pair, label: 'Água', fit: fitOf(pair.value + (pair.total ?? ''), 11), sentence, ariaLabel: sentence };
+  return { arcs: [arc], ...pair, label: 'Água', fit: fitOf(pair.value + (pair.total ?? ''), 11), sentence, ariaLabel: named(pair.value, pair.total, 'Água', sentence) };
 }
 
 // --- movimento --------------------------------------------------------------
@@ -170,6 +173,6 @@ export function movementView({ minutes, goalMin, restDay, estimateKcal, hideCalo
     label: estimate !== null ? `≈ ${n0(estimate)} kcal` : 'Movimento',
     fit: fitOf(value + (total ?? ''), 10),
     sentence,
-    ariaLabel: sentence,
+    ariaLabel: named(value, total, estimate !== null ? `≈ ${n0(estimate)} kcal` : 'Movimento', sentence),
   };
 }

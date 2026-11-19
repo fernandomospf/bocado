@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { AuthUser } from '../auth/auth.types';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { SaveWeightDto, SetWeightGoalDto, WeightDateParamDto, WeightRangeQueryDto } from './dto/weight.dto';
+import { ImportIdParamDto, ImportWeightDto, SaveWeightDto, SetWeightGoalDto, WeightDateParamDto, WeightRangeQueryDto } from './dto/weight.dto';
 import { WeightService } from './weight.service';
 
 @Controller('weight')
@@ -24,6 +25,25 @@ export class WeightController {
   @Put('goal')
   setGoal(@CurrentUser() user: AuthUser, @Body() dto: SetWeightGoalDto) {
     return this.weight.setGoal(user.id, dto.goalWeightKg);
+  }
+
+  /** Importa um lote de pesos já lidos no aparelho (até 5.000). Limite próprio de 10 por minuto. */
+  @Post('import')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  importBatch(@CurrentUser() user: AuthUser, @Body() dto: ImportWeightDto) {
+    return this.weight.importBatch(user.id, dto);
+  }
+
+  @Get('imports')
+  imports(@CurrentUser() user: AuthUser) {
+    return this.weight.listImports(user.id);
+  }
+
+  /** Desfaz a importação: apaga só os registros que ela criou. */
+  @Delete('import/:id')
+  undoImport(@CurrentUser() user: AuthUser, @Param() { id }: ImportIdParamDto) {
+    return this.weight.undoImport(user.id, id);
   }
 
   @Put(':date')
