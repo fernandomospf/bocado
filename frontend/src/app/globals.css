@@ -5604,3 +5604,28 @@ button.text-link {
     break-after: avoid;
   }
 }
+
+/* Link do relatório: link e código em campos separados */
+.share-secret {
+  display: block;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--fill);
+  font-size: 1.125rem;
+  letter-spacing: 0.08em;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  user-select: all;
+}
+
+.share-sep {
+  border: 0;
+  border-top: 1px solid var(--glass-line);
+  margin: 4px 0;
+  width: 100%;
+}
+
+.share-row .list-row-main {
+  gap: 4px;
+  display: grid;
+}

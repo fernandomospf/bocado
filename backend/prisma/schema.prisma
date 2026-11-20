@@ -103,6 +103,7 @@ model User {
   foods        Food[]
   weights      WeightEntry[]
   weightImports WeightImport[]
+  reportShares ReportShare[]
   recipes      Recipe[]
   contributed  Food[]        @relation("FoodContributor")
   aiUsage      AiUsage[]
@@ -838,4 +839,68 @@ model WeightImport {
 
   @@index([userId, createdAt])
   @@map("weight_imports")
+}
+
+// ---------------------------------------------------------------------------
+// Link compartilhável do relatório para o nutricionista. Dado de saúde: o link SÓ abre com o código de acesso
+// (obrigatório, guardado em bcrypt) e só em um número limitado de aparelhos. Nunca guarda IP, só um hash para o bloqueio.
+// ---------------------------------------------------------------------------
+
+enum ReportShareRevoked {
+  USER
+  BLOCKS
+}
+
+model ReportShare {
+  id             String              @id @default(uuid()) @db.Uuid
+  userId         String              @db.Uuid
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// 24 bytes aleatórios em base64url: vai na URL (/r/<token>). Sozinho NÃO abre nada: falta o código
+  token          String              @unique
+  /// bcrypt do código de 8 caracteres (mostrado UMA vez, na criação)
+  codeHash       String
+  from           DateTime            @db.Date
+  to             DateTime            @db.Date
+  expiresAt      DateTime
+  /// Aparelhos que podem abrir: 1 ou 2
+  maxDevices     Int                 @default(1)
+  revokedAt      DateTime?
+  revokedReason  ReportShareRevoked?
+  /// Tentativas erradas seguidas (5 = bloqueio de 15 min) e quantos bloqueios já houve (3 = revoga o link)
+  failedAttempts Int                 @default(0)
+  lockCount      Int                 @default(0)
+  lockedUntil    DateTime?
+  /// A pessoa já foi avisada na Home de que o link foi cancelado por tentativas erradas
+  blockNoticedAt DateTime?
+  createdAt      DateTime            @default(now())
+  devices        ReportShareDevice[]
+
+  @@index([userId, createdAt])
+  @@map("report_shares")
+}
+
+/// Um aparelho liberado (o evento "relatório aberto"). Só o hash do token do cookie; sem IP nem identificação do aparelho
+model ReportShareDevice {
+  id              String      @id @default(uuid()) @db.Uuid
+  linkId          String      @db.Uuid
+  link            ReportShare @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  deviceTokenHash String
+  createdAt       DateTime    @default(now())
+  lastSeenAt      DateTime    @default(now())
+  /// A pessoa já viu o aviso "seu relatório foi aberto" na Home
+  notifiedAt      DateTime?
+
+  @@unique([linkId, deviceTokenHash])
+  @@index([linkId])
+  @@map("report_share_devices")
+}
+
+/// Tentativas erradas por IP (hash com segredo do servidor, nunca o IP): 5 erros = bloqueio de 15 minutos
+model ReportShareIpLock {
+  ipHash      String    @id
+  failures    Int       @default(0)
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@map("report_share_ip_locks")
 }

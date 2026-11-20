@@ -5,9 +5,10 @@ import { useState } from 'react';
 import useSWR from 'swr';
 import { addDays, dayMonth, isValidISO, todayISO } from '@/lib/date';
 import { fmtDec, fmtInt } from '@/lib/format';
+import { ReportSharesList, ShareCreator } from './ReportShare';
 import { Sheet } from './Sheet';
 
-interface NutritionistData {
+export interface NutritionistData {
   name: string;
   from: string;
   to: string;
@@ -57,6 +58,9 @@ export function NutritionistReportSheet({ onClose }: { onClose: () => void }) {
         <button type="button" className="btn btn-primary btn-block" onClick={() => router.push(`/relatorio?from=${from}&to=${to}`)}>
           Gerar relatório
         </button>
+        <hr className="share-sep" />
+        <ShareCreator key={`${from}${to}`} from={from} to={to} />
+        <ReportSharesList />
       </div>
     </Sheet>
   );
@@ -92,8 +96,6 @@ export function NutritionistReportView() {
   }
   if (!data) return <div className="splash" aria-busy="true"><span className="spinner" aria-label="Carregando" /></div>;
 
-  const hide = data.hideCalories;
-  const { targets: t, averages: a } = data;
   return (
     <main className="screen report-screen">
       <div className="report-actions no-print">
@@ -105,7 +107,17 @@ export function NutritionistReportView() {
         </button>
       </div>
 
-      <article className="report-page">
+      <ReportDocument data={data} generated={generated} />
+    </main>
+  );
+}
+
+/** O documento do relatório (a folha): usado na página do Perfil e no link público. */
+export function ReportDocument({ data, generated }: { data: NutritionistData; generated: string }) {
+  const hide = data.hideCalories;
+  const { targets: t, averages: a } = data;
+  return (
+    <article className="report-page">
         <header className="report-head">
           <h1 className="report-title">Relatório de alimentação</h1>
           <p>
@@ -207,7 +219,6 @@ export function NutritionistReportView() {
         </section>
 
         <footer className="report-foot">Dados registrados pela própria pessoa no Bocado; as estimativas por foto e descrição são aproximadas.</footer>
-      </article>
-    </main>
+    </article>
   );
 }

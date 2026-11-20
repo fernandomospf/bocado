@@ -150,8 +150,8 @@ export class ReportsService {
 
   /**
    * Relatório para o nutricionista (período de até 93 dias): metas atuais, dia a dia, médias dos dias REGISTRADOS, peso
-   * (tendência no início e no fim, a menos que a pessoa oculte o peso nos relatórios), água e treino. Sem suplementos,
-   * bem-estar nem jejum. Só lê dados da própria pessoa.
+   * (tendência no início e no fim, a menos que a pessoa oculte o peso nos relatórios), água e treino. Nenhum dado
+   * sensível de saúde (só alimentação, peso, água e treino). Só lê dados da própria pessoa.
    */
   async nutritionist(userId: string, from: string, to: string) {
     const span = dayNumber(to) - dayNumber(from);

@@ -33,6 +33,7 @@ import { OfferCards } from './OfferCards';
 import type { SplitState } from './SplitPicker';
 import { GaugeCluster } from './GaugeCluster';
 import { Glp1Home } from './Glp1';
+import { ReportShareNotice } from './ReportShare';
 import { ReturnCard } from './ReturnCard';
 import { FastingLine } from './Fasting';
 import { SupplementsSection, useSupplementsToday } from './SupplementsSection';
@@ -203,6 +204,8 @@ export function TodayView() {
         </section>
 
         {date === today && <FastingLine />}
+
+        {date === today && <ReportShareNotice />}
 
         <Glp1Home date={date} />
 

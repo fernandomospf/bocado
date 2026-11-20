@@ -27,7 +27,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="Política de Privacidade"
-      updatedAt="20 de novembro de 2026"
+      updatedAt="21 de novembro de 2026"
       toc={TOC}
       otherPage={{ href: '/termos', label: 'Termos de Uso' }}
     >
@@ -86,6 +86,16 @@ export default function PrivacyPage() {
         pesos e as datas são enviados ao Bocado. O restante do arquivo (passos, batimentos, nomes de apps e qualquer outra
         coluna) nunca sai do aparelho. Guardamos também que a importação existiu (origem, data e quantidade) para você poder
         desfazê-la. Tudo é apagado junto com a conta.
+      </p>
+      <h3>Relatório para o nutricionista e link compartilhável</h3>
+      <p>
+        O relatório para o nutricionista é montado na hora com o que você registrou no período que escolher. Se você criar um link
+        para compartilhá-lo, o link só abre com um código de acesso de 8 caracteres, obrigatório, que o Bocado gera e mostra uma única vez
+        (guardamos apenas uma versão criptografada dele). O código libera um número limitado de aparelhos (1 ou 2, à sua escolha) e
+        você é avisado, no app, quando o relatório é aberto: data, hora e o número do aparelho, sem IP nem identificação do
+        aparelho. Depois de várias tentativas erradas o acesso é bloqueado por 15 minutos e, se continuar, o link é cancelado. Para
+        esse bloqueio guardamos temporariamente um resumo criptografado do endereço de rede de quem errou, nunca o endereço em si.
+        Você cancela o link quando quiser, e links e aparelhos liberados são apagados junto com a conta.
       </p>
       <h3>Água e meta de peso</h3>
       <p>
