@@ -1,7 +1,7 @@
 'use client';
 
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
-import { type NutritionistData, ReportDocument } from './NutritionistReport';
+import { type NutritionistData, ReportScreen } from './NutritionistReport';
 
 type View = { state: 'code' } | { state: 'report'; report: NutritionistData };
 
@@ -58,17 +58,7 @@ export function PublicReport({ token }: { token: string }) {
   }
 
   if (view.state === 'report') {
-    return (
-      <main className="screen report-screen">
-        <div className="report-actions no-print">
-          <span />
-          <button type="button" className="btn btn-primary" onClick={() => window.print()}>
-            Salvar como PDF
-          </button>
-        </div>
-        <ReportDocument data={view.report} generated={new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' }).format(new Date())} />
-      </main>
-    );
+    return <ReportScreen data={view.report} pdfUrl={`${base}/pdf`} />;
   }
 
   return (

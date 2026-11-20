@@ -153,7 +153,7 @@ export class ReportsService {
    * (tendência no início e no fim, a menos que a pessoa oculte o peso nos relatórios), água e treino. Nenhum dado
    * sensível de saúde (só alimentação, peso, água e treino). Só lê dados da própria pessoa.
    */
-  async nutritionist(userId: string, from: string, to: string) {
+  async nutritionist(userId: string, from: string, to: string, opts: { foods?: boolean; includeName?: boolean } = {}) {
     const span = dayNumber(to) - dayNumber(from);
     if (Number.isNaN(span) || span < 0) throw new BadRequestException('Intervalo inválido');
     if (span > 92) throw new BadRequestException('Intervalo máximo de 93 dias');
@@ -162,7 +162,7 @@ export class ReportsService {
     const [profile, user] = await Promise.all([this.profile(userId), this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } })]);
     const range = { gte: parseDay(from), lte: parseDay(to) };
     const [meals, weights, waterEntries, workouts] = await Promise.all([
-      this.prisma.meal.findMany({ where: { userId, date: range }, select: { date: true, items: { select: { kcal: true, protein: true, carbs: true, fat: true } } } }),
+      this.prisma.meal.findMany({ where: { userId, date: range }, select: { date: true, type: true, items: { select: { name: true, grams: true, kcal: true, protein: true, carbs: true, fat: true } } } }),
       profile.hideWeightInReports
         ? Promise.resolve([])
         : this.prisma.weightEntry.findMany({ where: { userId, date: { gte: parseDay(addDays(from, -6)), lte: parseDay(to) } }, select: { date: true, weightKg: true }, orderBy: { date: 'asc' } }),
@@ -184,10 +184,31 @@ export class ReportsService {
       totals.set(key, t);
     }
     const round1 = (n: number) => Math.round(n * 10) / 10;
+    // Alimentos de cada refeição (só com a opção ligada): nome e gramas, na ordem do dia
+    const MEAL_ORDER = ['BREAKFAST', 'LUNCH', 'SNACK', 'DINNER'] as const;
+    const foodsByDay = new Map<string, { type: (typeof MEAL_ORDER)[number]; items: { name: string; grams: number }[] }[]>();
+    if (opts.foods) {
+      for (const m of meals) {
+        if (m.items.length === 0) continue;
+        const key = formatDay(m.date);
+        const list = foodsByDay.get(key) ?? [];
+        list.push({ type: m.type as (typeof MEAL_ORDER)[number], items: m.items.map((i) => ({ name: i.name, grams: round1(i.grams) })) });
+        foodsByDay.set(key, list);
+      }
+      for (const list of foodsByDay.values()) list.sort((a, b) => MEAL_ORDER.indexOf(a.type) - MEAL_ORDER.indexOf(b.type));
+    }
     const days = Array.from({ length: span + 1 }, (_, i) => {
       const date = addDays(from, i);
       const t = totals.get(date);
-      return { date, registered: !!t, kcal: t ? Math.round(t.kcal) : 0, protein: t ? round1(t.protein) : 0, carbs: t ? round1(t.carbs) : 0, fat: t ? round1(t.fat) : 0 };
+      return {
+        date,
+        registered: !!t,
+        kcal: t ? Math.round(t.kcal) : 0,
+        protein: t ? round1(t.protein) : 0,
+        carbs: t ? round1(t.carbs) : 0,
+        fat: t ? round1(t.fat) : 0,
+        ...(opts.foods ? { meals: foodsByDay.get(date) ?? [] } : {}),
+      };
     });
     const logged = days.filter((d) => d.registered);
     const avg = (k: 'kcal' | 'protein' | 'carbs' | 'fat') => (logged.length ? round1(logged.reduce((s, d) => s + d[k], 0) / logged.length) : null);
@@ -199,7 +220,8 @@ export class ReportsService {
     const workoutSummary = workouts.length ? { count: workouts.length, totalMinutes: workouts.reduce((s, w) => s + w.durationMin, 0) } : null;
 
     return {
-      name: user?.name ?? '',
+      name: opts.includeName === false ? '' : (user?.name ?? ''),
+      foods: !!opts.foods,
       from,
       to,
       hideCalories: profile.hideCalories,

@@ -25,6 +25,8 @@ COPY --from=build --chown=app:app /app/node_modules ./node_modules
 COPY --from=build --chown=app:app /app/dist ./dist
 COPY --from=build --chown=app:app /app/dist-seed ./dist-seed
 COPY --from=build --chown=app:app /app/prisma ./prisma
+# Fontes do PDF do relatório (Roboto TTF, com acentos do português)
+COPY --from=build --chown=app:app /app/assets ./assets
 COPY --chown=app:app package.json ./
 USER app
 EXPOSE 3001

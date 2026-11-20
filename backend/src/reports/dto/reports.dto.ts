@@ -1,5 +1,5 @@
-import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
 import { ISO_DATE } from '../../common/dates';
 
 export class WeeklyQueryDto {
@@ -15,6 +15,18 @@ export class NutritionistQueryDto {
 
   @Matches(ISO_DATE, { message: 'Data final inválida' })
   to: string;
+
+  /** Inclui os alimentos de cada refeição (desligado por padrão). */
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean()
+  foods?: boolean;
+
+  /** Inclui o nome da pessoa no cabeçalho (ligado por padrão; "0"/"false" tira). */
+  @IsOptional()
+  @Transform(({ value }) => !(value === false || value === 'false' || value === '0'))
+  @IsBoolean()
+  name?: boolean;
 }
 
 export class WeeklyListQueryDto {
