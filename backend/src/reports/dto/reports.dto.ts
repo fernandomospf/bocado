@@ -8,6 +8,15 @@ export class WeeklyQueryDto {
   week: string;
 }
 
+/** Relatório para o nutricionista: período de até 93 dias. */
+export class NutritionistQueryDto {
+  @Matches(ISO_DATE, { message: 'Data inicial inválida' })
+  from: string;
+
+  @Matches(ISO_DATE, { message: 'Data final inválida' })
+  to: string;
+}
+
 export class WeeklyListQueryDto {
   @IsOptional()
   @Type(() => Number)

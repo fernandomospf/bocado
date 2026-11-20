@@ -6,7 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { recentLoggedKcal } from '../glp1/glp1.data';
 import { effectiveProteinFloor, isLowIntake, proteinFloorDays, suggestProteinFloor, summarizeWellbeing } from '../profile/glp1';
 import { suggestTargets } from '../profile/nutrition';
-import { addDays, movingAverages, summarizeTrend } from '../weight/weight.math';
+import { addDays, dayNumber, movingAverages, summarizeTrend } from '../weight/weight.math';
 import { summarizeMovementWeek, summarizeWeek } from '../workouts/workout.math';
 import { buildWeeklyReport, type DayInput, pendingWeekStart, weekEndOf, weekStartOf } from './weekly.math';
 
@@ -145,6 +145,72 @@ export class ReportsService {
       proteinFloorDays: proteinFloorDays(days.filter((d) => d.totals).map((d) => ({ protein: d.totals!.protein })), floor),
       wellbeing: rows.length > 0 ? summarizeWellbeing(rows) : null,
       lowIntake: isLowIntake(await recentLoggedKcal(this.prisma, userId, upTo), profile.sex),
+    };
+  }
+
+  /**
+   * Relatório para o nutricionista (período de até 93 dias): metas atuais, dia a dia, médias dos dias REGISTRADOS, peso
+   * (tendência no início e no fim, a menos que a pessoa oculte o peso nos relatórios), água e treino. Sem suplementos,
+   * bem-estar nem jejum. Só lê dados da própria pessoa.
+   */
+  async nutritionist(userId: string, from: string, to: string) {
+    const span = dayNumber(to) - dayNumber(from);
+    if (Number.isNaN(span) || span < 0) throw new BadRequestException('Intervalo inválido');
+    if (span > 92) throw new BadRequestException('Intervalo máximo de 93 dias');
+    if (to > latestAllowedDay()) throw new BadRequestException('Data inválida');
+
+    const [profile, user] = await Promise.all([this.profile(userId), this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } })]);
+    const range = { gte: parseDay(from), lte: parseDay(to) };
+    const [meals, weights, waterEntries, workouts] = await Promise.all([
+      this.prisma.meal.findMany({ where: { userId, date: range }, select: { date: true, items: { select: { kcal: true, protein: true, carbs: true, fat: true } } } }),
+      profile.hideWeightInReports
+        ? Promise.resolve([])
+        : this.prisma.weightEntry.findMany({ where: { userId, date: { gte: parseDay(addDays(from, -6)), lte: parseDay(to) } }, select: { date: true, weightKg: true }, orderBy: { date: 'asc' } }),
+      profile.waterEnabled ? this.prisma.waterEntry.groupBy({ by: ['date'], where: { userId, date: range }, _sum: { amountMl: true } }) : Promise.resolve([]),
+      this.prisma.workout.findMany({ where: { userId, date: range }, select: { type: true, durationMin: true } }),
+    ]);
+
+    const totals = new Map<string, { kcal: number; protein: number; carbs: number; fat: number }>();
+    for (const m of meals) {
+      if (m.items.length === 0) continue;
+      const key = formatDay(m.date);
+      const t = totals.get(key) ?? { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+      for (const i of m.items) {
+        t.kcal += i.kcal;
+        t.protein += i.protein;
+        t.carbs += i.carbs;
+        t.fat += i.fat;
+      }
+      totals.set(key, t);
+    }
+    const round1 = (n: number) => Math.round(n * 10) / 10;
+    const days = Array.from({ length: span + 1 }, (_, i) => {
+      const date = addDays(from, i);
+      const t = totals.get(date);
+      return { date, registered: !!t, kcal: t ? Math.round(t.kcal) : 0, protein: t ? round1(t.protein) : 0, carbs: t ? round1(t.carbs) : 0, fat: t ? round1(t.fat) : 0 };
+    });
+    const logged = days.filter((d) => d.registered);
+    const avg = (k: 'kcal' | 'protein' | 'carbs' | 'fat') => (logged.length ? round1(logged.reduce((s, d) => s + d[k], 0) / logged.length) : null);
+
+    const trend = movingAverages(weights.map((w) => ({ date: formatDay(w.date), weightKg: w.weightKg }))).filter((p) => p.date >= from);
+    const weight = trend.length ? { start: { date: trend[0].date, trendKg: round1(trend[0].trendKg) }, end: { date: trend.at(-1)!.date, trendKg: round1(trend.at(-1)!.trendKg) }, entries: trend.length } : null;
+
+    const water = waterEntries.length ? { loggedDays: waterEntries.length, avgMl: Math.round(waterEntries.reduce((s, e) => s + (e._sum.amountMl ?? 0), 0) / waterEntries.length) } : null;
+    const workoutSummary = workouts.length ? { count: workouts.length, totalMinutes: workouts.reduce((s, w) => s + w.durationMin, 0) } : null;
+
+    return {
+      name: user?.name ?? '',
+      from,
+      to,
+      hideCalories: profile.hideCalories,
+      targets: { kcal: profile.kcalTarget, protein: profile.proteinTarget, carbs: profile.carbsTarget, fat: profile.fatTarget },
+      days,
+      loggedDays: logged.length,
+      totalDays: days.length,
+      averages: { kcal: avg('kcal'), protein: avg('protein'), carbs: avg('carbs'), fat: avg('fat') },
+      weight,
+      water,
+      workouts: workoutSummary,
     };
   }
 

@@ -5460,3 +5460,147 @@ button.text-link {
   white-space: normal;
   overflow: visible;
 }
+
+/* --------------------------------------------------------------------------
+   Relatório para o nutricionista (/relatorio): folha de papel na tela e, ao imprimir, A4 em preto e branco
+   -------------------------------------------------------------------------- */
+
+.report-screen {
+  max-width: 820px;
+  margin-inline: auto;
+}
+
+.report-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.report-page {
+  background: #fff;
+  color: #000;
+  border-radius: var(--radius-md);
+  padding: 24px;
+  display: grid;
+  gap: 20px;
+  box-shadow: var(--glass-shadow);
+}
+
+.report-page h1,
+.report-page h2 {
+  margin: 0;
+  color: #000;
+}
+
+.report-title {
+  font-size: 1.5rem;
+}
+
+.report-page h2 {
+  font-size: 1.125rem;
+  margin-bottom: 8px;
+}
+
+.report-page p {
+  margin: 2px 0;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.report-table th,
+.report-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid #c8ccd4;
+  text-align: right;
+}
+
+.report-table th:first-child,
+.report-table thead th {
+  text-align: left;
+}
+
+.report-table thead th {
+  border-bottom: 2px solid #000;
+}
+
+.report-table .report-empty {
+  text-align: left;
+  color: #444;
+  font-style: italic;
+}
+
+.report-foot {
+  font-size: 0.8125rem;
+  color: #333;
+  border-top: 1px solid #c8ccd4;
+  padding-top: 10px;
+}
+
+@page {
+  size: A4;
+  margin: 15mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .backdrop,
+  .tabbar,
+  .sidebar,
+  .top-bar,
+  .skip-link,
+  .toast-region,
+  .no-print,
+  button {
+    display: none !important;
+  }
+
+  .app-content {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .report-screen {
+    max-width: none;
+    padding: 0;
+  }
+
+  .report-page {
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    gap: 14px;
+    font-size: 11pt;
+  }
+
+  * {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    animation: none !important;
+  }
+
+  .report-table thead {
+    display: table-header-group; /* repete o cabeçalho a cada página */
+  }
+
+  .report-table tr {
+    break-inside: avoid;
+  }
+
+  .report-page section {
+    break-inside: auto;
+  }
+
+  .report-page h2 {
+    break-after: avoid;
+  }
+}

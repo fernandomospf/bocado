@@ -17,6 +17,7 @@ import { Avatar } from './Avatar';
 import { BodyForm } from './BodyForm';
 import { DeleteAccountSheet } from './DeleteAccountSheet';
 import { ExportCard } from './ExportCard';
+import { NutritionistReportSheet } from './NutritionistReport';
 import { FavoritesSection } from './FavoritesSection';
 import { HouseholdSection } from './HouseholdSection';
 import { ChevronRight } from './Icons';
@@ -47,6 +48,7 @@ export function ProfileView() {
   const [draft, setDraft] = useState<TargetsDraft | null>(null);
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const toast = useToast();
@@ -310,6 +312,10 @@ export function ProfileView() {
             <h2 className="section-title">Seus registros</h2>
             <FavoritesSection />
             <ExportCard />
+            <button type="button" className="btn btn-glass btn-block" onClick={() => setReportOpen(true)}>
+              Relatório para o nutricionista
+            </button>
+            {reportOpen && <NutritionistReportSheet onClose={() => setReportOpen(false)} />}
           </div>
         )}
 
